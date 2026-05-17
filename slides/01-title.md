@@ -23,9 +23,9 @@
 graph TB
     subgraph "Tại quán - Local"
         A[Smart Panel<br/>Luckfox RV1106G3] --> B[NanoMQ<br/>MQTT Broker]
-        B --> C[Node-RED<br/>Automation Engine]
-        C --> D[LVGL HMI<br/>Màn hình cảm ứng]
-        E[Gateway Tasmota<br/>Zigbee Hub] --> B
+        B --> C[Node-RED<br/>Automation Engine & Local Dashboard]
+        C --> D[LVGL HMI<br/>Màn hình cảm ứng 4 inch]
+        E[Gateway Tasmsoota<br/>Zigbee Hub] --> B
         E --> F[Cảm biến ánh sáng]
         E --> G[Công tắc Zigbee]
         E --> H[Contactor Zigbee]
@@ -34,7 +34,6 @@ graph TB
     
     subgraph "Cloud/Backend"
         J[Backend API] --> K[Dashboard Tập trung]
-        J --> L[Solar Monitoring]
         J --> M[OTA Update Server]
     end
     
