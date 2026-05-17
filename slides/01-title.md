@@ -10,8 +10,6 @@
 
 - **Tên dự án:** Hệ thống Quản trị Năng lượng Smart Cafe
 - **Đối tượng:** Chuỗi cafe & F&B
-- **Mục tiêu:** Tiết kiệm **30%** điện năng tiêu thụ
-- **Thờigian hoàn vốn:** **~10 tháng**
 - **Phạm vi ứng dụng:**
   - Hệ thống điều hòa
   - Hệ thống đèn biển quảng cáo
@@ -46,22 +44,6 @@ graph TB
     style E fill:#2196F3,color:#fff
     style J fill:#FF9800,color:#fff
 ```
-
----
-
-## 3 Nhóm đối tượng chính
-
-| Nhóm | Quan tâm chính | Slide tương ứng |
-|------|---------------|-----------------|
-| **Ban Giám đốc** (Sếp & Tài chính) | Tiền, Rủi ro, Khả năng nhân rộng | #2 ROI, #3 Fail-safe, #4 Scalability |
-| **Team Kỹ thuật** | Tính khả thi, Độ bền, Tích hợp | #5 Zigbee, #6 Watchdog, #7 Integration |
-| **Bước tiếp theo** | Giai đoạn 0: Khảo sát & Lab Test | #8 Phase 0 |
-
----
-
-## Thông điệp cốt lõi
-
-> *"Hệ thống sẽ tự nuôi chính nó sau chưa đầy 1 năm. Những năm sau đó là lợi nhuận thuần túy cho chuỗi."*
 
 ---
 
