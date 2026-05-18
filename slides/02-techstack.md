@@ -22,7 +22,7 @@ graph TB
         C -->|Zigbee 3.0| G[Cảm biến ánh sáng<br/>Pin solar]
         C -->|Zigbee 3.0| H[Công tắc Zigbee<br/>Router Node]
         C -->|Zigbee 3.0| I[Contactor Zigbee<br/>Router Node]
-        C -->|Zigbee 3.0| J[IR Controller<br/>End Device]
+        C -->|Zigbee 3.0| J[IR Controller<br/>Điều hòa<br/>Router]
         H -->|Mesh relay| G
     end
     
@@ -125,17 +125,20 @@ graph LR
 
 ```mermaid
 graph TB
-    subgraph "Mạng Zigbee trong quán"
+    subgraph "Mạng Zigbee trong quán - Mesh Topology"
         A[Gateway<br/>Coordinator<br/>Tasmota] --- B[Công tắc Đèn chính<br/>Router]
-        A --- C[Contactor Điều hòa<br/>Router]
-        A --- D[Công tắc Đèn biển<br/>Router]
+        A --- C[IR Controller<br/>Điều hòa<br/>Router]
+        A --- D[Contactor<br/>Đèn biển quảng cáo<br/>Router]
+        B --- C
+        C --- D
         
         B --- E[Cảm biến ánh sáng<br/>khu A<br/>End Device]
         B --- F[Cảm biến ánh sáng<br/>khu B<br/>End Device]
         C --- G[Cảm biến nhiệt<br/>End Device]
-        D --- H[IR Controller<br/>End Device]
         
-        B -.->|Relay path| I[Cảm biến xa<br/>End Device]
+        B -.->|Relay| E
+        C -.->|Relay| F
+        D -.->|Relay| G
     end
     
     style A fill:#f44336,color:#fff
@@ -149,8 +152,8 @@ graph TB
 | Loại | Vai trò | Nguồn điện | Thiết bị trong dự án |
 |------|---------|-----------|---------------------|
 | **Coordinator** | Điều phối toàn mạng | 220V adapter | Gateway Tasmota |
-| **Router** | Chuyển tiếp (relay) message | 220V hard-wired | Công tắc, Contactor |
-| **End Device** | Gửi/nhận, không relay | Pin (solar/battery) | Cảm biến, IR Controller |
+| **Router** | Chuyển tiếp (relay) message | 220V hard-wired | Công tắc, Contactor, IR Controller điều hòa |
+| **End Device** | Gửi/nhận, không relay | Pin (solar/battery) | Cảm biến ánh sáng, cảm biến nhiệt |
 
 ---
 

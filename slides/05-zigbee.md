@@ -56,12 +56,14 @@ graph TB
 
 ```mermaid
 graph TB
-    A[Gateway<br/>Tasmota] --> B[Router Node 1<br/>Công tắc Zigbee]
-    A --> C[Router Node 2<br/>Contactor]
+    A[Gateway<br/>Tasmota] --- B[Router Node 1<br/>Công tắc Zigbee]
+    A --- C[Router Node 2<br/>Contactor]
+    B --- C
+    B --- G[Router Node 3<br/>Công tắc]
+    C --- G
     B --> D[End Device<br/>Cảm biến ánh sáng]
     B --> E[End Device<br/>Cảm biến nhiệt]
-    C --> F[End Device<br/>IR Controller]
-    B --> G[Router Node 3<br/>Công tắc]
+    C --> F[Router Node 4<br/>IR Controller<br/>điều hòa]
     G --> H[End Device<br/>Cảm biến]
     
     style A fill:#4CAF50,color:#fff
@@ -84,14 +86,15 @@ graph TB
 ```mermaid
 graph TB
     subgraph "Quán Cafe"
-        A[Gateway Tasmota<br/>Ewelink Zigbee Pro] --> B[Công tắc đèn chính<br/>Router]
-        A --> C[Contactor điều hòa<br/>Router]
-        A --> D[Công tắc đèn biển<br/>Router]
+        A[Gateway Tasmota<br/>Ewelink Zigbee Pro] --- B[Công tắc đèn chính<br/>Router]
+        A --- C[IR Controller<br/>điều hòa<br/>Router]
+        A --- D[Contactor<br/>đèn biển quảng cáo<br/>Router]
+        B --- C
+        C --- D
         
         B --> E[Cảm biến ánh sáng<br/>khu vực A<br/>End Device]
         B --> F[Cảm biến ánh sáng<br/>khu vực B<br/>End Device]
         C --> G[Cảm biến nhiệt<br/>End Device]
-        D --> H[IR Controller<br/>Điều hòa<br/>End Device]
     end
     
     A -. Zigbee 3.0 .-> I[Smart Panel<br/>MQTT]
@@ -111,8 +114,8 @@ graph TB
 | **Gateway** | Hub Ewelink Zigbee Pro (flash Tasmota) | Trung tâm điều phối Zigbee ↔ MQTT |
 | **Cảm biến** | Cảm biến ánh sáng (pin solar) | Đo ánh sáng tự nhiên, tự động điều chỉnh đèn |
 | **Công tắc** | Công tắc Zigbee | Bật/tắt đèn, có chức năng router |
-| **Contactor** | Contactor Zigbee | Điều khiển điều hòa công suất lớn |
-| **IR** | Bộ điều khiển hồng ngoại Zigbee | Điều khiển điều hòa cũ không có cổng thông minh |
+| **Contactor** | Contactor Zigbee | Điều khiển đèn biển quảng cáo công suất lớn |
+| **IR** | Bộ điều khiển hồng ngoại Zigbee | Điều khiển điều hòa (dùng điện, hoạt động như Router) |
 
 ---
 
