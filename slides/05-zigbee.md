@@ -95,7 +95,7 @@ graph TB
         C --> G[Cảm biến nhiệt<br/>End Device]
     end
     
-    A -. Zigbee 3.0 .-> I[Smart Panel<br/>MQTT]
+    A -- Zigbee 3.0 --> I[Smart Panel<br/>MQTT]
     
     style A fill:#4CAF50,color:#fff
     style B fill:#2196F3,color:#fff
