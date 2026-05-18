@@ -14,7 +14,7 @@ graph TB
         A[Smart Panel<br/>Luckfox Core1106<br/>RV1106G3, 1TOPS] -->|MQTT| B[NanoMQ<br/>MQTT Broker Local]
         C[Gateway Tasmota<br/>Zigbee Coordinator] -->|MQTT| B
         B -->|MQTT| D[Node-RED<br/>Automation Engine]
-        D -->|C++ API| E[LVGL HMI<br/>Màn hình 4 inch<br/>720x720]
+        B -->|MQTT| E[LVGL HMI<br/>Màn hình 4 inch<br/>720x720]
         D -->|HTTP| F[Node-RED Dashboard<br/>Web UI Local]
     end
     
@@ -68,7 +68,7 @@ graph TB
         C --> G[OTA Agent<br/>Auto Update]
         
         D <--> E
-        E <--> F
+        D <--> F
         E -.->|HTTP API| H[OTA Server<br/>Remote]
     end
     
@@ -169,9 +169,9 @@ sequenceDiagram
     
     Sensor->>GW: Zigbee report (illuminance: 850 lux)
     GW->>MQTT: Publish: zigbee2mqtt/sensor_light
+    MQTT->>LVGL: Forward message (update widget)
     MQTT->>NR: Forward message
     NR->>NR: Function: Check threshold
-    NR->>LVGL: Update widget (lux gauge)
     NR->>DB: Store time-series data
 ```
 
@@ -179,21 +179,20 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    participant UI as LVGL / Dashboard
-    participant NR as Node-RED
+    participant LVGL as LVGL HMI
+    participant NR as Node-RED Dashboard
     participant MQTT as NanoMQ
     participant GW as Gateway Tasmota
     participant Device as Công tắc Zigbee
     
-    UI->>NR: User toggle ON
-    NR->>NR: Check rule (cho phép?)
+    LVGL->>MQTT: Publish: zigbee2mqtt/switch_main/set
     NR->>MQTT: Publish: zigbee2mqtt/switch_main/set
     MQTT->>GW: Forward
     GW->>Device: Zigbee command: ON
     Device->>GW: ACK + status: ON
     GW->>MQTT: Publish: zigbee2mqtt/switch_main
+    MQTT->>LVGL: Forward status
     MQTT->>NR: Forward status
-    NR->>UI: Update toggle state
 ```
 
 ### 4.3. Automation flow (ví dụ: Tự động tắt đèn)
