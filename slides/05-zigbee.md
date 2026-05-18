@@ -1,4 +1,4 @@
-# Slide 5: Team Kỹ thuật — Zigbee vs Wi-Fi
+# Slide 5: Zigbee vs Wi-Fi
 
 # Khẳng định tính đúng đắn của giải pháp Công nghệ
 
@@ -27,11 +27,9 @@ graph TB
 
 ### Hạn chế cụ thể
 
-- **Giới hạn kết nối:** Router Wi-Fi bán hàng chỉ chịu được 20-30 thiết bị
-- **Nghẽn băng thông:** Mỗi thiết bị chiếm 1 IP, làm chậm mạng cho khách hàng
 - **Bảo mật kém:** Thiết bị Wi-Fi dễ bị tấn công, dễ bị ngắt kết nối
 - **Phụ thuộc router:** Nếu router lỗi = toàn bộ hệ thống tự động sập
-- **Tiêu thụ điện cao:** Cần nguồn 220V liên tục
+- **Tiêu thụ điện cao:** Cần nguồn liên tục
 
 ---
 
@@ -118,13 +116,6 @@ graph TB
 | **IR** | Bộ điều khiển hồng ngoại Zigbee | Điều khiển điều hòa (dùng điện, hoạt động như Router) |
 
 ---
-
-## Thông điệp thuyết phục
-
-> *"Zigbee tự tạo mạng mesh nội bộ, không chiếm IP của router Wi-Fi bán hàng, cực kỳ bảo mật và ổn định. Đây là công nghệ chuẩn công nghiệp, không phải đồ chơi gia đình."*
-
----
-
 ## Cam kết kỹ thuật
 
 - ✅ Hỗ trợ **50-100 thiết bị** trên 1 gateway

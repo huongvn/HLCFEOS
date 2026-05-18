@@ -1,4 +1,4 @@
-# Slide 7: Team Kỹ thuật — Integration
+# Slide 7: Integration
 
 # Tích hợp sâu vào hệ thống chung
 
@@ -119,24 +119,6 @@ graph LR
 - **Tính toán net-metering:** Tiêu thụ - Sản xuất = Chi phí thực tế
 - Tối ưu hóa: Khi nào nên dùng điện solar, khi nào nên tiết kiệm
 
-### 3. API mở rộng
-
-```mermaid
-graph TB
-    A[Backend API] --> B[ERP<br/>Quản lý tài sản]
-    A --> C[CRM<br/>Chăm sóc khách hàng]
-    A --> D[Báo cáo tài chính<br/>Tự động]
-    A --> E[Mobile App<br/>Cho quản lý]
-    A --> F[AI/ML<br/>Dự đoán, tối ưu]
-    
-    style A fill:#4CAF50,color:#fff
-```
-
-- Cung cấp RESTful API cho các hệ thống khác
-- Đồng bộ dữ liệu tự động, không cần nhập liệu thủ công
-- Mở rộng: AI/ML phân tích pattern tiêu thụ, dự đoán hỏng hóc
-
----
 
 ## Giá trị trước & sau tích hợp
 
@@ -168,11 +150,6 @@ graph TB
 
 ---
 
-## Thông điệp thuyết phục
-
-> *"Giải pháp này không đứng độc lập. Nó là một mảnh ghép hoàn hảo trong bức tranh lớn của công ty — kết nối từ màn hình cảm ứng tại quán, qua MQTT/API về hệ thống quản lý chung, và đối chiếu với sản lượng điện mặt trời."*
-
----
 
 ## Lợi ích tích hợp
 

@@ -263,11 +263,6 @@ graph TB
 
 ---
 
-## Thông điệp
-
-> *"Kiến trúc Local-First với Smart Panel RV1106 làm trung tâm, kết hợp Zigbee mesh network và Node-RED automation, tạo thành một hệ thống độc lập, ổn định và dễ mở rộng."*
-
----
 
 ## Lợi thế của kiến trúc này
 

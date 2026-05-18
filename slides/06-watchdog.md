@@ -1,4 +1,4 @@
-# Slide 6: Team Kỹ thuật — Watchdog & Maintenance
+# Slide 6: Watchdog & Maintenance
 
 # Khả năng giám sát "Sức khỏe" hệ thống
 
@@ -153,13 +153,6 @@ graph TB
 - **Báo cáo định kỳ:** Tự động gửi báo cáo tuần/tháng
 
 ---
-
-## Thông điệp thuyết phục
-
-> *"Nếu một cảm biến hết pin hoặc một công tắc bị mất nguồn, hệ thống sẽ tự động phát hiện và báo chính xác vị trí thiết bị lỗi cho team IT. Không còn phải đoán mò."*
-
----
-
 ## Lợi ích cho Team Kỹ thuật
 
 - ✅ **Giảm 80% thờigian xử lý sự cố** nhờ biết chính xác vị trí lỗi

@@ -52,7 +52,7 @@ graph TB
 
 ```mermaid
 graph LR
-    A[Nhân viên] --> B[Thermostat]
+    A[Nhân viên] --> B[Công tắc]
     A --> C[Remote điều hòa]
     A --> D[App Tasmota<br/>nội bộ]
     
@@ -70,15 +70,13 @@ graph LR
     style H fill:#2196F3,color:#fff
 ```
 
-### Các lớp dự phòng
+### Các lớp dự phòng ( ví dụ với hệ thống điều hòa)
 
 | Lớp | Cách thức | Tình huống |
 |-----|-----------|------------|
 | **Lớp 1: Tự động** | Smart Panel chạy automation | Hoạt động bình thường |
 | **Lớp 2: Màn hình** | Nhấn trên màn hình cảm ứng LVGL | Khi cần điều chỉnh nhanh |
-| **Lớp 3: Thermostat** | Bật/tắt trực tiếp trên tường | Khi Smart Panel lỗi |
-| **Lớp 4: Remote/IR** | Điều khiển hồng ngoại trực tiếp | Khi toàn bộ Zigbee lỗi |
-| **Lớp 5: Bypass** | Ngắt contactor, chạy thủ công | Tình huống khẩn cấp |
+| **Lớp 3: Thermostat** | Bật/tắt trực tiếp thermostat trên tường | Khi Smart Panel lỗi |
 
 ---
 
@@ -107,12 +105,6 @@ graph TD
 | **Gateway Zigbee lỗi** | Không tự động hóa | Thermostat bypass hoạt động |
 | **Cảm biến hỏng** | Không tối ưu ánh sáng | Chuyển sang timer hoặc manual |
 | **Mất điện** | Tất cả tắt | Bình thường như trước khi có hệ thống |
-
----
-
-## Thông điệp thuyết phục
-
-> *"Dù mất internet hay Gateway có sự cố, nhân viên vẫn bật/tắt điều hòa bằng tay bình thường. Trải nghiệm của khách hàng là ưu tiên số một."*
 
 ---
 
