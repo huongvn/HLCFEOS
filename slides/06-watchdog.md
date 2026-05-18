@@ -153,7 +153,7 @@ graph TB
 - **Báo cáo định kỳ:** Tự động gửi báo cáo tuần/tháng
 
 ---
-## Lợi ích cho Team Kỹ thuật
+## Lợi ích
 
 - ✅ **Giảm 80% thờigian xử lý sự cố** nhờ biết chính xác vị trí lỗi
 - ✅ **Proactive maintenance** thay vì reactive (sửa khi hỏng)

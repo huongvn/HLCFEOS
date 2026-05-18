@@ -118,9 +118,9 @@ graph TB
 ---
 ## Cam kết kỹ thuật
 
-- ✅ Hỗ trợ **50-100 thiết bị** trên 1 gateway
+- ✅ Hỗ trợ **~50 thiết bị** trên 1 gateway
 - ✅ **Không ảnh hưởng** Wi-Fi khách hàng
 - ✅ **Tự phục hồi** khi 1 node lỗi
 - ✅ **Bảo mật AES-128** theo chuẩn Zigbee 3.0
-- ✅ Cảm biến **pin solar** = không cần đi dây điện
+- ✅ Nhiều cảm biến **pin, solar** = không cần đi dây điện
 

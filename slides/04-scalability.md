@@ -60,22 +60,3 @@ graph TB
 | **Dashboard tập trung** | Theo dõi tất cả quán trên 1 hệ thống | So sánh, xếp hạng, tối ưu |
 
 ---
-
-## Lợi ích khi nhân rộng
-
-```mermaid
-graph LR
-    A[Chuẩn hóa] --> B[Mua sắm số lượng lớn]
-    B --> C[Giá thiết bị giảm]
-    C --> D[ROI nhanh hơn]
-    A --> E[Quy trình đồng nhất]
-    E --> F[Chi phí vận hành thấp]
-    F --> D
-    A --> G[Dashboard tập trung]
-    G --> H[So sánh hiệu suất]
-    H --> I[Tối ưu toàn chuỗi]
-    
-    style D fill:#4CAF50,color:#fff
-    style I fill:#4CAF50,color:#fff
-```
-
