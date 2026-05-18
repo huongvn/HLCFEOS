@@ -1,4 +1,4 @@
-# Slide 3: Ban Giám đốc — Fail-safe
+# Slide 3: Fail-safe
 
 # Triệt tiêu nỗi sợ "Rủi ro vận hành"
 
@@ -6,7 +6,7 @@
 
 ---
 
-## Nỗi sợ của Ban Giám đốc
+## Nỗi sợ
 
 > *"Nếu hệ thống lỗi, quán có phải đóng cửa không? Khách có bị nóng không? Đèn có tắt hết không?"*
 
@@ -52,7 +52,7 @@ graph TB
 
 ```mermaid
 graph LR
-    A[Nhân viên] --> B[Công tắc tay]
+    A[Nhân viên] --> B[Thermostat]
     A --> C[Remote điều hòa]
     A --> D[App Tasmota<br/>nội bộ]
     
@@ -76,7 +76,7 @@ graph LR
 |-----|-----------|------------|
 | **Lớp 1: Tự động** | Smart Panel chạy automation | Hoạt động bình thường |
 | **Lớp 2: Màn hình** | Nhấn trên màn hình cảm ứng LVGL | Khi cần điều chỉnh nhanh |
-| **Lớp 3: Công tắc tay** | Bật/tắt trực tiếp trên tường | Khi Smart Panel lỗi |
+| **Lớp 3: Thermostat** | Bật/tắt trực tiếp trên tường | Khi Smart Panel lỗi |
 | **Lớp 4: Remote/IR** | Điều khiển hồng ngoại trực tiếp | Khi toàn bộ Zigbee lỗi |
 | **Lớp 5: Bypass** | Ngắt contactor, chạy thủ công | Tình huống khẩn cấp |
 
@@ -89,9 +89,9 @@ graph TD
     A[Tình huống] --> B{Mất Internet?}
     B -->|Có| C[Hệ thống local<br/>vẫn chạy 100%]
     B -->|Không| D{Smart Panel hỏng?}
-    D -->|Có| E[Dùng công tắc tay<br/>+ Remote IR]
+    D -->|Có| E[Dùng Thermostat<br/>+ Remote IR]
     D -->|Không| F{Gateway Zigbee lỗi?}
-    F -->|Có| G[Công tắc tay hoạt động<br/>độc lập]
+    F -->|Có| G[Thermostat hoạt động<br/>độc lập]
     F -->|Không| H[Hoạt động<br/>bình thường]
     
     style C fill:#4CAF50,color:#fff
@@ -103,8 +103,8 @@ graph TD
 | Tình huống | Ảnh hưởng | Giải pháp |
 |-----------|-----------|-----------|
 | **Mất internet** | Không có remote từ cloud | Local automation vẫn chạy |
-| **Smart Panel lỗi** | Không có automation | Công tắc tay + Remote vẫn dùng được |
-| **Gateway Zigbee lỗi** | Không tự động hóa | Công tắc tay bypass hoạt động |
+| **Smart Panel lỗi** | Không có automation | Thermostat + Remote vẫn dùng được |
+| **Gateway Zigbee lỗi** | Không tự động hóa | Thermostat bypass hoạt động |
 | **Cảm biến hỏng** | Không tối ưu ánh sáng | Chuyển sang timer hoặc manual |
 | **Mất điện** | Tất cả tắt | Bình thường như trước khi có hệ thống |
 
