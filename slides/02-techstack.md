@@ -125,20 +125,16 @@ graph LR
 
 ```mermaid
 graph TB
-    subgraph "Mạng Zigbee trong quán - Mesh Topology"
-        A[Gateway<br/>Coordinator<br/>Tasmota] --- B[Công tắc Đèn chính<br/>Router]
-        A --- C[IR Controller<br/>Điều hòa<br/>Router]
-        A --- D[Contactor<br/>Đèn biển quảng cáo<br/>Router]
-        B --- C
-        C --- D
+    subgraph "Star Topology - Mạng Zigbee"
+        A[Gateway<br/>Coordinator<br/>Tasmota]
         
-        B --- E[Cảm biến ánh sáng<br/>khu A<br/>End Device]
-        B --- F[Cảm biến ánh sáng<br/>khu B<br/>End Device]
-        C --- G[Cảm biến nhiệt<br/>End Device]
+        B[Công tắc Đèn chính<br/>Router] --- A
+        C[IR Controller<br/>Điều hòa<br/>Router] --- A
+        D[Contactor<br/>Đèn biển quảng cáo<br/>Router] --- A
         
-        B -.->|Relay| E
-        C -.->|Relay| F
-        D -.->|Relay| G
+        E[Cảm biến ánh sáng<br/>khu A<br/>End Device] --- A
+        F[Cảm biến ánh sáng<br/>khu B<br/>End Device] --- A
+        G[Cảm biến nhiệt<br/>End Device] --- A
     end
     
     style A fill:#f44336,color:#fff
