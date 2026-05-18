@@ -11,11 +11,13 @@
 ```mermaid
 graph TB
     subgraph "Edge - Tại quán"
-        A[Smart Panel<br/>Luckfox Core1106<br/>RV1106G3, 1TOPS] -->|MQTT| B[NanoMQ<br/>MQTT Broker Local]
+        subgraph "Smart Panel<br/>Luckfox Core1106<br/>RV1106G3, 256MB"
+            B[NanoMQ<br/>MQTT Broker<br/>Port 1883]
+            D[Node-RED<br/>Automation + Dashboard<br/>Port 1880]
+            E[LVGL HMI<br/>Màn hình 4 inch<br/>720x720]
+        end
+        
         C[Gateway Tasmota<br/>Zigbee Coordinator] -->|MQTT| B
-        B -->|MQTT| D[Node-RED<br/>Automation Engine]
-        B -->|MQTT| E[LVGL HMI<br/>Màn hình 4 inch<br/>720x720]
-        D -->|HTTP| F[Node-RED Dashboard<br/>Web UI Local]
     end
     
     subgraph "Zigbee Mesh Network"
@@ -32,10 +34,10 @@ graph TB
         K --> M[OTA Update Server]
     end
     
-    style A fill:#4CAF50,color:#fff
-    style C fill:#2196F3,color:#fff
     style B fill:#FF9800,color:#fff
+    style C fill:#2196F3,color:#fff
     style D fill:#9C27B0,color:#fff
+    style E fill:#4CAF50,color:#fff
 ```
 
 ---
