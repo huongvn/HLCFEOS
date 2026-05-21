@@ -2,15 +2,13 @@
 
 # Triệt tiêu nỗi sợ "Rủi ro vận hành"
 
-## Trả lời: "Nếu hệ thống lỗi, quán có phải đóng cửa không?"
-
 ---
 
 ## Nỗi sợ
 
 > *"Nếu hệ thống lỗi, quán có phải đóng cửa không? Khách có bị nóng không? Đèn có tắt hết không?"*
 
-**Câu trả lời: KHÔNG. Hệ thống được thiết kế để không bao giờ làm gián đoạn vận hành.**
+**Hệ thống được thiết kế để không bao giờ làm gián đoạn vận hành.**
 
 ---
 
@@ -19,22 +17,22 @@
 ```mermaid
 graph TB
     subgraph "Internet/Cloud"
-        A[Cloud Backend] -. Gửi lệnh .-> B
-        A -. Nhận báo cáo .-> B
+        A[Cloud Backend]
     end
     
     subgraph "Tại quán - Hoạt động độc lập"
-        B[Smart Panel<br/>Node-RED + NanoMQ] --> C[Gateway Zigbee]
-        B --> D[LVGL HMI<br/>Màn hình cảm ứng]
-        C --> E[Thiết bị điều khiển]
+        C[Gateway Zigbee]
+        C--> D[Smart Panel<br/>Node-RED + NanoMQ + LVGL HMI<br/>Màn hình cảm ứng]
         
         F[Cảm biến ánh sáng] --> C
         G[Công tắc Zigbee] --> C
         H[Contactor] --> C
         I[IR Controller] --> C
     end
-    
-    style B fill:#4CAF50,color:#fff
+
+    A -. Gửi lệnh .-> D
+    A -. Nhận báo cáo .-> D
+
     style A fill:#9E9E9E,color:#fff
 ```
 
@@ -52,9 +50,9 @@ graph TB
 
 ```mermaid
 graph LR
-    A[Nhân viên] --> B[Công tắc]
-    A --> C[Remote điều hòa]
-    A --> D[App Tasmota<br/>nội bộ]
+    A[Nhân viên] --> B[Công tắc Zigbee]
+    A --> C[Thermostat điều hòa]
+    A --> D[Node-red Dashboard<br/>nội bộ]
     
     B --> E[Đèn/Thiết bị]
     C --> F[Điều hòa]
@@ -62,8 +60,9 @@ graph LR
     G --> E
     G --> F
     
-    H[Automation<br/>Smart Panel] --> G
-    
+    H[Automation<br/>Smart Touch Panel] --> G
+    A --> H
+
     style B fill:#4CAF50,color:#fff
     style C fill:#4CAF50,color:#fff
     style D fill:#4CAF50,color:#fff
@@ -108,7 +107,7 @@ graph TD
 
 ---
 
-## Cam kết
+## Tổng kết
 
 - ✅ **Không bao giờ** đóng cửa vì lỗi hệ thống
 - ✅ **Không bao giờ** khách bị nóng/lạnh bất thường

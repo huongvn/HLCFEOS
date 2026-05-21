@@ -2,15 +2,13 @@
 
 # Khả năng giám sát "Sức khỏe" hệ thống
 
-## Không để kỹ thuật phải "đoán mò"
-
 ---
 
 ## Nỗi sợ của Team Kỹ thuật
 
 > *"Giải pháp vẽ ra thì hay, nhưng thực tế chạy chập chờn, suốt ngày phải đi sửa."*
 
-**Cam kết: Hệ thống tự chẩn đoán, báo lỗi chính xác, giảm 80% thờigian xử lý sự cố.**
+**Hệ thống tự chẩn đoán, báo lỗi chính xác, giảm 80% thờigian xử lý sự cố.**
 
 ---
 
@@ -74,16 +72,41 @@ sequenceDiagram
 
 ```mermaid
 graph LR
-    A[Smart Panel<br/>Luckfox RV1106] -->|{"status":"online",<br/>"cpu":45%,<br/>"temp":55°C,<br/>"uptime":"15d"}| B[NanoMQ]
-    B --> C[Backend]
-    C --> D{Kiểm tra}
-    D -->|Bình thường| E[Xanh]
-    D -->|CPU cao| F[Vàng - Cảnh báo]
-    D -->|Mất heartbeat| G[Đỏ - Offline]
-    
-    style E fill:#4CAF50,color:#fff
-    style F fill:#FF9800,color:#fff
-    style G fill:#f44336,color:#fff
+    A["🖥️ Smart Panel
+    Luckfox RV1106"]
+
+    A -->|"{ status: online
+    cpu: 45%
+    temp: 55°C
+    uptime: 15d }"| B
+
+    B["📡 NanoMQ
+    MQTT Broker"]
+
+    B -->|"Every 30–60s"| C
+
+    C["⚙️ Backend
+    Xử lý heartbeat"]
+
+    C --> D{{"🔍 Kiểm tra
+    trạng thái"}}
+
+    D -->|"✅ Bình thường"| E["🟢 Online
+    Hoạt động tốt"]
+
+    D -->|"⚠️ CPU cao / Nhiệt độ cao"| F["🟡 Warning
+    Cảnh báo"]
+
+    D -->|"❌ Mất heartbeat"| G["🔴 Offline
+    Mất kết nối"]
+
+    style A fill:#1565C0,color:#fff,stroke:#0D47A1
+    style B fill:#6A1B9A,color:#fff,stroke:#4A148C
+    style C fill:#37474F,color:#fff,stroke:#263238
+    style D fill:#E65100,color:#fff,stroke:#BF360C
+    style E fill:#2E7D32,color:#fff,stroke:#1B5E20
+    style F fill:#E65100,color:#fff,stroke:#BF360C
+    style G fill:#C62828,color:#fff,stroke:#B71C1C
 ```
 
 - Smart Panel gửi heartbeat đầy đủ thông tin hệ thống

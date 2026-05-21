@@ -1,7 +1,5 @@
 # Slide 5: Zigbee vs Wi-Fi
 
-# Khẳng định tính đúng đắn của giải pháp Công nghệ
-
 ## Tại sao chọn Zigbee và Tasmota thay vì Wi-Fi dân dụng?
 
 ---
@@ -11,13 +9,13 @@
 ```mermaid
 graph TB
     subgraph "Router Wi-Fi bán hàng"
-        A[Router<br/>Giới hạn 30 thiết bị] --> B[Thiết bị 1]
+        A[Router<br/>Đạt giới hạn thiết bị] --> B[Thiết bị 1]
         A --> C[Thiết bị 2]
         A --> D[Thiết bị 3]
         A --> E[...]
-        A --> F[Thiết bị 30]
-        G[Thiết bị 31+] -. Không kết nối .-> A
-        H[Khách hàng<br/>Wi-Fi] -. Nghẽn băng thông .-> A
+        A --> F[Thiết bị N]
+        G[Thiết bị IOT] -. Không kết nối .-> A
+        H[Khách hàng đông<br/>Wi-Fi] -. Nghẽn băng thông .-> A
     end
     
     style A fill:#f44336,color:#fff
@@ -39,7 +37,7 @@ graph TB
 
 | Tiêu chí | Zigbee + Tasmota | Wi-Fi dân dụng |
 |----------|-----------------|----------------|
-| **Số thiết bị/Gateway** | 50-100+ | 20-30 |
+| **Số thiết bị/Gateway** | 50+ | 20-30 |
 | **Băng thông mạng khách** | Không chiếm IP | Chiếm IP, nghẽn mạng |
 | **Mesh network** | ✅ Tự động tạo mạng lưới | ❌ Không có |
 | **Bảo mật** | ✅ Mã hóa AES-128 | ❌ Dễ bị tấn công |
@@ -84,18 +82,17 @@ graph TB
 ```mermaid
 graph TB
     subgraph "Quán Cafe"
-        A[Gateway Tasmota<br/>Ewelink Zigbee Pro] --- B[Công tắc đèn chính<br/>Router]
-        A --- C[IR Controller<br/>điều hòa<br/>Router]
-        A --- D[Contactor<br/>đèn biển quảng cáo<br/>Router]
-        B --- C
-        C --- D
+        A[Gateway Tasmota<br/>Ewelink Zigbee Pro] -.- B[Công tắc đèn 1<br/>Router]
+        A -.- K[Công tắc đèn N<br/>Router]
+        A -.- C[Controller điều hòa<br/>Router]
+        A -.- D[Contactor<br/>đèn biển quảng cáo<br/>Router]
+        B -.- C
+        C -.- D
+        K -.- E
         
-        B --> E[Cảm biến ánh sáng<br/>khu vực A<br/>End Device]
-        B --> F[Cảm biến ánh sáng<br/>khu vực B<br/>End Device]
-        C --> G[Cảm biến nhiệt<br/>End Device]
+        B -.- E[Cảm biến ánh sáng<br/>End Device]
+        A -- LAN --> I[Smart Panel<br/>MQTT]
     end
-    
-    A -- Zigbee 3.0 --> I[Smart Panel<br/>MQTT]
     
     style A fill:#4CAF50,color:#fff
     style B fill:#2196F3,color:#fff
@@ -111,16 +108,16 @@ graph TB
 |---------|----------|-----------|
 | **Gateway** | Hub Ewelink Zigbee Pro (flash Tasmota) | Trung tâm điều phối Zigbee ↔ MQTT |
 | **Cảm biến** | Cảm biến ánh sáng (pin solar) | Đo ánh sáng tự nhiên, tự động điều chỉnh đèn |
-| **Công tắc** | Công tắc Zigbee | Bật/tắt đèn, có chức năng router |
-| **Contactor** | Contactor Zigbee | Điều khiển đèn biển quảng cáo công suất lớn |
-| **IR** | Bộ điều khiển hồng ngoại Zigbee | Điều khiển điều hòa (dùng điện, hoạt động như Router) |
+| **Công tắc** | Công tắc Zigbee | Bật/tắt đèn, hoạt động như Router) |
+| **Contactor** | Contactor Zigbee | Điều khiển đèn biển quảng cáo công suất lớn, hoạt động như Router) |
+| **ACC** | Bộ điều khiển điều hòa Zigbee | Điều khiển điều hòa (dùng điện, hoạt động như Router) |
 
 ---
-## Cam kết kỹ thuật
+## Tổng kết
 
-- ✅ Hỗ trợ **~50 thiết bị** trên 1 gateway
+- ✅ Hỗ trợ **50+ thiết bị** trên 1 gateway
 - ✅ **Không ảnh hưởng** Wi-Fi khách hàng
-- ✅ **Tự phục hồi** khi 1 node lỗi
+- ✅ **Tự phục hồi mạng** khi 1 node lỗi
 - ✅ **Bảo mật AES-128** theo chuẩn Zigbee 3.0
-- ✅ Nhiều cảm biến **pin, solar** = không cần đi dây điện
+- ✅ Nhiều cảm biến sử dụng **pin, solar** = không cần đi dây điện
 

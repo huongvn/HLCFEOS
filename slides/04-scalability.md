@@ -38,7 +38,7 @@ graph TD
 
 ```mermaid
 graph TB
-    A[Quy trình chuẩn<br/>Giai đoạn 0] --> B[Kit phần cứng<br/>Đồng nhất]
+    A[Quy trình chuẩn<br/>Giai đoạn thử nghiệm] --> B[Kit phần cứng<br/>Đồng nhất]
     B --> C[Firmware thống nhất<br/>Tasmota + OTA]
     C --> D[Dashboard tập trung<br/>Toàn chuỗi]
     D --> E[N quán<br/>Cùng 1 cách vận hành]

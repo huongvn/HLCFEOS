@@ -67,11 +67,10 @@ graph TB
         C --> D[NanoMQ<br/>MQTT Broker<br/>Port 1883]
         C --> E[Node-RED<br/>Runtime<br/>Port 1880]
         C --> F[LVGL App<br/>C++ HMI<br/>Framebuffer]
-        C --> G[OTA Agent<br/>Auto Update]
+     
         
         D <--> E
         D <--> F
-        E -.->|HTTP API| H[OTA Server<br/>Remote]
     end
     
     style D fill:#4CAF50,color:#fff
@@ -85,7 +84,6 @@ graph TB
 | **NanoMQ** | MQTT Broker | Nhẹ, high-performance, phù hợp edge device 256MB RAM |
 | **Node-RED** | Automation + Dashboard | Low-code, dễ tùy biến flow, có sẵn MQTT nodes |
 | **LVGL** | GUI trên màn hình 4" | C++ native, nhẹ, render nhanh trên embedded |
-| **OTA Agent** | Cập nhật firmware/phần mềm | Không cần đến tận quán để update |
 
 ---
 
@@ -106,7 +104,7 @@ graph TB
 graph LR
     A[Thiết bị Zigbee<br/>Cảm biến/Công tắc] -->|Zigbee 3.0<br/>AES-128| B[Gateway Tasmota]
     B -->|MQTT Publish| C[NanoMQ<br/>Smart Panel]
-    C -->|MQTT Subscribe| D[Node-RED]
+    C -->|MQTT Subscribe| D[Node-RED<br/>Smart Panel]
     D -->|MQTT Publish| C
     C -->|MQTT Subscribe| B
     B -->|Zigbee Command| A
@@ -127,30 +125,49 @@ graph LR
 
 ```mermaid
 graph TB
-    subgraph "Star Topology - Mạng Zigbee"
-        A[Gateway<br/>Coordinator<br/>Tasmota]
+    subgraph ZigbeeNet["🔷 Zigbee Mesh Network"]
         
-        B[Công tắc Đèn chính<br/>Router] --- A
-        C[IR Controller<br/>Điều hòa<br/>Router] --- A
-        D[Contactor<br/>Đèn biển quảng cáo<br/>Router] --- A
-        
-        E[Cảm biến ánh sáng<br/>khu A<br/>End Device] --- A
-        F[Cảm biến ánh sáng<br/>khu B<br/>End Device] --- A
-        G[Cảm biến nhiệt<br/>End Device] --- A
+        %% Coordinator
+        A[["🔴 Gateway\nCoordinator · Tasmota"]]
+
+        %% Routers
+        B["🔵 Công tắc đèn chính\nRouter"]
+        C["🔵 IR Controller · Điều hòa\nRouter"]
+        D["🔵 Contactor · Đèn biển QC\nRouter"]
+
+        %% End Devices
+        E["🟢 Cảm biến ánh sáng · End Device"]
+        F["🟢 Cảm biến nhiệt độ · End Device"]
+
+        %% Coordinator <-> Routers (2 chiều, nét liền)
+        A <--> B
+        A <--> C
+        A <--> D
+
+        %% Coordinator -- End Devices (1 chiều, nét đứt)
+        A -.-> E
+        A -.-> F
+
+        %% Mesh relay giữa các Routers (nét đứt)
+        B <-.-> C
+        B <-.-> D
+        C <-.-> D
     end
-    
-    style A fill:#f44336,color:#fff
-    style B fill:#2196F3,color:#fff
-    style C fill:#2196F3,color:#fff
-    style D fill:#2196F3,color:#fff
+
+    style A fill:#c04428,color:#fff,stroke:#8b2e18
+    style B fill:#1b5ba5,color:#fff,stroke:#123f75
+    style C fill:#1b5ba5,color:#fff,stroke:#123f75
+    style D fill:#1b5ba5,color:#fff,stroke:#123f75
+    style E fill:#1e7a56,color:#fff,stroke:#145238
+    style F fill:#1e7a56,color:#fff,stroke:#145238
 ```
 
 ### Phân biệt Router vs End Device
 
 | Loại | Vai trò | Nguồn điện | Thiết bị trong dự án |
 |------|---------|-----------|---------------------|
-| **Coordinator** | Điều phối toàn mạng | 220V adapter | Gateway Tasmota |
-| **Router** | Chuyển tiếp (relay) message | 220V hard-wired | Công tắc, Contactor, IR Controller điều hòa |
+| **Coordinator** | Điều phối toàn mạng | AC adapter | Gateway Tasmota |
+| **Router** | Chuyển tiếp (relay) message | AC hard-wired | Công tắc, Contactor, Controller điều hòa |
 | **End Device** | Gửi/nhận, không relay | Pin (solar/battery) | Cảm biến ánh sáng, cảm biến nhiệt |
 
 ---
