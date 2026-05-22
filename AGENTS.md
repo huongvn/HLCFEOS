@@ -24,15 +24,16 @@
 - **Gateway Hub:** Firmware Tasmota
 
 ## Cấu trúc slide (3 nhóm đối tượng)
-1. **Ban Giám Đốc (Sếp & Tài chính):** ROI (hoàn vốn ~10 tháng), Fail-safe (Local-First + Manual Override), Scalability (chuỗi 10-100 cửa hàng)
-2. **Team Kỹ thuật:** Zigbee vs Wi-Fi (Mesh network, không chiếm IP), Watchdog & Maintenance (LWT, Heartbeat, cảnh báo tự động), Integration (MQTT/API về backend, đối chiếu điện mặt trởi)
+1. **Ban Giám Đốc (Sếp & Tài chính):** Fail-safe (Local-First + Manual Override), Scalability (chuỗi 10-100 cửa hàng)
+2. **Team Kỹ thuật:** Tech Stack & Kiến trúc tổng quan, Zigbee vs Wi-Fi (Mesh network, không chiếm IP), Watchdog & Maintenance (LWT, Heartbeat, cảnh báo tự động), Integration (MQTT/API về backend, đối chiếu điện mặt trời)
 3. **Bước tiếp theo (Giai đoạn 0):** Khảo sát 1 site mẫu + Lab test trong 2 tuần, chi phí thấp, giảm rủi ro trước khi triển khai hàng loạt
+
 
 ## Cấu trúc thư mục
 ```
 slides/
 ├── 01-title.md          # Slide tiêu đề + Tóm tắt dự án
-├── 02-roi.md            # Ban Giám đốc: ROI (~10 tháng hoàn vốn)
+├── 02-techstack.md      # Team Kỹ thuật: Tech Stack & Kiến trúc Hệ thống
 ├── 03-failsafe.md       # Ban Giám đốc: Fail-safe (Local-First + Manual Override)
 ├── 04-scalability.md    # Ban Giám đốc: Scalability (chuỗi 10-100 cửa hàng)
 ├── 05-zigbee.md         # Team Kỹ thuật: Zigbee vs Wi-Fi (Mesh, bảo mật)
