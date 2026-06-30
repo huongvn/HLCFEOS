@@ -78,7 +78,8 @@
     "className": "",
     "wires": [
       [
-        "fn-l5-set-manual-dev"
+        "fn-l5-set-manual-dev",
+        "dbg-l5-dropdown"
       ]
     ]
   },
@@ -135,7 +136,8 @@
     "libs": [],
     "wires": [
       [
-        "mqtt-l5-manual"
+        "mqtt-l5-manual",
+        "dbg-l5-manual-cmd"
       ]
     ]
   },
@@ -1171,5 +1173,35 @@
         "fn-l5-device-cards"
       ]
     ]
+  },
+  {
+    "id": "dbg-l5-dropdown",
+    "type": "debug",
+    "z": "tab-l5",
+    "name": "Debug dropdown select",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": true,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "payload",
+    "statusType": "msg",
+    "wires": []
+  },
+  {
+    "id": "dbg-l5-manual-cmd",
+    "type": "debug",
+    "z": "tab-l5",
+    "name": "Debug manual ZbSend",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": true,
+    "complete": "true",
+    "targetType": "full",
+    "statusVal": "topic",
+    "statusType": "msg",
+    "wires": []
   }
 ]
