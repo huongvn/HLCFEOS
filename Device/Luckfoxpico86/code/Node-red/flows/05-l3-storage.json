@@ -89,7 +89,7 @@
     "type": "function",
     "z": "tab-l3",
     "name": "Insert LWT log",
-    "func": "function esc(v) { if (v === null || v === undefined) return 'NULL'; if (typeof v === 'number') return String(v); return \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nconst gateway = msg._lwt_gateway;\nconst isOnline = msg._lwt_online;\nconst devCount = msg._lwt_dev_count || 0;\nconst vals = [new Date().toISOString(), gateway, 'gateway', '', JSON.stringify({ online: isOnline, devices_affected: devCount }), isOnline ? 'gateway_online' : 'gateway_offline'];\nmsg.topic = 'INSERT INTO device_log (ts, device_id, device_type, location, payload, event) VALUES (' + vals.map(esc).join(',') + ')';\nnode.status({ fill: isOnline ? 'green' : 'red', shape: 'dot', text: gateway + ': ' + (isOnline ? 'ONLINE' : 'OFFLINE') });\nreturn msg;",
+    "func": "function esc(v) { if (v === null || v === undefined) return 'NULL'; if (typeof v === 'number') return String(v); return \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nconst gateway = msg._lwt_gateway;\nconst isOnline = msg._lwt_online;\nconst devCount = msg._lwt_dev_count || 0;\nconst vals = [new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).replace(' ', 'T'), gateway, 'gateway', '', JSON.stringify({ online: isOnline, devices_affected: devCount }), isOnline ? 'gateway_online' : 'gateway_offline'];\nmsg.topic = 'INSERT INTO device_log (ts, device_id, device_type, location, payload, event) VALUES (' + vals.map(esc).join(',') + ')';\nnode.status({ fill: isOnline ? 'green' : 'red', shape: 'dot', text: gateway + ': ' + (isOnline ? 'ONLINE' : 'OFFLINE') });\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
