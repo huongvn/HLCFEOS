@@ -2,9 +2,9 @@
   {
     "id": "tab-hmi",
     "type": "tab",
-    "label": "HMI Send Only",
+    "label": "HMI Bridge",
     "disabled": false,
-    "info": "Chi nhan lenh ON/OFF tu LVGL, khong phan hoi trang thai"
+    "info": "Nhan lenh ON/OFF tu LVGL cho AC va Billboard (MCB), khong phan hoi trang thai"
   },
   {
     "id": "cfg-mqtt-broker",
@@ -91,5 +91,42 @@
     "statusVal": "_hmi_cmd.action",
     "statusType": "msg",
     "wires": []
+  },
+  {
+    "id": "mqtt-hmi-subscribe-bb",
+    "type": "mqtt in",
+    "z": "tab-hmi",
+    "name": "Subscribe bms/billboard/+/set",
+    "topic": "bms/billboard/+/set",
+    "qos": "1",
+    "datatype": "utf8",
+    "broker": "cfg-mqtt-broker",
+    "nl": false,
+    "rap": true,
+    "rh": 0,
+    "inputs": 0,
+    "wires": [
+      [
+        "fn-hmi-parse-bb-set"
+      ]
+    ]
+  },
+  {
+    "id": "fn-hmi-parse-bb-set",
+    "type": "function",
+    "z": "tab-hmi",
+    "name": "Parse Billboard set → ZbSend",
+    "func": "const topic = msg.topic;\nconst payload = msg.payload;\nconst parts = topic.split('/');\n\nconst configs = global.get('device_configs') || {};\nconst bbIds = Object.keys(configs)\n    .filter(id => configs[id].type === 'mcb')\n    .sort();\n\nconst idx = parseInt(parts[2]);\nconst deviceId = bbIds[idx];\nif (!deviceId) return null;\n\nconst cfg = configs[deviceId];\nconst ex = cfg.extra || {};\nconst gateway = cfg.gateway || ex.gateway;\n\nconst val = (payload === 'ON' || payload === '1' || payload === 1) ? 1 : 0;\nconst writeKey = 'EF00/' + (ex.power_attr || '0110');\n\nmsg.topic = 'cmnd/' + gateway + '/ZbSend';\nmsg.payload = JSON.stringify({ Device: deviceId, Write: { [writeKey]: val } });\nmsg._hmi_cmd = { device: deviceId, action: payload };\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [
+      [
+        "mqtt-hmi-cmd-out",
+        "dbg-hmi-cmd"
+      ]
+    ]
   }
 ]
