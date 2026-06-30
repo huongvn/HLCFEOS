@@ -13,7 +13,7 @@
     "mode": "RWC"
   },
   {
-    "id": "lk-l3-data-in",
+    "id": "ff930e671df74d5d",
     "type": "link in",
     "z": "tab-l3",
     "name": "← L2 device data",
@@ -71,7 +71,7 @@
     "wires": []
   },
   {
-    "id": "lk-l3-lwt-in",
+    "id": "09a3dc141dc6caf5",
     "type": "link in",
     "z": "tab-l3",
     "name": "← L1 LWT events",
