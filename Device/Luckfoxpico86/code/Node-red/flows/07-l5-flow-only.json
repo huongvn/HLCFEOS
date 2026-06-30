@@ -271,7 +271,7 @@
   },
   {
     "id": "ui-table-log",
-    "type": "ui-template",
+    "type": "ui-table",
     "z": "tab-l5",
     "name": "Log viewer",
     "group": "54090829431b65ce",
@@ -280,8 +280,9 @@
     "height": 0,
     "label": "Nhat ky su kien",
     "wires": [],
-    "templateScope": "local",
-    "template": "<div>\n<table style=\"width:100%;border-collapse:collapse;font-size:12px\">\n<thead>\n<tr style=\"background:#0094ce;color:#fff\">\n<th style=\"padding:4px 8px;text-align:left\">Time</th>\n<th style=\"padding:4px 8px;text-align:left\">Device</th>\n<th style=\"padding:4px 8px;text-align:left\">Event</th>\n<th style=\"padding:4px 8px;text-align:left\">Payload</th>\n</tr>\n</thead>\n<tbody>\n<tr v-for=\"(row,i) in msg.payload\" :key=\"i\" style=\"border-bottom:1px solid #ddd\">\n<td style=\"padding:3px 6px;font-size:11px\">{{row.ts}}</td>\n<td style=\"padding:3px 6px\">{{row.device_id}}</td>\n<td style=\"padding:3px 6px;font-weight:bold\">{{row.event}}</td>\n<td style=\"padding:3px 6px;font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\">{{row.payload}}</td>\n</tr>\n</tbody>\n</table>\n</div>"
+    "autocols": true,
+    "maxrows": 100,
+    "columns": []
   },
   {
     "id": "ui-text-sched-name",
