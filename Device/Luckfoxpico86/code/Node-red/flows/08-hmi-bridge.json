@@ -2,9 +2,9 @@
   {
     "id": "tab-hmi",
     "type": "tab",
-    "label": "HMI Bridge",
+    "label": "HMI Bridge AC",
     "disabled": false,
-    "info": "Bridge giua Node-RED BMS va LVGL C app: publish status topics, subscribe set commands, chuyen thanh ZbSend"
+    "info": "Bridge AC-only giua Node-RED BMS va LVGL C app. Publish status, subscribe set commands."
   },
   {
     "id": "cfg-mqtt-broker",
@@ -12,7 +12,7 @@
     "name": "NanoMQ Local",
     "broker": "localhost",
     "port": "1883",
-    "clientid": "nodered_hmi_bridge",
+    "clientid": "nodered_hmi_ac",
     "autoConnect": true,
     "usetls": false,
     "protocolVersion": "5",
@@ -46,8 +46,8 @@
     "id": "fn-hmi-publish-status",
     "type": "function",
     "z": "tab-hmi",
-    "name": "Build HMI status topics",
-    "func": "const devices = global.get('devices') || {};\nconst configs = global.get('device_configs') || {};\nconst allDevs = Object.values(devices);\n\nconst msgs = [];\n\n// Build index mapping\nconst acList = [];\nconst lightList = [];\nconst signList = [];\n\nallDevs.forEach(d => {\n    const cfg = configs[d.id];\n    if (!cfg) return;\n    if (cfg.type === 'ac_controller') acList.push(d);\n    else if (cfg.type === 'mcb' || cfg.type === 'switch') lightList.push(d);\n    else if (cfg.type === 'sign') signList.push(d);\n});\n\n// Publish AC status\nacList.forEach((d, idx) => {\n    const s = d.state || {};\n    msgs.push({ topic: 'bms/ac/' + idx + '/temperature', payload: String(s.temperature || 0), qos: 0, retain: false });\n    msgs.push({ topic: 'bms/ac/' + idx + '/room_temp', payload: String(s.ambient_temp || 0), qos: 0, retain: false });\n    msgs.push({ topic: 'bms/ac/' + idx + '/power', payload: s.power ? 'ON' : 'OFF', qos: 0, retain: false });\n    msgs.push({ topic: 'bms/ac/' + idx + '/mode', payload: String(s.mode || 0), qos: 0, retain: false });\n    msgs.push({ topic: 'bms/ac/' + idx + '/online', payload: s.online ? 'ON' : 'OFF', qos: 0, retain: false });\n});\n\n// Publish Light status\nlightList.forEach((d, idx) => {\n    const s = d.state || {};\n    msgs.push({ topic: 'bms/light/' + idx + '/power', payload: s.power ? 'ON' : 'OFF', qos: 0, retain: false });\n    msgs.push({ topic: 'bms/light/' + idx + '/online', payload: s.online ? 'ON' : 'OFF', qos: 0, retain: false });\n});\n\n// Publish Sign status\nsignList.forEach((d, idx) => {\n    const s = d.state || {};\n    msgs.push({ topic: 'bms/sign/' + idx + '/power', payload: s.power ? 'ON' : 'OFF', qos: 0, retain: false });\n    msgs.push({ topic: 'bms/sign/' + idx + '/online', payload: s.online ? 'ON' : 'OFF', qos: 0, retain: false });\n});\n\n// Summary\nconst acOn = acList.filter(d => d.state?.power).length;\nconst acAvg = acList.length > 0 ? Math.round(acList.reduce((sum, d) => sum + (d.state?.temperature || 0), 0) / acList.length) : 0;\nconst ltOn = lightList.filter(d => d.state?.power).length;\n\nmsgs.push({ topic: 'bms/status/ac_on_count', payload: String(acOn), qos: 0, retain: false });\nmsgs.push({ topic: 'bms/status/ac_avg_temp', payload: String(acAvg), qos: 0, retain: false });\nmsgs.push({ topic: 'bms/status/lt_on_count', payload: String(ltOn), qos: 0, retain: false });\n\nreturn [msgs];",
+    "name": "Build AC status topics",
+    "func": "const devices = global.get('devices') || {};\nconst configs = global.get('device_configs') || {};\n\nconst msgs = [];\n\n// Find all AC controllers\nconst acList = [];\nObject.keys(configs).forEach(id => {\n    if (configs[id].type === 'ac_controller') acList.push(id);\n});\n\n// Publish AC status (index-based)\nacList.forEach((id, idx) => {\n    const d = devices[id];\n    if (!d) return;\n    const s = d.state || {};\n    msgs.push({ topic: 'bms/ac/' + idx + '/temperature', payload: String(s.temperature || 0) });\n    msgs.push({ topic: 'bms/ac/' + idx + '/room_temp', payload: String(s.ambient_temp || 0) });\n    msgs.push({ topic: 'bms/ac/' + idx + '/power', payload: s.power ? 'ON' : 'OFF' });\n    msgs.push({ topic: 'bms/ac/' + idx + '/fan', payload: String(s.fan_speed || 0) });\n    msgs.push({ topic: 'bms/ac/' + idx + '/online', payload: s.online ? 'ON' : 'OFF' });\n});\n\n// Summary\nconst acDevs = acList.map(id => devices[id]).filter(d => d);\nconst acOn = acDevs.filter(d => d.state?.power).length;\nconst acAvg = acDevs.length > 0 ? Math.round(acDevs.reduce((sum, d) => sum + (d.state?.temperature || 0), 0) / acDevs.length) : 0;\n\nmsgs.push({ topic: 'bms/status/ac_on_count', payload: String(acOn) });\nmsgs.push({ topic: 'bms/status/ac_avg_temp', payload: String(acAvg) });\n\nreturn [msgs];",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
@@ -55,8 +55,7 @@
     "libs": [],
     "wires": [
       [
-        "split-hmi-publish",
-        "dbg-hmi-publish"
+        "split-hmi-publish"
       ]
     ]
   },
@@ -97,27 +96,8 @@
     "id": "mqtt-hmi-subscribe",
     "type": "mqtt in",
     "z": "tab-hmi",
-    "name": "Subscribe bms/+/set",
-    "topic": "bms/+/+/set",
-    "qos": "1",
-    "datatype": "utf8",
-    "broker": "cfg-mqtt-broker",
-    "nl": false,
-    "rap": true,
-    "rh": 0,
-    "inputs": 0,
-    "wires": [
-      [
-        "fn-hmi-parse-set"
-      ]
-    ]
-  },
-  {
-    "id": "mqtt-hmi-scene",
-    "type": "mqtt in",
-    "z": "tab-hmi",
-    "name": "Subscribe bms/scene/master",
-    "topic": "bms/scene/master",
+    "name": "Subscribe bms/ac/+/set",
+    "topic": "bms/ac/+/+/set",
     "qos": "1",
     "datatype": "utf8",
     "broker": "cfg-mqtt-broker",
@@ -135,8 +115,8 @@
     "id": "fn-hmi-parse-set",
     "type": "function",
     "z": "tab-hmi",
-    "name": "Parse HMI set → ZbSend",
-    "func": "const topic = msg.topic;\nconst payload = msg.payload;\nconst parts = topic.split('/');\n\nconst configs = global.get('device_configs') || {};\nconst devices = global.get('devices') || {};\n\n// Build index lists\nconst acIds = [];\nconst lightIds = [];\nconst signIds = [];\n\nObject.keys(configs).forEach(id => {\n    const c = configs[id];\n    if (c.type === 'ac_controller') acIds.push(id);\n    else if (c.type === 'mcb' || c.type === 'switch') lightIds.push(id);\n    else if (c.type === 'sign') signIds.push(id);\n});\n\nlet deviceId = null;\nlet action = null;\nlet extra = null;\nlet gateway = null;\n\n// bms/ac/0/power/set\nif (parts[1] === 'ac' && parts[3] === 'power' && parts[4] === 'set') {\n    const idx = parseInt(parts[2]);\n    deviceId = acIds[idx];\n    action = payload === 'ON' ? 'POWER_ON' : 'POWER_OFF';\n}\n// bms/ac/0/temperature/set\nelse if (parts[1] === 'ac' && parts[3] === 'temperature' && parts[4] === 'set') {\n    const idx = parseInt(parts[2]);\n    deviceId = acIds[idx];\n    action = 'AC_SET';\n    extra = { temp: parseInt(payload) };\n}\n// bms/ac/0/mode/set\nelse if (parts[1] === 'ac' && parts[3] === 'mode' && parts[4] === 'set') {\n    const idx = parseInt(parts[2]);\n    deviceId = acIds[idx];\n    action = 'AC_SET';\n    extra = { mode: parseInt(payload) };\n}\n// bms/light/0/power/set\nelse if (parts[1] === 'light' && parts[3] === 'power' && parts[4] === 'set') {\n    const idx = parseInt(parts[2]);\n    deviceId = lightIds[idx];\n    action = payload === 'ON' ? 'POWER_ON' : 'POWER_OFF';\n}\n// bms/sign/0/power/set\nelse if (parts[1] === 'sign' && parts[3] === 'power' && parts[4] === 'set') {\n    const idx = parseInt(parts[2]);\n    deviceId = signIds[idx];\n    action = payload === 'ON' ? 'POWER_ON' : 'POWER_OFF';\n}\n// bms/scene/master\nelse if (parts[1] === 'scene' && parts[2] === 'master') {\n    // Scene master - broadcast to all devices\n    node.warn('Scene master: ' + payload);\n    return null;\n}\n\nif (!deviceId) {\n    node.warn('Unknown topic: ' + topic);\n    return null;\n}\n\nconst cfg = configs[deviceId];\nif (!cfg) { node.warn('No config for ' + deviceId); return null; }\n\nconst ex = cfg.extra || {};\ngateway = cfg.gateway || ex.gateway;\n\n// Build ZbSend\nconst writes = {};\nif (action === 'POWER_ON') {\n    writes[ex.power_attr || '0110'] = 1;\n} else if (action === 'POWER_OFF') {\n    writes[ex.power_attr || '0110'] = 0;\n} else if (action === 'AC_SET') {\n    writes[ex.ac_power_attr || '0101'] = 1;\n    if (extra && extra.temp !== undefined) writes[ex.ac_temp_attr || '0202'] = extra.temp;\n    if (extra && extra.mode !== undefined) {\n        const modeMap = ex.ac_mode_map || { off: 0, cool: 1, heat: 2, fan_only: 3, dry: 4 };\n        writes[ex.ac_mode_attr || '0405'] = modeMap[extra.mode] !== undefined ? modeMap[extra.mode] : extra.mode;\n    }\n}\n\nmsg.topic = 'cmnd/' + gateway + '/ZbSend';\nmsg.payload = JSON.stringify({ Device: deviceId, Write: writes });\nmsg._hmi_cmd = { deviceId, action, extra };\nreturn msg;",
+    "name": "Parse AC set → ZbSend",
+    "func": "const topic = msg.topic;\nconst payload = msg.payload;\nconst parts = topic.split('/');\n\nconst configs = global.get('device_configs') || {};\n\n// Find all AC controllers\nconst acIds = [];\nObject.keys(configs).forEach(id => {\n    if (configs[id].type === 'ac_controller') acIds.push(id);\n});\n\nlet deviceId = null;\nlet action = null;\nlet extra = null;\n\n// bms/ac/0/power/set\nif (parts[1] === 'ac' && parts[3] === 'power' && parts[4] === 'set') {\n    const idx = parseInt(parts[2]);\n    deviceId = acIds[idx];\n    action = payload === 'ON' ? 'POWER_ON' : 'POWER_OFF';\n}\n// bms/ac/0/temperature/set\nelse if (parts[1] === 'ac' && parts[3] === 'temperature' && parts[4] === 'set') {\n    const idx = parseInt(parts[2]);\n    deviceId = acIds[idx];\n    action = 'AC_SET';\n    extra = { temp: parseInt(payload) };\n}\n// bms/ac/0/fan/set\nelse if (parts[1] === 'ac' && parts[3] === 'fan' && parts[4] === 'set') {\n    const idx = parseInt(parts[2]);\n    deviceId = acIds[idx];\n    action = 'AC_SET';\n    extra = { fan_speed: parseInt(payload) };\n}\n\nif (!deviceId) {\n    node.warn('Unknown topic: ' + topic);\n    return null;\n}\n\nconst cfg = configs[deviceId];\nif (!cfg) { node.warn('No config for ' + deviceId); return null; }\n\nconst ex = cfg.extra || {};\nconst gateway = cfg.gateway || ex.gateway;\n\n// Build ZbSend\nconst writes = {};\nif (action === 'POWER_ON') {\n    writes[ex.power_attr || '0101'] = 1;\n} else if (action === 'POWER_OFF') {\n    writes[ex.power_attr || '0101'] = 0;\n} else if (action === 'AC_SET') {\n    writes[ex.ac_power_attr || '0101'] = 1;\n    if (extra && extra.temp !== undefined) writes[ex.ac_temp_attr || '0202'] = extra.temp;\n    if (extra && extra.fan_speed !== undefined) writes[ex.ac_mode_attr || '0405'] = extra.fan_speed;\n}\n\nmsg.topic = 'cmnd/' + gateway + '/ZbSend';\nmsg.payload = JSON.stringify({ Device: deviceId, Write: writes });\nmsg._hmi_cmd = { deviceId, action, extra };\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
@@ -178,19 +158,6 @@
     "targetType": "full",
     "statusVal": "_hmi_cmd.action",
     "statusType": "msg",
-    "wires": []
-  },
-  {
-    "id": "dbg-hmi-publish",
-    "type": "debug",
-    "z": "tab-hmi",
-    "name": "HMI publish debug",
-    "active": false,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": false,
-    "complete": "true",
-    "targetType": "full",
     "wires": []
   }
 ]
