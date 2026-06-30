@@ -277,7 +277,7 @@
     "tooltip": "ON/OFF qua ZbSend",
     "passthru": false,
     "decouple": false,
-    "topic": "",
+    "topic": "manual_toggle",
     "topicType": "msg",
     "style": "",
     "className": "",
