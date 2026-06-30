@@ -29,7 +29,7 @@
     "type": "function",
     "z": "tab-l5",
     "name": "Build device cards",
-    "func": "const devices = global.get(\"devices\") ?? {};\nconst configs = global.get(\"device_configs\") ?? {};\nconst rows = Object.values(devices);\nif (rows.length === 0) { msg.payload = \"Chua co du lieu thiet bi\"; return msg; }\nlet md = \"| ID | Ten | Loai | Trang thai | Online | LinkQ | Cap nhat |\\n\";\nmd += \"|-----|-----|------|------------|--------|-------|----------|\\n\";\nrows.forEach(d => {\n    const status = d.state?.power !== undefined ? (d.state.power ? \"ON\" : \"OFF\") : (d.state?.temperature !== undefined ? d.state.temperature + \"°C\" : \"—\");\n    md += `| ${d.id} | ${configs[d.id]?.friendly_name ?? d.id} | ${d.type} | ${status} | ${d.state?.online ? \"✓\" : \"✗\"} | ${d.state?.link_quality ?? \"—\"} | ${d.ts ? d.ts.slice(11, 19) : \"—\"} |\\n`;\n});\nmsg.payload = md;\nreturn msg;",
+    "func": "const devices = global.get(\"devices\") ?? {};\nconst configs = global.get(\"device_configs\") ?? {};\nmsg.reset = true;\nmsg.payload = Object.values(devices).map(d => ({\n    ID:        d.id,\n    Ten:       configs[d.id]?.friendly_name ?? d.id,\n    Loai:      d.type,\n    Gateway:   d.gateway || \"—\",\n    \"Trang thai\": d.state?.power !== undefined ? (d.state.power ? \"ON\" : \"OFF\") : (d.state?.temperature !== undefined ? d.state.temperature + \"°C\" : \"—\"),\n    Online:    d.state?.online ? \"✓\" : \"✗\",\n    LinkQ:     d.state?.link_quality ?? \"—\",\n    \"Cap nhat\": d.ts ? d.ts.slice(11, 19) : \"—\",\n}));\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
@@ -43,7 +43,7 @@
   },
   {
     "id": "ui-table-devices",
-    "type": "ui-markdown",
+    "type": "ui-table",
     "z": "tab-l5",
     "name": "Device status",
     "group": "eba75532c348db87",
@@ -52,7 +52,9 @@
     "height": 0,
     "label": "Thiet bi",
     "wires": [],
-    "content": ""
+    "autocols": true,
+    "maxrows": 20,
+    "columns": []
   },
   {
     "id": "ui-dropdown-manual-dev",
