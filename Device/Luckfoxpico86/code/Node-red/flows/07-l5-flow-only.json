@@ -265,7 +265,7 @@
     "sql": "",
     "wires": [
       [
-        "ui-table-log"
+        "fn-l5-log-format"
       ]
     ]
   },
@@ -280,9 +280,30 @@
     "height": 0,
     "label": "Nhat ky su kien",
     "wires": [],
-    "autocols": true,
+    "autocols": false,
     "maxrows": 100,
-    "columns": []
+    "columns": [
+      {
+        "field": "ts",
+        "label": "Time",
+        "width": "160px"
+      },
+      {
+        "field": "device_id",
+        "label": "Device",
+        "width": "80px"
+      },
+      {
+        "field": "event",
+        "label": "Event",
+        "width": "120px"
+      },
+      {
+        "field": "payload",
+        "label": "Payload (JSON)",
+        "width": "auto"
+      }
+    ]
   },
   {
     "id": "ui-text-sched-name",
@@ -1461,5 +1482,25 @@
     "statusVal": "payload.length",
     "statusType": "msg",
     "wires": []
+  },
+  {
+    "id": "fn-l5-log-format",
+    "type": "function",
+    "z": "tab-l5",
+    "name": "Format log + clear",
+    "func": "const rows = msg.payload || [];\nif (rows.length === 0) {\n    return { payload: [{ts:'', device_id:'', event:'Khong co du lieu', payload:''}] };\n}\n// Clear table first, then send data\nreturn [\n    { payload: [] },\n    { payload: rows }\n];",
+    "outputs": 2,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [
+      [
+        "ui-table-log"
+      ],
+      [
+        "ui-table-log"
+      ]
+    ]
   }
 ]
