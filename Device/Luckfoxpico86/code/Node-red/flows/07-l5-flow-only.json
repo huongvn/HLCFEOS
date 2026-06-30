@@ -1350,5 +1350,74 @@
     "fontSize": 11,
     "color": "#cccccc",
     "wires": []
+  },
+  {
+    "id": "ui-group-device-detail",
+    "type": "ui-group",
+    "name": "Chi tiết thiết bị",
+    "page": "d91d5a758b948c3b",
+    "width": "12",
+    "order": 3,
+    "showTitle": true,
+    "className": ""
+  },
+  {
+    "id": "ui-dropdown-detail-dev",
+    "type": "ui-dropdown",
+    "z": "tab-l5",
+    "name": "Select device detail",
+    "group": "ui-group-device-detail",
+    "order": 1,
+    "width": 0,
+    "height": 0,
+    "label": "Chọn thiết bị xem chi tiết",
+    "passthru": true,
+    "multiple": false,
+    "options": [],
+    "payload": "",
+    "topic": "detail_device",
+    "topicType": "msg",
+    "className": "",
+    "wires": [
+      [
+        "fn-l5-detail-builder"
+      ]
+    ]
+  },
+  {
+    "id": "fn-l5-detail-builder",
+    "type": "function",
+    "z": "tab-l5",
+    "name": "Build device detail",
+    "func": "const selectedId = msg.payload || flow.get('detail_device_id');\nif (!selectedId) {\n    msg.payload = 'Chọn thiết bị để xem chi tiết';\n    return msg;\n}\n\n// Nếu triggered từ L2 state change, chỉ refresh nếu đúng device đang chọn\nif (msg._state_changed && msg.device && msg.device.id !== selectedId) {\n    return null;\n}\n\nflow.set('detail_device_id', selectedId);\n\nconst configs = global.get('device_configs') || {};\nconst devices = global.get('devices') || {};\nconst cfg = configs[selectedId];\nconst dev = devices[selectedId];\n\nlet text = '';\n\nif (cfg) {\n    text += 'ID: ' + selectedId + '\\n';\n    text += 'Tên: ' + (cfg.friendly_name || '—') + '\\n';\n    text += 'Loại: ' + (cfg.type || '—') + '\\n';\n    text += 'Vị trí: ' + (cfg.location || '—') + '\\n';\n    text += 'Gateway: ' + (cfg.gateway || '—') + '\\n';\n    text += 'Enabled: ' + (cfg.enabled ? 'Có' : 'Không') + '\\n';\n    if (cfg.extra) {\n        text += 'Power attr: ' + (cfg.extra.power_attr || '—') + '\\n';\n        if (cfg.extra.attrs) {\n            text += 'Attrs mapped: ' + Object.keys(cfg.extra.attrs).length + '\\n';\n        }\n        if (cfg.extra.custom_actions) {\n            text += 'Custom actions: ' + Object.keys(cfg.extra.custom_actions).join(', ') + '\\n';\n        }\n    }\n}\n\nif (dev) {\n    text += '\\n--- Trạng thái hiện tại ---\\n';\n    text += 'Online: ' + (dev.state && dev.state.online ? '✓ Có' : '✗ Không') + '\\n';\n    text += 'Link Quality: ' + (dev.state && dev.state.link_quality !== undefined ? dev.state.link_quality : '—') + '\\n';\n    text += 'Cập nhật lúc: ' + (dev.ts ? dev.ts.replace('T', ' ').slice(0, 19) : '—') + '\\n';\n    \n    const state = dev.state || {};\n    for (const key in state) {\n        if (key === 'online' || key === 'link_quality') continue;\n        text += key + ': ' + state[key] + '\\n';\n    }\n} else {\n    text += '\\n(Chưa có dữ liệu trạng thái realtime)';\n}\n\nmsg.payload = text;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [
+      [
+        "ui-text-detail"
+      ]
+    ]
+  },
+  {
+    "id": "ui-text-detail",
+    "type": "ui-text",
+    "z": "tab-l5",
+    "name": "Device detail text",
+    "group": "ui-group-device-detail",
+    "order": 2,
+    "width": 0,
+    "height": 0,
+    "label": "Thông tin chi tiết",
+    "format": "{{msg.payload}}",
+    "layout": "row-spread",
+    "className": "",
+    "style": false,
+    "font": "",
+    "fontSize": 14,
+    "color": "#ffffff",
+    "wires": []
   }
 ]
