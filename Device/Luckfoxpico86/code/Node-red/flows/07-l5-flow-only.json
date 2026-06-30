@@ -1403,8 +1403,8 @@
     "id": "fn-l5-chart-data",
     "type": "function",
     "z": "tab-l5",
-    "name": "Format metric table",
-    "func": "const rows = msg.payload || [];\nif (rows.length === 0) {\n    msg.payload = [{Metric:'', 'Gia tri':'Khong co du lieu', 'Cap nhat':''}];\n    return msg;\n}\nmsg.payload = rows.map(r => ({\n    Metric: r.attr_name,\n    'Gia tri': r.attr_value !== null ? r.attr_value : r.attr_str,\n    'Cap nhat': r.ts ? r.ts.replace('T', ' ').slice(0, 19) : '—'\n}));\nreturn msg;",
+    "name": "Format metric text",
+    "func": "const rows = msg.payload || [];\nif (rows.length === 0) {\n    msg.payload = 'Chua co du lieu';\n    return msg;\n}\nlet text = '';\nrows.forEach(r => {\n    const val = r.attr_value !== null ? r.attr_value : r.attr_str;\n    const time = r.ts ? r.ts.replace('T', ' ').slice(0, 19) : '—';\n    text += r.attr_name + ': ' + val + '  (' + time + ')<br>';\n});\nmsg.payload = text;\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
@@ -1419,18 +1419,17 @@
   },
   {
     "id": "ui-template-chart",
-    "type": "ui-table",
+    "type": "ui-text",
     "z": "tab-l5",
-    "name": "Metric table",
+    "name": "Metric text display",
     "group": "ui-group-metric-chart",
     "order": 4,
     "width": 0,
     "height": 0,
     "label": "",
     "wires": [],
-    "autocols": true,
-    "maxrows": 50,
-    "columns": []
+    "format": "{{msg.payload}}",
+    "layout": "row-spread"
   },
   {
     "id": "dbg-l5-metric-sql",
