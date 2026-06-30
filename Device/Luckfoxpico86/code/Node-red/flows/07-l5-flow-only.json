@@ -29,7 +29,7 @@
     "type": "function",
     "z": "tab-l5",
     "name": "Build device cards",
-    "func": "const devices = global.get('devices') ?? {};\nconst configs = global.get('device_configs') ?? {};\nmsg.payload = Object.values(devices).map(d => ({\n    ID:        d.id,\n    Ten:       configs[d.id]?.friendly_name ?? d.id,\n    Loai:      d.type,\n    Gateway:   d.gateway || '—',\n    'Trang thai': d.state?.power !== undefined ? (d.state.power ? 'ON' : 'OFF') : (d.state?.temperature !== undefined ? d.state.temperature + '°C' : '—'),\n    Online:    d.state?.online ? '✓' : '✗',\n    LinkQ:     d.state?.link_quality ?? '—',\n    'Cap nhat': d.ts ? d.ts.slice(11, 19) : '—',\n}));\nreturn msg;",
+    "func": "const devices = global.get(\"devices\") ?? {};\nconst configs = global.get(\"device_configs\") ?? {};\nconst rows = Object.values(devices);\nif (rows.length === 0) { msg.payload = \"Chua co du lieu thiet bi\"; return msg; }\nlet md = \"| ID | Ten | Loai | Trang thai | Online | LinkQ | Cap nhat |\\n\";\nmd += \"|-----|-----|------|------------|--------|-------|----------|\\n\";\nrows.forEach(d => {\n    const status = d.state?.power !== undefined ? (d.state.power ? \"ON\" : \"OFF\") : (d.state?.temperature !== undefined ? d.state.temperature + \"°C\" : \"—\");\n    md += `| ${d.id} | ${configs[d.id]?.friendly_name ?? d.id} | ${d.type} | ${status} | ${d.state?.online ? \"✓\" : \"✗\"} | ${d.state?.link_quality ?? \"—\"} | ${d.ts ? d.ts.slice(11, 19) : \"—\"} |\\n`;\n});\nmsg.payload = md;\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
@@ -43,7 +43,7 @@
   },
   {
     "id": "ui-table-devices",
-    "type": "ui-template",
+    "type": "ui-markdown",
     "z": "tab-l5",
     "name": "Device status",
     "group": "eba75532c348db87",
@@ -52,8 +52,7 @@
     "height": 0,
     "label": "Thiet bi",
     "wires": [],
-    "templateScope": "local",
-    "template": "<div>\n<table style=\"width:100%;border-collapse:collapse;font-size:13px\">\n<thead>\n<tr style=\"background:#0094ce;color:#fff\">\n<th style=\"padding:6px 8px;text-align:left\">ID</th>\n<th style=\"padding:6px 8px;text-align:left\">Ten</th>\n<th style=\"padding:6px 8px;text-align:left\">Loai</th>\n<th style=\"padding:6px 8px;text-align:left\">Trang thai</th>\n<th style=\"padding:6px 8px;text-align:center\">Online</th>\n<th style=\"padding:6px 8px;text-align:center\">LinkQ</th>\n<th style=\"padding:6px 8px;text-align:left\">Cap nhat</th>\n</tr>\n</thead>\n<tbody>\n<tr v-for=\"(row,i) in msg.payload\" :key=\"i\" style=\"border-bottom:1px solid #ddd\">\n<td style=\"padding:4px 8px\">{{row.ID}}</td>\n<td style=\"padding:4px 8px\">{{row.Ten}}</td>\n<td style=\"padding:4px 8px\">{{row.Loai}}</td>\n<td style=\"padding:4px 8px;font-weight:bold\">{{row['Trang thai']}}</td>\n<td style=\"padding:4px 8px;text-align:center\">{{row.Online}}</td>\n<td style=\"padding:4px 8px;text-align:center\">{{row.LinkQ}}</td>\n<td style=\"padding:4px 8px;font-size:11px\">{{row['Cap nhat']}}</td>\n</tr>\n</tbody>\n</table>\n</div>"
+    "content": ""
   },
   {
     "id": "ui-dropdown-manual-dev",
