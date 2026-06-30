@@ -110,7 +110,19 @@ INSERT OR IGNORE INTO device_config VALUES
    }
  }'),
 
-('0x8150', 'ac_controller', 'zone_B', 'Dieu hoa zone B', 1,
+('0xC5A9', 'ac_controller', 'zone_C', 'Dieu hoa zone C', 1,
+ '{"gateway":"tasmota_6DCAA8","power_attr":"0101",
+   "ac_power_attr":"0101","ac_temp_attr":"0202","ac_mode_attr":"0405",
+   "ac_mode_map":{"off":0,"cool":1,"heat":2,"fan_only":3,"dry":4},
+   "attrs":{
+     "0101":{"key":"power","type":"bool"},
+     "0202":{"key":"temperature","type":"number"},
+     "0203":{"key":"ambient_temp","type":"number"},
+     "0405":{"key":"fan_speed","type":"number"}
+   }
+ }'),
+
+('0x336A', 'ac_controller', 'zone_D', 'Dieu hoa zone D', 1,
  '{"gateway":"tasmota_6DCAA8","power_attr":"0101",
    "ac_power_attr":"0101","ac_temp_attr":"0202","ac_mode_attr":"0405",
    "ac_mode_map":{"off":0,"cool":1,"heat":2,"fan_only":3,"dry":4},
@@ -236,7 +248,19 @@ INSERT OR IGNORE INTO device_config VALUES
    }
  }'),
 
-('0x8150', 'ac_controller', 'zone_B', 'Dieu hoa zone B', 1,
+('0xC5A9', 'ac_controller', 'zone_C', 'Dieu hoa zone C', 1,
+ '{"gateway":"tasmota_6DCAA8","power_attr":"0101",
+   "ac_power_attr":"0101","ac_temp_attr":"0202","ac_mode_attr":"0405",
+   "ac_mode_map":{"off":0,"cool":1,"heat":2,"fan_only":3,"dry":4},
+   "attrs":{
+     "0101":{"key":"power","type":"bool"},
+     "0202":{"key":"temperature","type":"number"},
+     "0203":{"key":"ambient_temp","type":"number"},
+     "0405":{"key":"fan_speed","type":"number"}
+   }
+ }'),
+
+('0x336A', 'ac_controller', 'zone_D', 'Dieu hoa zone D', 1,
  '{"gateway":"tasmota_6DCAA8","power_attr":"0101",
    "ac_power_attr":"0101","ac_temp_attr":"0202","ac_mode_attr":"0405",
    "ac_mode_map":{"off":0,"cool":1,"heat":2,"fan_only":3,"dry":4},
