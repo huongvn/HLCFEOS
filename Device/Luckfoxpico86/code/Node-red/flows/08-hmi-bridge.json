@@ -39,7 +39,6 @@
     "inputs": 0,
     "wires": [
       [
-        "dbg-hmi-in",
         "fn-hmi-parse-set"
       ]
     ]
@@ -57,7 +56,8 @@
     "libs": [],
     "wires": [
       [
-        "mqtt-hmi-cmd-out"
+        "mqtt-hmi-cmd-out",
+        "dbg-hmi-cmd"
       ]
     ]
   },
