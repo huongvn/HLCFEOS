@@ -1372,7 +1372,7 @@
     "type": "function",
     "z": "tab-l5",
     "name": "Build metric query",
-    "func": "function esc(v) { if (v === null || v === undefined) return 'NULL'; if (typeof v === 'number') return String(v); return \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nconst deviceId = flow.get('chart_device_id');\nif (!deviceId) {\n    msg.payload = [{Metric:'', 'Gia tri':'Chon thiet bi', 'Cap nhat':''}];\n    return msg;\n}\nmsg.topic = 'SELECT attr_name, attr_value, attr_str, MAX(ts) as ts FROM device_metric WHERE device_id = ' + esc(deviceId) + ' GROUP BY attr_name ORDER BY attr_name';\nreturn msg;",
+    "func": "function esc(v) { if (v === null || v === undefined) return 'NULL'; if (typeof v === 'number') return String(v); return \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nconst deviceId = flow.get('chart_device_id');\nif (!deviceId) {\n    msg.payload = 'Chon thiet bi';\n    return msg;\n}\nmsg.topic = 'SELECT attr_name, attr_value, attr_str, ts FROM device_metric WHERE device_id = ' + esc(deviceId) + ' AND ts = (SELECT MAX(ts) FROM device_metric AS m2 WHERE m2.device_id = device_metric.device_id AND m2.attr_name = device_metric.attr_name) ORDER BY attr_name';\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
@@ -1394,7 +1394,8 @@
     "sql": "",
     "wires": [
       [
-        "fn-l5-chart-data"
+        "fn-l5-chart-data",
+        "dbg-l5-metric-sql"
       ]
     ]
   },
@@ -1428,5 +1429,20 @@
     "wires": [],
     "format": "{{msg.payload}}",
     "layout": "row-spread"
+  },
+  {
+    "id": "dbg-l5-metric-sql",
+    "type": "debug",
+    "z": "tab-l5",
+    "name": "Debug metric SQL result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": true,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "payload.length",
+    "statusType": "msg",
+    "wires": []
   }
 ]
