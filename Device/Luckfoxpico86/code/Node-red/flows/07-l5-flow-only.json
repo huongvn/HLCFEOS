@@ -29,7 +29,7 @@
     "type": "function",
     "z": "tab-l5",
     "name": "Build device cards",
-    "func": "const devices = global.get('devices') ?? {};\nconst configs = global.get('device_configs') ?? {};\nmsg.payload = Object.values(devices).map(d => ({\n    'ID':        d.id,\n    'Ten':       configs[d.id]?.friendly_name ?? d.id,\n    'Loai':      d.type,\n    'Gateway':   d.gateway || '—',\n    'Trang thai': d.state?.power !== undefined ? (d.state.power ? 'ON' : 'OFF') : (d.state?.temperature !== undefined ? `${d.state.temperature}°C` : '—'),\n    'Online':    d.state?.online ? '✓' : '✗',\n    'LinkQ':     d.state?.link_quality ?? '—',\n    'Cap nhat':  d.ts ? d.ts.slice(11, 19) : '—',\n}));\nreturn msg;",
+    "func": "const devices = global.get('devices') ?? {};\nconst configs = global.get('device_configs') ?? {};\nmsg.payload = Object.values(devices).map(d => [\n    d.id,\n    configs[d.id]?.friendly_name ?? d.id,\n    d.type,\n    d.gateway || '—',\n    d.state?.power !== undefined ? (d.state.power ? 'ON' : 'OFF') : (d.state?.temperature !== undefined ? String(d.state.temperature) + '°C' : '—'),\n    d.state?.online ? '✓' : '✗',\n    d.state?.link_quality ?? '—',\n    d.ts ? d.ts.slice(11, 19) : '—',\n]);\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
