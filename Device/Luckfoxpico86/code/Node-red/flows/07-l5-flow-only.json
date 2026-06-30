@@ -108,7 +108,7 @@
     "label": "Bat/Tat",
     "tooltip": "ON/OFF qua ZbSend",
     "passthru": false,
-    "decouple": true,
+    "decouple": false,
     "topic": "manual_toggle",
     "topicType": "msg",
     "style": "",
