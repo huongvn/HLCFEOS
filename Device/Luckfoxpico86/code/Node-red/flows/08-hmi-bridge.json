@@ -30,7 +30,7 @@
     "z": "tab-hmi",
     "name": "Tick 10s",
     "props": [],
-    "repeat": "2",
+    "repeat": "10",
     "crontab": "",
     "once": true,
     "onceDelay": "3",
@@ -107,6 +107,7 @@
     "inputs": 0,
     "wires": [
       [
+        "dbg-hmi-in",
         "fn-hmi-parse-set"
       ]
     ]
@@ -125,8 +126,7 @@
     "wires": [
       [
         "mqtt-hmi-cmd-out",
-        "dbg-hmi-cmd",
-        "trig-hmi-publish"
+        "dbg-hmi-cmd"
       ]
     ]
   },
@@ -162,25 +162,18 @@
     "wires": []
   },
   {
-    "id": "trig-hmi-publish",
-    "type": "trigger",
+    "id": "dbg-hmi-in",
+    "type": "debug",
     "z": "tab-hmi",
-    "name": "Trigger publish after set",
-    "op1": "",
-    "op2": "0",
-    "op1type": "nul",
-    "op2type": "str",
-    "duration": "500",
-    "extend": false,
-    "units": "ms",
-    "reset": "",
-    "bytopic": "all",
-    "topic": "topic",
-    "outputs": 1,
-    "wires": [
-      [
-        "fn-hmi-publish-status"
-      ]
-    ]
+    "name": "HMI incoming MQTT",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": true,
+    "complete": "true",
+    "targetType": "full",
+    "statusVal": "topic",
+    "statusType": "msg",
+    "wires": []
   }
 ]
