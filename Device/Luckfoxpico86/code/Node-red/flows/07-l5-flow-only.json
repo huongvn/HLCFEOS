@@ -1,5 +1,12 @@
 [
   {
+    "id": "tab-l5",
+    "type": "tab",
+    "label": "L5 Dashboard",
+    "disabled": false,
+    "info": "Dashboard UI: Device panel, Manual control, Log, Schedules, AC, Config"
+  },
+  {
     "id": "inj-l5-refresh",
     "type": "inject",
     "z": "tab-l5",
