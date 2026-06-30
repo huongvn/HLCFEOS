@@ -217,8 +217,49 @@
     "height": 0,
     "label": "Thiet bi",
     "maxrows": 20,
-    "autocols": true,
-    "columns": [],
+    "autocols": false,
+    "columns": [
+      {
+        "field": "ID",
+        "label": "ID",
+        "width": "80px"
+      },
+      {
+        "field": "Ten",
+        "label": "Ten",
+        "width": "120px"
+      },
+      {
+        "field": "Loai",
+        "label": "Loai",
+        "width": "80px"
+      },
+      {
+        "field": "Gateway",
+        "label": "Gateway",
+        "width": "100px"
+      },
+      {
+        "field": "Trang thai",
+        "label": "Trang thai",
+        "width": "80px"
+      },
+      {
+        "field": "Online",
+        "label": "Online",
+        "width": "60px"
+      },
+      {
+        "field": "LinkQ",
+        "label": "LinkQ",
+        "width": "60px"
+      },
+      {
+        "field": "Cap nhat",
+        "label": "Cap nhat",
+        "width": "80px"
+      }
+    ],
     "wires": []
   },
   {
@@ -440,8 +481,29 @@
     "height": 0,
     "label": "Nhat ky su kien",
     "maxrows": 100,
-    "autocols": true,
-    "columns": [],
+    "autocols": false,
+    "columns": [
+      {
+        "field": "ts",
+        "label": "Time",
+        "width": "160px"
+      },
+      {
+        "field": "device_id",
+        "label": "Device",
+        "width": "80px"
+      },
+      {
+        "field": "event",
+        "label": "Event",
+        "width": "100px"
+      },
+      {
+        "field": "payload",
+        "label": "Payload",
+        "width": "200px"
+      }
+    ],
     "wires": []
   },
   {
