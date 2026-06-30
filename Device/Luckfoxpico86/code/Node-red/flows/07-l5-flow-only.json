@@ -43,7 +43,7 @@
   },
   {
     "id": "ui-table-devices",
-    "type": "ui-table",
+    "type": "ui-template",
     "z": "tab-l5",
     "name": "Device status",
     "group": "eba75532c348db87",
@@ -52,9 +52,8 @@
     "height": 0,
     "label": "Thiet bi",
     "wires": [],
-    "autocols": true,
-    "maxrows": 20,
-    "columns": []
+    "templateScope": "local",
+    "template": "<div><table style=\"width:100%;border-collapse:collapse;font-size:12px\">\n<thead><tr style=\"background:#0094ce;color:#fff\"><th style=\"padding:4px 8px\">ID</th><th style=\"padding:4px 8px\">Ten</th><th style=\"padding:4px 8px\">Loai</th><th style=\"padding:4px 8px\">Trang thai</th><th style=\"padding:4px 8px\">Online</th><th style=\"padding:4px 8px\">LinkQ</th><th style=\"padding:4px 8px\">Cap nhat</th></tr></thead>\n<tbody><tr v-for=\"(row,i) in msg?.payload\" :key=\"i\" style=\"border-bottom:1px solid #ddd\"><td style=\"padding:3px 6px\">{{row.ID}}</td><td style=\"padding:3px 6px\">{{row.Ten}}</td><td style=\"padding:3px 6px\">{{row.Loai}}</td><td style=\"padding:3px 6px;font-weight:bold\">{{row['Trang thai']}}</td><td style=\"padding:3px 6px;text-align:center\">{{row.Online}}</td><td style=\"padding:3px 6px;text-align:center\">{{row.LinkQ}}</td><td style=\"padding:3px 6px;font-size:11px\">{{row['Cap nhat']}}</td></tr></tbody>\n</table></div>"
   },
   {
     "id": "ui-dropdown-manual-dev",
