@@ -42,7 +42,11 @@
     "onceDelay": "",
     "payload": "",
     "payloadType": "date",
-    "wires": [["fn-l4-match"]]
+    "wires": [
+      [
+        "fn-l4-match"
+      ]
+    ]
   },
   {
     "id": "fn-l4-match",
@@ -55,7 +59,11 @@
     "initialize": "",
     "finalize": "",
     "libs": [],
-    "wires": [["split-l4"]]
+    "wires": [
+      [
+        "split-l4"
+      ]
+    ]
   },
   {
     "id": "split-l4",
@@ -68,7 +76,11 @@
     "arraySpltType": "len",
     "stream": false,
     "addname": "",
-    "wires": [["fn-l4-build-cmd"]]
+    "wires": [
+      [
+        "fn-l4-build-cmd"
+      ]
+    ]
   },
   {
     "id": "fn-l4-build-cmd",
@@ -81,7 +93,11 @@
     "initialize": "",
     "finalize": "",
     "libs": [],
-    "wires": [["mqtt-l4-cmd"]]
+    "wires": [
+      [
+        "mqtt-l4-cmd"
+      ]
+    ]
   },
   {
     "id": "mqtt-l4-cmd",
@@ -97,20 +113,29 @@
     "correl": "",
     "expiry": "",
     "broker": "cfg-mqtt-broker",
-    "wires": [["fn-l4-update-run", "fn-l4-log-cmd"]]
+    "wires": [
+      [
+        "fn-l4-update-run",
+        "fn-l4-log-cmd"
+      ]
+    ]
   },
   {
     "id": "fn-l4-update-run",
     "type": "function",
     "z": "tab-l4",
     "name": "Update last_run + one_shot",
-    "func": "const now = new Date().toISOString();\nconst id  = msg._schedule_id;\nif (msg._one_shot) { msg.topic = 'UPDATE schedule SET enabled=0, last_run=?, updated_at=? WHERE id=?'; msg.payload = [now, now, id]; }\nelse { msg.topic = 'UPDATE schedule SET last_run=?, updated_at=? WHERE id=?'; msg.payload = [now, now, id]; }\nconst updated = (global.get('schedules') ?? []).map(s => s.id === id ? { ...s, last_run: now, enabled: msg._one_shot ? 0 : s.enabled } : s);\nglobal.set('schedules', updated);\nreturn msg;",
+    "func": "const now = new Date().toISOString();\nconst id  = msg._schedule_id;\nif (msg._one_shot) { msg.topic = 'UPDATE schedule SET enabled=0, last_run=?, updated_at=? WHERE id=?'; msg.params = [now, now, id]; }\nelse { msg.topic = 'UPDATE schedule SET last_run=?, updated_at=? WHERE id=?'; msg.params = [now, now, id]; }\nconst updated = (global.get('schedules') ?? []).map(s => s.id === id ? { ...s, last_run: now, enabled: msg._one_shot ? 0 : s.enabled } : s);\nglobal.set('schedules', updated);\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
     "finalize": "",
     "libs": [],
-    "wires": [["sql-l4-update-run"]]
+    "wires": [
+      [
+        "sql-l4-update-run"
+      ]
+    ]
   },
   {
     "id": "sql-l4-update-run",
@@ -127,13 +152,17 @@
     "type": "function",
     "z": "tab-l4",
     "name": "Insert command log",
-    "func": "if (!msg._log) return null;\nconst log = msg._log;\nconst now = new Date().toISOString();\nmsg.topic   = 'INSERT INTO device_log (ts, device_id, device_type, location, payload, event) VALUES (?,?,?,?,?,?)';\nmsg.payload = [now, log.device_id, 'unknown', '', JSON.stringify({ command: log.detail, action: msg._cmd_action }), log.event];\nreturn msg;",
+    "func": "if (!msg._log) return null;\nconst log = msg._log;\nconst now = new Date().toISOString();\nmsg.topic   = 'INSERT INTO device_log (ts, device_id, device_type, location, payload, event) VALUES (?,?,?,?,?,?)';\nmsg.params = [now, log.device_id, 'unknown', '', JSON.stringify({ command: log.detail, action: msg._cmd_action }), log.event];\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
     "finalize": "",
     "libs": [],
-    "wires": [["sql-l4-log-cmd"]]
+    "wires": [
+      [
+        "sql-l4-log-cmd"
+      ]
+    ]
   },
   {
     "id": "sql-l4-log-cmd",
