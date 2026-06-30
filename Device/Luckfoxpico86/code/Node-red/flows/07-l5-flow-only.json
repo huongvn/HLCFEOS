@@ -29,7 +29,7 @@
     "type": "function",
     "z": "tab-l5",
     "name": "Build device cards",
-    "func": "const devices = global.get(\"devices\") ?? {};\nconst configs = global.get(\"device_configs\") ?? {};\nconst rows = Object.values(devices).map(d => ({\n    ID: d.id,\n    Ten: configs[d.id]?.friendly_name ?? d.id,\n    Loai: d.type,\n    Gateway: d.gateway || \"—\",\n    \"Trang thai\": d.state?.power !== undefined ? (d.state.power ? \"ON\" : \"OFF\") : (d.state?.temperature !== undefined ? d.state.temperature + \"°C\" : \"—\"),\n    Online: d.state?.online ? \"✓\" : \"✗\",\n    LinkQ: d.state?.link_quality ?? \"—\",\n    \"Cap nhat\": d.ts ? d.ts.slice(11, 19) : \"—\",\n}));\nmsg.payload = rows;\nmsg._device_count = rows.length;\nmsg._has_devices = rows.length > 0;\nreturn msg;",
+    "func": "const devices = global.get(\"devices\") ?? {};\nconst configs = global.get(\"device_configs\") ?? {};\nmsg.payload = Object.values(devices).map(d => ({\n    ID: d.id,\n    Ten: configs[d.id]?.friendly_name ?? d.id,\n    Loai: d.type,\n    Gateway: d.gateway || \"—\",\n    \"Trang thai\": d.state?.power !== undefined ? (d.state.power ? \"ON\" : \"OFF\") : (d.state?.temperature !== undefined ? d.state.temperature + \"°C\" : \"—\"),\n    Online: d.state?.online ? \"✓\" : \"✗\",\n    LinkQ: d.state?.link_quality ?? \"—\",\n    \"Cap nhat\": d.ts ? d.ts.slice(11, 19) : \"—\",\n}));\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
@@ -37,14 +37,13 @@
     "libs": [],
     "wires": [
       [
-        "delay-l5-table",
-        "dbg-l5-payload"
+        "ui-table-devices"
       ]
     ]
   },
   {
     "id": "ui-table-devices",
-    "type": "ui-template",
+    "type": "ui-table",
     "z": "tab-l5",
     "name": "Device status",
     "group": "eba75532c348db87",
@@ -53,8 +52,9 @@
     "height": 0,
     "label": "Thiet bi",
     "wires": [],
-    "templateScope": "local",
-    "template": "<div v-if=\"msg.payload && msg.payload.length > 0\"><div v-for=\"(row,i) in msg.payload\" :key=\"i\">{{row.ID}} | {{row.Ten}} | {{row.Loai}} | {{row[\"Trang thai\"]}} | {{row.Online}}</div></div><div v-else style=\"color:red;font-weight:bold;padding:10px\">❌ Không có thiết bị nào (msg.payload rỗng hoặc []); Kiểm tra Debug sidebar xem payload là gì.</div>"
+    "autocols": true,
+    "maxrows": 20,
+    "columns": []
   },
   {
     "id": "ui-dropdown-manual-dev",
@@ -1168,42 +1168,5 @@
         "fn-l5-device-cards"
       ]
     ]
-  },
-  {
-    "id": "delay-l5-table",
-    "type": "delay",
-    "z": "tab-l5",
-    "name": "50ms debounce",
-    "pauseType": "delay",
-    "timeout": "50",
-    "timeoutUnits": "milliseconds",
-    "rate": "1",
-    "nbRateUnits": "1",
-    "rateUnits": "second",
-    "randomFirst": "1",
-    "randomLast": "5",
-    "randomUnits": "seconds",
-    "drop": true,
-    "allowrate": false,
-    "wires": [
-      [
-        "ui-table-devices"
-      ]
-    ]
-  },
-  {
-    "id": "dbg-l5-payload",
-    "type": "debug",
-    "z": "tab-l5",
-    "name": "Debug L5 payload",
-    "active": true,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": true,
-    "complete": "payload",
-    "targetType": "msg",
-    "statusVal": "_device_count",
-    "statusType": "msg",
-    "wires": []
   }
 ]
