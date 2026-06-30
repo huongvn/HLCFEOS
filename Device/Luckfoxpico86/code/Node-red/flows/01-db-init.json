@@ -1,0 +1,102 @@
+[
+  {
+    "id": "tab-db-init",
+    "type": "tab",
+    "label": "DB Init",
+    "disabled": false,
+    "info": "Khoi tao SQLite schema + seed data. Chi chay 1 lan khi deploy."
+  },
+  {
+    "id": "cfg-sqlite-db",
+    "type": "sqlitedb",
+    "db": "/data/bms/bms.db",
+    "mode": "RWC"
+  },
+  {
+    "id": "inj-db-init",
+    "type": "inject",
+    "z": "tab-db-init",
+    "name": "Deploy trigger",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "0.1",
+    "payload": "",
+    "payloadType": "date",
+    "wires": [["fn-db-init-sql"]]
+  },
+  {
+    "id": "fn-db-init-sql",
+    "type": "function",
+    "z": "tab-db-init",
+    "name": "Build schema SQL",
+    "func": "const sql = `\nCREATE TABLE IF NOT EXISTS device_log (\n    id          INTEGER PRIMARY KEY AUTOINCREMENT,\n    ts          TEXT    NOT NULL,\n    device_id   TEXT    NOT NULL,\n    device_type TEXT,\n    location    TEXT,\n    payload     TEXT,\n    event       TEXT\n);\nCREATE INDEX IF NOT EXISTS idx_log_ts        ON device_log(ts);\nCREATE INDEX IF NOT EXISTS idx_log_device_ts ON device_log(device_id, ts);\nCREATE INDEX IF NOT EXISTS idx_log_event     ON device_log(event);\n\nCREATE TABLE IF NOT EXISTS device_config (\n    device_id     TEXT PRIMARY KEY,\n    device_type   TEXT,\n    location      TEXT,\n    friendly_name TEXT,\n    enabled       INTEGER DEFAULT 1,\n    extra         TEXT\n);\n\nCREATE TABLE IF NOT EXISTS schedule (\n    id            INTEGER PRIMARY KEY AUTOINCREMENT,\n    name          TEXT    NOT NULL,\n    device_id     TEXT    NOT NULL,\n    device_type   TEXT,\n    action        TEXT    NOT NULL,\n    action_params TEXT,\n    sch_minute    TEXT    DEFAULT '*',\n    sch_hour      TEXT    DEFAULT '*',\n    sch_dow       TEXT    DEFAULT '*',\n    sch_dom       TEXT    DEFAULT '*',\n    sch_month     TEXT    DEFAULT '*',\n    enabled       INTEGER DEFAULT 1,\n    one_shot      INTEGER DEFAULT 0,\n    last_run      TEXT,\n    created_at    TEXT    DEFAULT (datetime('now')),\n    updated_at    TEXT\n);\nCREATE INDEX IF NOT EXISTS idx_sch_enabled ON schedule(enabled);\nCREATE INDEX IF NOT EXISTS idx_sch_device  ON schedule(device_id);\n`;\n\nmsg.topic   = sql;\nmsg.payload = [];\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [["sql-db-init"]]
+  },
+  {
+    "id": "sql-db-init",
+    "type": "sqlite",
+    "z": "tab-db-init",
+    "name": "Execute schema",
+    "mydb": "cfg-sqlite-db",
+    "sqlquery": "msg.topic",
+    "sql": "",
+    "wires": [["inj-db-seed"]]
+  },
+  {
+    "id": "inj-db-seed",
+    "type": "inject",
+    "z": "tab-db-init",
+    "name": "Trigger seed",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "0.5",
+    "payload": "",
+    "payloadType": "date",
+    "wires": [["fn-db-seed"]]
+  },
+  {
+    "id": "fn-db-seed",
+    "type": "function",
+    "z": "tab-db-init",
+    "name": "Build seed INSERTs",
+    "func": "const sql = `\nINSERT OR IGNORE INTO device_config VALUES\n('0x384C', 'mcb', 'zone_A', 'MCB Tong zone A', 1, '{\"gateway\":\"tasmota-6DCAA8-2728-eth\",\"power_attr\":\"0110\",\"attrs\":{\"0110\":{\"key\":\"power\",\"type\":\"bool\"},\"0272\":{\"key\":\"meas_0272\",\"type\":\"number\"},\"0273\":{\"key\":\"meas_0273\",\"type\":\"number\"},\"0274\":{\"key\":\"meas_0274\",\"type\":\"number\"},\"0276\":{\"key\":\"meas_0276\",\"type\":\"number\"},\"0277\":{\"key\":\"meas_0277\",\"type\":\"number\"},\"0283\":{\"key\":\"meas_0283\",\"type\":\"number\"},\"0466\":{\"key\":\"meas_0466\",\"type\":\"number\"},\"0467\":{\"key\":\"meas_0467\",\"type\":\"number\"},\"0468\":{\"key\":\"meas_0468\",\"type\":\"number\"},\"0469\":{\"key\":\"meas_0469\",\"type\":\"number\"},\"046B\":{\"key\":\"meas_046B\",\"type\":\"number\"},\"046E\":{\"key\":\"meas_046E\",\"type\":\"number\"},\"0170\":{\"key\":\"meas_0170\",\"type\":\"number\"},\"0201\":{\"key\":\"state_0201\",\"type\":\"number\"},\"027D\":{\"key\":\"state_027D\",\"type\":\"number\"},\"0006\":{\"key\":\"raw_hex\",\"type\":\"hex\"}}}'),\n('0x8150', 'ac_controller', 'zone_B', 'Dieu hoa zone B', 1, '{\"gateway\":\"tasmota-6DCAA8-2728-eth\",\"power_attr\":\"0101\",\"ac_power_attr\":\"0101\",\"ac_temp_attr\":\"0202\",\"ac_mode_attr\":\"0405\",\"ac_mode_map\":{\"off\":0,\"cool\":1,\"heat\":2,\"fan_only\":3,\"dry\":4},\"attrs\":{\"0101\":{\"key\":\"power\",\"type\":\"bool\"},\"0202\":{\"key\":\"temperature\",\"type\":\"number\"},\"0405\":{\"key\":\"mode\",\"type\":\"number\"}}}');\n`;\nmsg.topic   = sql;\nmsg.payload = [];\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [["sql-db-seed"]]
+  },
+  {
+    "id": "sql-db-seed",
+    "type": "sqlite",
+    "z": "tab-db-init",
+    "name": "Execute seed INSERTs",
+    "mydb": "cfg-sqlite-db",
+    "sqlquery": "msg.topic",
+    "sql": "",
+    "wires": [["dbg-db-init"]]
+  },
+  {
+    "id": "dbg-db-init",
+    "type": "debug",
+    "z": "tab-db-init",
+    "name": "DB init result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "wires": []
+  }
+]

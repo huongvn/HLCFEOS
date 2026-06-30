@@ -1,0 +1,141 @@
+[
+  {
+    "id": "tab-startup",
+    "type": "tab",
+    "label": "Startup",
+    "disabled": false,
+    "info": "Load device_configs & schedules vao global context khi Node-RED khoi dong"
+  },
+  {
+    "id": "cfg-sqlite-db",
+    "type": "sqlitedb",
+    "db": "/data/bms/bms.db",
+    "mode": "RWC"
+  },
+  {
+    "id": "inj-load-config",
+    "type": "inject",
+    "z": "tab-startup",
+    "name": "Load configs trigger",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "0.5",
+    "payload": "",
+    "payloadType": "date",
+    "wires": [["fn-set-config-query"]]
+  },
+  {
+    "id": "fn-set-config-query",
+    "type": "function",
+    "z": "tab-startup",
+    "name": "Set query: device_config",
+    "func": "msg.topic = 'SELECT * FROM device_config WHERE enabled = 1';\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [["sql-load-config"]]
+  },
+  {
+    "id": "sql-load-config",
+    "type": "sqlite",
+    "z": "tab-startup",
+    "name": "SELECT device_config",
+    "mydb": "cfg-sqlite-db",
+    "sqlquery": "msg.topic",
+    "sql": "",
+    "wires": [["fn-load-config"]]
+  },
+  {
+    "id": "fn-load-config",
+    "type": "function",
+    "z": "tab-startup",
+    "name": "Parse configs -> global",
+    "func": "const configs = {};\nconst rows = msg.payload || [];\nrows.forEach(row => {\n    configs[row.device_id] = {\n        type:          row.device_type,\n        location:      row.location,\n        friendly_name: row.friendly_name,\n        gateway:       (row.extra ? JSON.parse(row.extra) : {}).gateway || '',\n        extra:         row.extra ? JSON.parse(row.extra) : {},\n    };\n});\nglobal.set('device_configs', configs);\nnode.status({ fill: 'green', shape: 'dot', text: `${Object.keys(configs).length} devices loaded` });\nnode.warn(`[Startup] Loaded ${Object.keys(configs).length} device configs`);\nreturn null;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [["dbg-startup-config"]]
+  },
+  {
+    "id": "dbg-startup-config",
+    "type": "debug",
+    "z": "tab-startup",
+    "name": "Configs loaded",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "true",
+    "targetType": "full",
+    "wires": []
+  },
+  {
+    "id": "inj-load-sched",
+    "type": "inject",
+    "z": "tab-startup",
+    "name": "Load schedules trigger",
+    "props": [],
+    "repeat": "",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "1",
+    "payload": "",
+    "payloadType": "date",
+    "wires": [["fn-set-sched-query"]]
+  },
+  {
+    "id": "fn-set-sched-query",
+    "type": "function",
+    "z": "tab-startup",
+    "name": "Set query: schedules",
+    "func": "msg.topic = 'SELECT * FROM schedule WHERE enabled = 1';\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [["sql-load-sched"]]
+  },
+  {
+    "id": "sql-load-sched",
+    "type": "sqlite",
+    "z": "tab-startup",
+    "name": "SELECT schedules",
+    "mydb": "cfg-sqlite-db",
+    "sqlquery": "msg.topic",
+    "sql": "",
+    "wires": [["fn-load-sched"]]
+  },
+  {
+    "id": "fn-load-sched",
+    "type": "function",
+    "z": "tab-startup",
+    "name": "Parse schedules -> global",
+    "func": "const rows = msg.payload || [];\nglobal.set('schedules', rows);\nnode.status({ fill: 'green', shape: 'dot', text: `${rows.length} schedules loaded` });\nnode.warn(`[Startup] Loaded ${rows.length} schedules`);\nreturn null;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [["dbg-startup-sched"]]
+  },
+  {
+    "id": "dbg-startup-sched",
+    "type": "debug",
+    "z": "tab-startup",
+    "name": "Schedules loaded",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "true",
+    "targetType": "full",
+    "wires": []
+  }
+]

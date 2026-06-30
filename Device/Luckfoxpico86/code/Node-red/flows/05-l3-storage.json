@@ -1,0 +1,103 @@
+[
+  {
+    "id": "tab-l3",
+    "type": "tab",
+    "label": "L3 Storage",
+    "disabled": false,
+    "info": "Luu tru du lieu vao SQLite local: device_log (event + state change), device_config (metadata), schedule (lich)."
+  },
+  {
+    "id": "cfg-sqlite-db",
+    "type": "sqlitedb",
+    "db": "/data/bms/bms.db",
+    "mode": "RWC"
+  },
+  {
+    "id": "lk-l3-data-in",
+    "type": "link in",
+    "z": "tab-l3",
+    "name": "← L2 device data",
+    "links": ["lk-l2-to-l3"],
+    "wires": [["fn-l3-log"]]
+  },
+  {
+    "id": "fn-l3-log",
+    "type": "function",
+    "z": "tab-l3",
+    "name": "Insert device_log (state change)",
+    "func": "// ── L3: Insert device_log ───────────────────────────────────\nif (!msg._state_changed) {\n    node.status({ fill: 'grey', shape: 'dot', text: 'no change' });\n    return null;\n}\n\nconst d = msg.device;\nmsg.topic = `INSERT INTO device_log (ts, device_id, device_type, location, payload, event) VALUES (?,?,?,?,?,?)`;\nmsg.payload = [\n    d.ts,\n    d.id,\n    d.type,\n    d.location,\n    JSON.stringify(d.state),\n    msg.event_type ?? 'state_change'\n];\n\nnode.status({ fill: 'green', shape: 'dot', text: `log: ${d.id}` });\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [["sql-l3-log"]]
+  },
+  {
+    "id": "sql-l3-log",
+    "type": "sqlite",
+    "z": "tab-l3",
+    "name": "INSERT device_log",
+    "mydb": "cfg-sqlite-db",
+    "sqlquery": "msg.topic",
+    "sql": "",
+    "wires": [["dbg-l3-sql"]]
+  },
+  {
+    "id": "dbg-l3-sql",
+    "type": "debug",
+    "z": "tab-l3",
+    "name": "Log insert result",
+    "active": false,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "wires": []
+  },
+  {
+    "id": "lk-l3-lwt-in",
+    "type": "link in",
+    "z": "tab-l3",
+    "name": "← L1 LWT events",
+    "links": ["lk-l1-lwt-out"],
+    "wires": [["fn-l3-lwt-log"]]
+  },
+  {
+    "id": "fn-l3-lwt-log",
+    "type": "function",
+    "z": "tab-l3",
+    "name": "Insert LWT log",
+    "func": "// ── L3: Insert LWT gateway log ───────────────────────────────\nconst gateway   = msg._lwt_gateway;\nconst isOnline  = msg._lwt_online;\nconst devCount  = msg._lwt_dev_count || 0;\n\nmsg.topic   = 'INSERT INTO device_log (ts, device_id, device_type, location, payload, event) VALUES (?,?,?,?,?,?)';\nmsg.payload = [\n    new Date().toISOString(),\n    gateway,\n    'gateway',\n    '',\n    JSON.stringify({ online: isOnline, devices_affected: devCount }),\n    isOnline ? 'gateway_online' : 'gateway_offline'\n];\n\nnode.status({ fill: isOnline ? 'green' : 'red', shape: 'dot', text: `${gateway}: ${isOnline ? 'ONLINE' : 'OFFLINE'}` });\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [["sql-l3-lwt-log"]]
+  },
+  {
+    "id": "sql-l3-lwt-log",
+    "type": "sqlite",
+    "z": "tab-l3",
+    "name": "INSERT LWT log",
+    "mydb": "cfg-sqlite-db",
+    "sqlquery": "msg.topic",
+    "sql": "",
+    "wires": [["dbg-l3-lwt"]]
+  },
+  {
+    "id": "dbg-l3-lwt",
+    "type": "debug",
+    "z": "tab-l3",
+    "name": "LWT log result",
+    "active": false,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "wires": []
+  }
+]

@@ -1,0 +1,83 @@
+[
+  {
+    "id": "tab-hmi",
+    "type": "tab",
+    "label": "HMI Bridge",
+    "disabled": false,
+    "info": "Dinh ky tong hop trang thai he thong va publish len topic hmi/status de LVGL C app hien thi len man hinh."
+  },
+  {
+    "id": "cfg-mqtt-broker",
+    "type": "mqtt-broker",
+    "name": "NanoMQ Local",
+    "broker": "localhost",
+    "port": "1883",
+    "clientid": "nodered_bms",
+    "autoConnect": true,
+    "usetls": false,
+    "protocolVersion": "5",
+    "keepalive": "60",
+    "cleansession": true,
+    "birthTopic": "",
+    "willTopic": "",
+    "willPayload": "",
+    "willQos": "0",
+    "willRetain": false
+  },
+  {
+    "id": "inj-hmi-tick",
+    "type": "inject",
+    "z": "tab-hmi",
+    "name": "Tick 10s",
+    "props": [],
+    "repeat": "10",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "3",
+    "payload": "",
+    "payloadType": "date",
+    "wires": [["fn-hmi-build"]]
+  },
+  {
+    "id": "fn-hmi-build",
+    "type": "function",
+    "z": "tab-hmi",
+    "name": "Build HMI payload",
+    "func": "const devices = global.get('devices') ?? {};\nconst allDevices = Object.values(devices);\nconst online     = allDevices.filter(d => d.state?.online).length;\n\nconst ac = allDevices.find(d => d.type === 'ac_controller');\nconst mcb = allDevices.find(d => d.type === 'mcb');\n\nconst alerts = [];\nallDevices.forEach(d => {\n    if (!d.state?.online) alerts.push(`${d.id}: OFFLINE`);\n});\n\nmsg.topic   = 'hmi/status';\nmsg.payload = JSON.stringify({\n    ts:          new Date().toISOString(),\n    devices_on:  online,\n    devices_tot: allDevices.length,\n    ac_temp:     ac?.state?.temperature  ?? null,\n    ac_power:    ac?.state?.power        ?? null,\n    mcb_power:   mcb?.state?.power       ?? null,\n    alerts:      alerts.slice(0, 3),\n});\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [["mqtt-hmi-status", "dbg-hmi"]]
+  },
+  {
+    "id": "mqtt-hmi-status",
+    "type": "mqtt out",
+    "z": "tab-hmi",
+    "name": "Publish hmi/status",
+    "topic": "",
+    "qos": "0",
+    "retain": "true",
+    "respTopic": "",
+    "contentType": "",
+    "userProps": "",
+    "correl": "",
+    "expiry": "",
+    "broker": "cfg-mqtt-broker",
+    "wires": []
+  },
+  {
+    "id": "dbg-hmi",
+    "type": "debug",
+    "z": "tab-hmi",
+    "name": "HMI payload",
+    "active": false,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "wires": []
+  }
+]

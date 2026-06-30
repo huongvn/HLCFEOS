@@ -1,0 +1,62 @@
+[
+  {
+    "id": "tab-db-maint",
+    "type": "tab",
+    "label": "DB Maintenance",
+    "disabled": false,
+    "info": "Xoa log cu >30 ngay, chay hang ngay luc 2:00 AM de giu SQLite kich thuoc nho."
+  },
+  {
+    "id": "cfg-sqlite-db",
+    "type": "sqlitedb",
+    "db": "/data/bms/bms.db",
+    "mode": "RWC"
+  },
+  {
+    "id": "inj-db-maint",
+    "type": "inject",
+    "z": "tab-db-maint",
+    "name": "Daily 2:00 AM",
+    "props": [],
+    "repeat": "",
+    "crontab": "0 2 * * *",
+    "once": false,
+    "onceDelay": "",
+    "payload": "",
+    "payloadType": "date",
+    "wires": [["sql-db-maint"]]
+  },
+  {
+    "id": "sql-db-maint",
+    "type": "sqlite",
+    "z": "tab-db-maint",
+    "name": "DELETE old logs >30d",
+    "mydb": "cfg-sqlite-db",
+    "sqlquery": "fixed",
+    "sql": "DELETE FROM device_log WHERE ts < datetime('now', '-30 days')",
+    "wires": [["dbg-db-maint", "sql-db-vacuum"]]
+  },
+  {
+    "id": "sql-db-vacuum",
+    "type": "sqlite",
+    "z": "tab-db-maint",
+    "name": "VACUUM",
+    "mydb": "cfg-sqlite-db",
+    "sqlquery": "fixed",
+    "sql": "VACUUM",
+    "wires": []
+  },
+  {
+    "id": "dbg-db-maint",
+    "type": "debug",
+    "z": "tab-db-maint",
+    "name": "Maint result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "wires": []
+  }
+]
