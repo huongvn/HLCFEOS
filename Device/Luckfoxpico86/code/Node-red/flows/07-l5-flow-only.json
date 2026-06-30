@@ -1403,8 +1403,8 @@
     "id": "fn-l5-chart-data",
     "type": "function",
     "z": "tab-l5",
-    "name": "Format metric text",
-    "func": "const rows = msg.payload || [];\nif (rows.length === 0) {\n    msg.payload = 'Chua co du lieu';\n    return msg;\n}\nlet text = '';\nrows.forEach(r => {\n    const val = r.attr_value !== null ? r.attr_value : r.attr_str;\n    const time = r.ts ? r.ts.replace('T', ' ').slice(0, 19) : '—';\n    text += r.attr_name + ': ' + val + '  (' + time + ')\\n';\n});\nmsg.payload = text;\nreturn msg;",
+    "name": "Format metric table",
+    "func": "const rows = msg.payload || [];\nif (rows.length === 0) {\n    msg.payload = [{Metric:'', 'Gia tri':'Khong co du lieu', 'Cap nhat':''}];\n    return msg;\n}\nmsg.payload = rows.map(r => ({\n    Metric: r.attr_name,\n    'Gia tri': r.attr_value !== null ? r.attr_value : r.attr_str,\n    'Cap nhat': r.ts ? r.ts.replace('T', ' ').slice(0, 19) : '—'\n}));\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
@@ -1412,29 +1412,46 @@
     "libs": [],
     "wires": [
       [
-        "ui-template-chart"
+        "ui-template-chart",
+        "dbg-l5-metric-table"
       ]
     ]
   },
   {
     "id": "ui-template-chart",
-    "type": "ui-text",
+    "type": "ui-table",
     "z": "tab-l5",
-    "name": "Metric text display",
+    "name": "Metric table",
     "group": "ui-group-metric-chart",
     "order": 4,
     "width": 0,
     "height": 0,
     "label": "",
     "wires": [],
-    "format": "{{msg.payload}}",
-    "layout": "row-spread"
+    "autocols": true,
+    "maxrows": 50,
+    "columns": []
   },
   {
     "id": "dbg-l5-metric-sql",
     "type": "debug",
     "z": "tab-l5",
     "name": "Debug metric SQL result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": true,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "payload.length",
+    "statusType": "msg",
+    "wires": []
+  },
+  {
+    "id": "dbg-l5-metric-table",
+    "type": "debug",
+    "z": "tab-l5",
+    "name": "Debug metric table",
     "active": true,
     "tosidebar": true,
     "console": false,
