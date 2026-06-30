@@ -281,30 +281,9 @@
     "height": 0,
     "label": "Nhat ky su kien",
     "wires": [],
-    "autocols": false,
+    "autocols": true,
     "maxrows": 100,
-    "columns": [
-      {
-        "field": "ts",
-        "label": "Time",
-        "width": "160px"
-      },
-      {
-        "field": "device_id",
-        "label": "Device",
-        "width": "80px"
-      },
-      {
-        "field": "event",
-        "label": "Event",
-        "width": "120px"
-      },
-      {
-        "field": "payload",
-        "label": "Payload (JSON)",
-        "width": "auto"
-      }
-    ]
+    "columns": []
   },
   {
     "id": "ui-text-sched-name",
