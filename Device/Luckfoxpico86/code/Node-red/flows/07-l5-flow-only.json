@@ -108,7 +108,7 @@
     "label": "Bat/Tat",
     "tooltip": "ON/OFF qua ZbSend",
     "passthru": false,
-    "decouple": false,
+    "decouple": true,
     "topic": "manual_toggle",
     "topicType": "msg",
     "style": "",
@@ -1170,7 +1170,8 @@
     ],
     "wires": [
       [
-        "fn-l5-device-cards"
+        "fn-l5-device-cards",
+        "fn-l5-sync-switch"
       ]
     ]
   },
@@ -1203,5 +1204,22 @@
     "statusVal": "topic",
     "statusType": "msg",
     "wires": []
+  },
+  {
+    "id": "fn-l5-sync-switch",
+    "type": "function",
+    "z": "tab-l5",
+    "name": "Sync switch state",
+    "func": "if (!msg._state_changed) return null;\nconst selected = flow.get(\"manual_device_id\");\nif (!selected || !msg.device || msg.device.id !== selected) return null;\nif (msg.device.state && msg.device.state.power !== undefined) {\n    msg.payload = msg.device.state.power ? \"ON\" : \"OFF\";\n    return msg;\n}\nreturn null;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [
+      [
+        "ui-switch-manual"
+      ]
+    ]
   }
 ]
