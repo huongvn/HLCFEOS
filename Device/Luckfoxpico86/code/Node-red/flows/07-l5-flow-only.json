@@ -265,7 +265,8 @@
     "sql": "",
     "wires": [
       [
-        "fn-l5-log-format"
+        "fn-l5-log-format",
+        "fn-l5-log-preview"
       ]
     ]
   },
@@ -1502,5 +1503,41 @@
         "ui-table-log"
       ]
     ]
+  },
+  {
+    "id": "fn-l5-log-preview",
+    "type": "function",
+    "z": "tab-l5",
+    "name": "Format JSON preview",
+    "func": "const rows = msg.payload || [];\nif (rows.length === 0) {\n    msg.payload = 'Chon thiet bi va tai lai de xem log';\n    return msg;\n}\nconst latest = rows[0];\nlet text = 'Log moi nhat: ' + latest.ts + '\\n';\ntext += 'Device: ' + latest.device_id + ' | Event: ' + latest.event + '\\n';\ntry {\n    const obj = JSON.parse(latest.payload);\n    text += 'Payload JSON:\\n' + JSON.stringify(obj, null, 2);\n} catch(e) {\n    text += 'Payload: ' + latest.payload;\n}\nmsg.payload = text;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [
+      [
+        "ui-text-log-preview"
+      ]
+    ]
+  },
+  {
+    "id": "ui-text-log-preview",
+    "type": "ui-text",
+    "z": "tab-l5",
+    "name": "Log JSON preview",
+    "group": "54090829431b65ce",
+    "order": 4,
+    "width": 0,
+    "height": 0,
+    "label": "Chi tiet JSON",
+    "format": "{{msg.payload}}",
+    "layout": "row-spread",
+    "className": "",
+    "style": false,
+    "font": "",
+    "fontSize": 11,
+    "color": "#cccccc",
+    "wires": []
   }
 ]
