@@ -50,7 +50,8 @@
     "libs": [],
     "wires": [
       [
-        "lk-l2-to-l3"
+        "lk-l2-to-l3",
+        "lk-l2-to-l5"
       ]
     ]
   },
@@ -62,6 +63,17 @@
     "mode": "link",
     "links": [
       "ff930e671df74d5d"
+    ],
+    "wires": []
+  },
+  {
+    "id": "lk-l2-to-l5",
+    "type": "link out",
+    "z": "tab-l2",
+    "name": "→ L5 refresh",
+    "mode": "link",
+    "links": [
+      "lk-l5-refresh-in"
     ],
     "wires": []
   }
