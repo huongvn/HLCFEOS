@@ -155,10 +155,18 @@ sqlite3 /data/bms/bms.db ".schema device_metric"
 ## 4. Reset Database (xoa table cu, tao lai tu dau)
 
 ```bash
-# 1. Backup truoc khi xoa
+# 1. Xoa table cu (neu ton tai)
+sqlite3 /data/bms/bms.db "
+DROP TABLE IF EXISTS device_log;
+DROP TABLE IF EXISTS device_config;
+DROP TABLE IF EXISTS schedule;
+DROP TABLE IF EXISTS device_metric;
+"
+
+# 2. Backup truoc khi tao lai (tuy chon)
 cp /data/bms/bms.db /data/bms/bms.db.backup.$(date +%Y%m%d_%H%M%S)
 
-# 2. Drop table cu + tao lai + seed data moi
+# 3. Tao lai schema + seed data moi
 sqlite3 /data/bms/bms.db <<'EOF'
 DROP TABLE IF EXISTS device_log;
 DROP TABLE IF EXISTS device_config;
