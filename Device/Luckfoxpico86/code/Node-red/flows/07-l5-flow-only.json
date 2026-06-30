@@ -11,7 +11,11 @@
     "onceDelay": "2",
     "payload": "",
     "payloadType": "date",
-    "wires": [["fn-l5-device-cards"]]
+    "wires": [
+      [
+        "fn-l5-device-cards"
+      ]
+    ]
   },
   {
     "id": "fn-l5-device-cards",
@@ -24,14 +28,18 @@
     "initialize": "",
     "finalize": "",
     "libs": [],
-    "wires": [["ui-table-devices"]]
+    "wires": [
+      [
+        "ui-table-devices"
+      ]
+    ]
   },
   {
     "id": "ui-table-devices",
     "type": "ui-table",
     "z": "tab-l5",
     "name": "Device status",
-    "group": "ui-group-devices-main",
+    "group": "eba75532c348db87",
     "order": 1,
     "width": 0,
     "height": 0,
@@ -46,7 +54,7 @@
     "type": "ui-dropdown",
     "z": "tab-l5",
     "name": "Select device",
-    "group": "ui-group-devices-control",
+    "group": "ac8e9b2edae14ca3",
     "order": 1,
     "width": 0,
     "height": 0,
@@ -58,7 +66,11 @@
     "topic": "manual_device",
     "topicType": "msg",
     "className": "",
-    "wires": [["fn-l5-set-manual-dev"]]
+    "wires": [
+      [
+        "fn-l5-set-manual-dev"
+      ]
+    ]
   },
   {
     "id": "fn-l5-set-manual-dev",
@@ -78,7 +90,7 @@
     "type": "ui-switch",
     "z": "tab-l5",
     "name": "Manual toggle",
-    "group": "ui-group-devices-control",
+    "group": "ac8e9b2edae14ca3",
     "order": 2,
     "width": 0,
     "height": 0,
@@ -94,7 +106,11 @@
     "onvalueType": "str",
     "offvalue": "OFF",
     "offvalueType": "str",
-    "wires": [["fn-l5-build-manual"]]
+    "wires": [
+      [
+        "fn-l5-build-manual"
+      ]
+    ]
   },
   {
     "id": "fn-l5-build-manual",
@@ -107,7 +123,11 @@
     "initialize": "",
     "finalize": "",
     "libs": [],
-    "wires": [["mqtt-l5-manual"]]
+    "wires": [
+      [
+        "mqtt-l5-manual"
+      ]
+    ]
   },
   {
     "id": "mqtt-l5-manual",
@@ -123,7 +143,11 @@
     "correl": "",
     "expiry": "",
     "broker": "cfg-mqtt-broker",
-    "wires": [["fn-l5-log-manual"]]
+    "wires": [
+      [
+        "fn-l5-log-manual"
+      ]
+    ]
   },
   {
     "id": "fn-l5-log-manual",
@@ -136,7 +160,11 @@
     "initialize": "",
     "finalize": "",
     "libs": [],
-    "wires": [["sql-l5-log-manual"]]
+    "wires": [
+      [
+        "sql-l5-log-manual"
+      ]
+    ]
   },
   {
     "id": "sql-l5-log-manual",
@@ -153,25 +181,34 @@
     "type": "ui-dropdown",
     "z": "tab-l5",
     "name": "Select device for log",
-    "group": "ui-group-log",
+    "group": "54090829431b65ce",
     "order": 1,
     "width": 0,
     "height": 0,
     "label": "Chon thiet bi",
     "passthru": true,
     "multiple": false,
-    "options": [{ "label": "Tat ca", "value": "all" }],
+    "options": [
+      {
+        "label": "Tat ca",
+        "value": "all"
+      }
+    ],
     "topic": "log_device",
     "topicType": "msg",
     "className": "",
-    "wires": [["fn-l5-log-query"]]
+    "wires": [
+      [
+        "fn-l5-log-query"
+      ]
+    ]
   },
   {
     "id": "ui-button-log-refresh",
     "type": "ui-button",
     "z": "tab-l5",
     "name": "Refresh log",
-    "group": "ui-group-log",
+    "group": "54090829431b65ce",
     "order": 2,
     "width": 0,
     "height": 0,
@@ -183,7 +220,11 @@
     "payloadType": "str",
     "topic": "log_refresh",
     "topicType": "msg",
-    "wires": [["fn-l5-log-query"]]
+    "wires": [
+      [
+        "fn-l5-log-query"
+      ]
+    ]
   },
   {
     "id": "fn-l5-log-query",
@@ -196,7 +237,11 @@
     "initialize": "",
     "finalize": "",
     "libs": [],
-    "wires": [["sql-l5-log-query"]]
+    "wires": [
+      [
+        "sql-l5-log-query"
+      ]
+    ]
   },
   {
     "id": "sql-l5-log-query",
@@ -206,14 +251,18 @@
     "mydb": "cfg-sqlite-db",
     "sqlquery": "msg.topic",
     "sql": "",
-    "wires": [["ui-table-log"]]
+    "wires": [
+      [
+        "ui-table-log"
+      ]
+    ]
   },
   {
     "id": "ui-table-log",
     "type": "ui-table",
     "z": "tab-l5",
     "name": "Log viewer",
-    "group": "ui-group-log",
+    "group": "54090829431b65ce",
     "order": 3,
     "width": 0,
     "height": 0,
@@ -228,7 +277,7 @@
     "type": "ui-text-input",
     "z": "tab-l5",
     "name": "Sched: Ten lich",
-    "group": "ui-group-schedules",
+    "group": "2e37707e9ffddc97",
     "order": 1,
     "width": 0,
     "height": 0,
@@ -237,14 +286,18 @@
     "passthru": true,
     "topic": "sched_form",
     "topicType": "msg",
-    "wires": [["fn-l5-sched-store"]]
+    "wires": [
+      [
+        "fn-l5-sched-store"
+      ]
+    ]
   },
   {
     "id": "ui-text-sched-device",
     "type": "ui-text-input",
     "z": "tab-l5",
     "name": "Sched: Device ID",
-    "group": "ui-group-schedules",
+    "group": "2e37707e9ffddc97",
     "order": 2,
     "width": 0,
     "height": 0,
@@ -253,14 +306,18 @@
     "passthru": true,
     "topic": "sched_form",
     "topicType": "msg",
-    "wires": [["fn-l5-sched-store"]]
+    "wires": [
+      [
+        "fn-l5-sched-store"
+      ]
+    ]
   },
   {
     "id": "ui-dropdown-sched-action",
     "type": "ui-dropdown",
     "z": "tab-l5",
     "name": "Sched: Action",
-    "group": "ui-group-schedules",
+    "group": "2e37707e9ffddc97",
     "order": 3,
     "width": 0,
     "height": 0,
@@ -268,22 +325,38 @@
     "passthru": true,
     "multiple": false,
     "options": [
-      { "label": "Bat (POWER_ON)", "value": "POWER_ON" },
-      { "label": "Tat (POWER_OFF)", "value": "POWER_OFF" },
-      { "label": "Bat AC (AC_SET)", "value": "AC_SET" },
-      { "label": "Tat AC (AC_OFF)", "value": "AC_OFF" }
+      {
+        "label": "Bat (POWER_ON)",
+        "value": "POWER_ON"
+      },
+      {
+        "label": "Tat (POWER_OFF)",
+        "value": "POWER_OFF"
+      },
+      {
+        "label": "Bat AC (AC_SET)",
+        "value": "AC_SET"
+      },
+      {
+        "label": "Tat AC (AC_OFF)",
+        "value": "AC_OFF"
+      }
     ],
     "topic": "sched_form",
     "topicType": "msg",
     "className": "",
-    "wires": [["fn-l5-sched-store"]]
+    "wires": [
+      [
+        "fn-l5-sched-store"
+      ]
+    ]
   },
   {
     "id": "ui-text-sched-params",
     "type": "ui-text-input",
     "z": "tab-l5",
     "name": "Sched: Action params",
-    "group": "ui-group-schedules",
+    "group": "2e37707e9ffddc97",
     "order": 4,
     "width": 0,
     "height": 0,
@@ -292,14 +365,18 @@
     "passthru": true,
     "topic": "sched_form",
     "topicType": "msg",
-    "wires": [["fn-l5-sched-store"]]
+    "wires": [
+      [
+        "fn-l5-sched-store"
+      ]
+    ]
   },
   {
     "id": "ui-num-sched-hour",
     "type": "ui-text-input",
     "z": "tab-l5",
     "name": "Sched: Hour",
-    "group": "ui-group-schedules",
+    "group": "2e37707e9ffddc97",
     "order": 5,
     "width": 0,
     "height": 0,
@@ -308,14 +385,18 @@
     "passthru": true,
     "topic": "sched_form",
     "topicType": "msg",
-    "wires": [["fn-l5-sched-store"]]
+    "wires": [
+      [
+        "fn-l5-sched-store"
+      ]
+    ]
   },
   {
     "id": "ui-num-sched-minute",
     "type": "ui-text-input",
     "z": "tab-l5",
     "name": "Sched: Minute",
-    "group": "ui-group-schedules",
+    "group": "2e37707e9ffddc97",
     "order": 6,
     "width": 0,
     "height": 0,
@@ -324,14 +405,18 @@
     "passthru": true,
     "topic": "sched_form",
     "topicType": "msg",
-    "wires": [["fn-l5-sched-store"]]
+    "wires": [
+      [
+        "fn-l5-sched-store"
+      ]
+    ]
   },
   {
     "id": "ui-dropdown-sched-dow",
     "type": "ui-dropdown",
     "z": "tab-l5",
     "name": "Sched: Day of week",
-    "group": "ui-group-schedules",
+    "group": "2e37707e9ffddc97",
     "order": 7,
     "width": 0,
     "height": 0,
@@ -339,21 +424,34 @@
     "passthru": true,
     "multiple": false,
     "options": [
-      { "label": "Hang ngay", "value": "*" },
-      { "label": "Thu 2-6", "value": "1-5" },
-      { "label": "Cuoi tuan", "value": "0,6" }
+      {
+        "label": "Hang ngay",
+        "value": "*"
+      },
+      {
+        "label": "Thu 2-6",
+        "value": "1-5"
+      },
+      {
+        "label": "Cuoi tuan",
+        "value": "0,6"
+      }
     ],
     "topic": "sched_form",
     "topicType": "msg",
     "className": "",
-    "wires": [["fn-l5-sched-store"]]
+    "wires": [
+      [
+        "fn-l5-sched-store"
+      ]
+    ]
   },
   {
     "id": "ui-switch-sched-oneshot",
     "type": "ui-switch",
     "z": "tab-l5",
     "name": "Sched: One shot",
-    "group": "ui-group-schedules",
+    "group": "2e37707e9ffddc97",
     "order": 8,
     "width": 0,
     "height": 0,
@@ -366,14 +464,18 @@
     "onvalueType": "str",
     "offvalue": "0",
     "offvalueType": "str",
-    "wires": [["fn-l5-sched-store"]]
+    "wires": [
+      [
+        "fn-l5-sched-store"
+      ]
+    ]
   },
   {
     "id": "ui-switch-sched-enabled",
     "type": "ui-switch",
     "z": "tab-l5",
     "name": "Sched: Enabled",
-    "group": "ui-group-schedules",
+    "group": "2e37707e9ffddc97",
     "order": 9,
     "width": 0,
     "height": 0,
@@ -386,7 +488,11 @@
     "onvalueType": "str",
     "offvalue": "0",
     "offvalueType": "str",
-    "wires": [["fn-l5-sched-store"]]
+    "wires": [
+      [
+        "fn-l5-sched-store"
+      ]
+    ]
   },
   {
     "id": "fn-l5-sched-store",
@@ -406,7 +512,7 @@
     "type": "ui-button",
     "z": "tab-l5",
     "name": "Submit schedule",
-    "group": "ui-group-schedules",
+    "group": "2e37707e9ffddc97",
     "order": 10,
     "width": 0,
     "height": 0,
@@ -418,7 +524,11 @@
     "payloadType": "str",
     "topic": "sched_submit",
     "topicType": "msg",
-    "wires": [["fn-l5-schedule-crud"]]
+    "wires": [
+      [
+        "fn-l5-schedule-crud"
+      ]
+    ]
   },
   {
     "id": "fn-l5-schedule-crud",
@@ -431,7 +541,14 @@
     "initialize": "",
     "finalize": "",
     "libs": [],
-    "wires": [["sql-l5-schedule-crud"], ["fn-l5-reload-sched"]]
+    "wires": [
+      [
+        "sql-l5-schedule-crud"
+      ],
+      [
+        "fn-l5-reload-sched"
+      ]
+    ]
   },
   {
     "id": "sql-l5-schedule-crud",
@@ -454,7 +571,11 @@
     "initialize": "",
     "finalize": "",
     "libs": [],
-    "wires": [["sql-l5-reload-sched"]]
+    "wires": [
+      [
+        "sql-l5-reload-sched"
+      ]
+    ]
   },
   {
     "id": "sql-l5-reload-sched",
@@ -464,7 +585,11 @@
     "mydb": "cfg-sqlite-db",
     "sqlquery": "msg.topic",
     "sql": "",
-    "wires": [["fn-l5-save-sched-global"]]
+    "wires": [
+      [
+        "fn-l5-save-sched-global"
+      ]
+    ]
   },
   {
     "id": "fn-l5-save-sched-global",
@@ -484,7 +609,7 @@
     "type": "ui-text-input",
     "z": "tab-l5",
     "name": "Config: Device ID",
-    "group": "ui-group-config",
+    "group": "e8a9c3aebf25107a",
     "order": 1,
     "width": 0,
     "height": 0,
@@ -493,14 +618,18 @@
     "passthru": true,
     "topic": "dev_config",
     "topicType": "msg",
-    "wires": [["fn-l5-devcfg-store"]]
+    "wires": [
+      [
+        "fn-l5-devcfg-store"
+      ]
+    ]
   },
   {
     "id": "ui-dropdown-dev-type",
     "type": "ui-dropdown",
     "z": "tab-l5",
     "name": "Config: Device type",
-    "group": "ui-group-config",
+    "group": "e8a9c3aebf25107a",
     "order": 2,
     "width": 0,
     "height": 0,
@@ -508,21 +637,34 @@
     "passthru": true,
     "multiple": false,
     "options": [
-      { "label": "MCB", "value": "mcb" },
-      { "label": "Switch", "value": "switch" },
-      { "label": "AC Controller", "value": "ac_controller" }
+      {
+        "label": "MCB",
+        "value": "mcb"
+      },
+      {
+        "label": "Switch",
+        "value": "switch"
+      },
+      {
+        "label": "AC Controller",
+        "value": "ac_controller"
+      }
     ],
     "topic": "dev_config",
     "topicType": "msg",
     "className": "",
-    "wires": [["fn-l5-devcfg-store"]]
+    "wires": [
+      [
+        "fn-l5-devcfg-store"
+      ]
+    ]
   },
   {
     "id": "ui-text-dev-gw",
     "type": "ui-text-input",
     "z": "tab-l5",
     "name": "Config: Gateway",
-    "group": "ui-group-config",
+    "group": "e8a9c3aebf25107a",
     "order": 3,
     "width": 0,
     "height": 0,
@@ -531,14 +673,18 @@
     "passthru": true,
     "topic": "dev_config",
     "topicType": "msg",
-    "wires": [["fn-l5-devcfg-store"]]
+    "wires": [
+      [
+        "fn-l5-devcfg-store"
+      ]
+    ]
   },
   {
     "id": "ui-text-dev-loc",
     "type": "ui-text-input",
     "z": "tab-l5",
     "name": "Config: Location",
-    "group": "ui-group-config",
+    "group": "e8a9c3aebf25107a",
     "order": 4,
     "width": 0,
     "height": 0,
@@ -547,14 +693,18 @@
     "passthru": true,
     "topic": "dev_config",
     "topicType": "msg",
-    "wires": [["fn-l5-devcfg-store"]]
+    "wires": [
+      [
+        "fn-l5-devcfg-store"
+      ]
+    ]
   },
   {
     "id": "ui-text-dev-name",
     "type": "ui-text-input",
     "z": "tab-l5",
     "name": "Config: Friendly name",
-    "group": "ui-group-config",
+    "group": "e8a9c3aebf25107a",
     "order": 5,
     "width": 0,
     "height": 0,
@@ -563,14 +713,18 @@
     "passthru": true,
     "topic": "dev_config",
     "topicType": "msg",
-    "wires": [["fn-l5-devcfg-store"]]
+    "wires": [
+      [
+        "fn-l5-devcfg-store"
+      ]
+    ]
   },
   {
     "id": "ui-text-dev-pwr",
     "type": "ui-text-input",
     "z": "tab-l5",
     "name": "Config: Power attr",
-    "group": "ui-group-config",
+    "group": "e8a9c3aebf25107a",
     "order": 6,
     "width": 0,
     "height": 0,
@@ -579,14 +733,18 @@
     "passthru": true,
     "topic": "dev_config",
     "topicType": "msg",
-    "wires": [["fn-l5-devcfg-store"]]
+    "wires": [
+      [
+        "fn-l5-devcfg-store"
+      ]
+    ]
   },
   {
     "id": "ui-text-dev-attrs",
     "type": "ui-text-input",
     "z": "tab-l5",
     "name": "Config: Attrs JSON",
-    "group": "ui-group-config",
+    "group": "e8a9c3aebf25107a",
     "order": 7,
     "width": 0,
     "height": 0,
@@ -595,14 +753,18 @@
     "passthru": true,
     "topic": "dev_config",
     "topicType": "msg",
-    "wires": [["fn-l5-devcfg-store"]]
+    "wires": [
+      [
+        "fn-l5-devcfg-store"
+      ]
+    ]
   },
   {
     "id": "ui-text-dev-custom",
     "type": "ui-text-input",
     "z": "tab-l5",
     "name": "Config: Custom actions",
-    "group": "ui-group-config",
+    "group": "e8a9c3aebf25107a",
     "order": 8,
     "width": 0,
     "height": 0,
@@ -611,7 +773,11 @@
     "passthru": true,
     "topic": "dev_config",
     "topicType": "msg",
-    "wires": [["fn-l5-devcfg-store"]]
+    "wires": [
+      [
+        "fn-l5-devcfg-store"
+      ]
+    ]
   },
   {
     "id": "fn-l5-devcfg-store",
@@ -631,7 +797,7 @@
     "type": "ui-button",
     "z": "tab-l5",
     "name": "Submit device config",
-    "group": "ui-group-config",
+    "group": "e8a9c3aebf25107a",
     "order": 9,
     "width": 0,
     "height": 0,
@@ -643,7 +809,11 @@
     "payloadType": "str",
     "topic": "devcfg_submit",
     "topicType": "msg",
-    "wires": [["fn-l5-add-device"]]
+    "wires": [
+      [
+        "fn-l5-add-device"
+      ]
+    ]
   },
   {
     "id": "fn-l5-add-device",
@@ -656,7 +826,12 @@
     "initialize": "",
     "finalize": "",
     "libs": [],
-    "wires": [["sql-l5-add-device", "fn-l5-reload-configs"]]
+    "wires": [
+      [
+        "sql-l5-add-device",
+        "fn-l5-reload-configs"
+      ]
+    ]
   },
   {
     "id": "sql-l5-add-device",
@@ -679,7 +854,11 @@
     "initialize": "",
     "finalize": "",
     "libs": [],
-    "wires": [["sql-l5-load-configs"]]
+    "wires": [
+      [
+        "sql-l5-load-configs"
+      ]
+    ]
   },
   {
     "id": "sql-l5-load-configs",
@@ -689,7 +868,11 @@
     "mydb": "cfg-sqlite-db",
     "sqlquery": "msg.topic",
     "sql": "",
-    "wires": [["fn-l5-parse-configs"]]
+    "wires": [
+      [
+        "fn-l5-parse-configs"
+      ]
+    ]
   },
   {
     "id": "fn-l5-parse-configs",
@@ -709,7 +892,7 @@
     "type": "ui-button",
     "z": "tab-l5",
     "name": "Reload config",
-    "group": "ui-group-config",
+    "group": "e8a9c3aebf25107a",
     "order": 10,
     "width": 0,
     "height": 0,
@@ -721,7 +904,11 @@
     "payloadType": "str",
     "topic": "config_reload",
     "topicType": "msg",
-    "wires": [["fn-l5-reload-trigger"]]
+    "wires": [
+      [
+        "fn-l5-reload-trigger"
+      ]
+    ]
   },
   {
     "id": "fn-l5-reload-trigger",
@@ -734,14 +921,18 @@
     "initialize": "",
     "finalize": "",
     "libs": [],
-    "wires": [["fn-l5-reload-configs"]]
+    "wires": [
+      [
+        "fn-l5-reload-configs"
+      ]
+    ]
   },
   {
     "id": "ui-slider-ac-temp",
     "type": "ui-slider",
     "z": "tab-l5",
     "name": "AC Temperature",
-    "group": "ui-group-ac",
+    "group": "7268f6c9fac75a03",
     "order": 1,
     "width": 0,
     "height": 0,
@@ -755,14 +946,18 @@
     "topic": "ac_temp",
     "topicType": "msg",
     "className": "",
-    "wires": [["fn-l5-store-ac-ctx"]]
+    "wires": [
+      [
+        "fn-l5-store-ac-ctx"
+      ]
+    ]
   },
   {
     "id": "ui-dropdown-ac-mode",
     "type": "ui-dropdown",
     "z": "tab-l5",
     "name": "AC Mode",
-    "group": "ui-group-ac",
+    "group": "7268f6c9fac75a03",
     "order": 2,
     "width": 0,
     "height": 0,
@@ -770,15 +965,31 @@
     "passthru": true,
     "multiple": false,
     "options": [
-      { "label": "Cool", "value": "cool" },
-      { "label": "Heat", "value": "heat" },
-      { "label": "Fan Only", "value": "fan_only" },
-      { "label": "Dry", "value": "dry" }
+      {
+        "label": "Cool",
+        "value": "cool"
+      },
+      {
+        "label": "Heat",
+        "value": "heat"
+      },
+      {
+        "label": "Fan Only",
+        "value": "fan_only"
+      },
+      {
+        "label": "Dry",
+        "value": "dry"
+      }
     ],
     "topic": "ac_mode",
     "topicType": "msg",
     "className": "",
-    "wires": [["fn-l5-store-ac-ctx"]]
+    "wires": [
+      [
+        "fn-l5-store-ac-ctx"
+      ]
+    ]
   },
   {
     "id": "fn-l5-store-ac-ctx",
@@ -798,7 +1009,7 @@
     "type": "ui-button",
     "z": "tab-l5",
     "name": "Send AC Command",
-    "group": "ui-group-ac",
+    "group": "7268f6c9fac75a03",
     "order": 4,
     "width": 0,
     "height": 0,
@@ -810,7 +1021,11 @@
     "payloadType": "str",
     "topic": "ac_send",
     "topicType": "msg",
-    "wires": [["fn-l5-ac-cmd"]]
+    "wires": [
+      [
+        "fn-l5-ac-cmd"
+      ]
+    ]
   },
   {
     "id": "fn-l5-ac-cmd",
@@ -822,7 +1037,11 @@
     "noerr": 0,
     "initialize": "",
     "finalize": "",
-    "wires": [["mqtt-l5-ac"]]
+    "wires": [
+      [
+        "mqtt-l5-ac"
+      ]
+    ]
   },
   {
     "id": "mqtt-l5-ac",
@@ -845,7 +1064,7 @@
     "type": "ui-button",
     "z": "tab-l5",
     "name": "Tat AC",
-    "group": "ui-group-ac",
+    "group": "7268f6c9fac75a03",
     "order": 5,
     "width": 0,
     "height": 0,
@@ -857,7 +1076,11 @@
     "payloadType": "str",
     "topic": "ac_off",
     "topicType": "msg",
-    "wires": [["fn-l5-ac-off"]]
+    "wires": [
+      [
+        "fn-l5-ac-off"
+      ]
+    ]
   },
   {
     "id": "fn-l5-ac-off",
@@ -869,7 +1092,11 @@
     "noerr": 0,
     "initialize": "",
     "finalize": "",
-    "wires": [["mqtt-l5-ac-off"]]
+    "wires": [
+      [
+        "mqtt-l5-ac-off"
+      ]
+    ]
   },
   {
     "id": "mqtt-l5-ac-off",
@@ -899,7 +1126,11 @@
     "onceDelay": "3",
     "payload": "",
     "payloadType": "date",
-    "wires": [["fn-l5-dropdown-opts"]]
+    "wires": [
+      [
+        "fn-l5-dropdown-opts"
+      ]
+    ]
   },
   {
     "id": "fn-l5-dropdown-opts",
@@ -912,6 +1143,10 @@
     "initialize": "",
     "finalize": "",
     "libs": [],
-    "wires": [["ui-dropdown-manual-dev"]]
+    "wires": [
+      [
+        "ui-dropdown-manual-dev"
+      ]
+    ]
   }
 ]

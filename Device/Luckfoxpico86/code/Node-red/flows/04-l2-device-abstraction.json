@@ -11,8 +11,14 @@
     "type": "link in",
     "z": "tab-l2",
     "name": "← L1 all devices",
-    "links": ["lk-l1-to-l2"],
-    "wires": [["fn-l2-normalize"]]
+    "links": [
+      "lk-l1-to-l2"
+    ],
+    "wires": [
+      [
+        "fn-l2-normalize"
+      ]
+    ]
   },
   {
     "id": "fn-l2-normalize",
@@ -25,7 +31,11 @@
     "initialize": "",
     "finalize": "",
     "libs": [],
-    "wires": [["fn-l2-update"]]
+    "wires": [
+      [
+        "fn-l2-update"
+      ]
+    ]
   },
   {
     "id": "fn-l2-update",
@@ -38,7 +48,11 @@
     "initialize": "",
     "finalize": "",
     "libs": [],
-    "wires": [["lk-l2-to-l3"]]
+    "wires": [
+      [
+        "lk-l2-to-l3"
+      ]
+    ]
   },
   {
     "id": "lk-l2-to-l3",
@@ -46,7 +60,9 @@
     "z": "tab-l2",
     "name": "→ L3 storage",
     "mode": "link",
-    "links": ["lk-l3-data-in"],
+    "links": [
+      "ff930e671df74d5d"
+    ],
     "wires": []
   }
 ]

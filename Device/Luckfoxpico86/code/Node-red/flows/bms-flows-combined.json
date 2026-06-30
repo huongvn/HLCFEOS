@@ -416,7 +416,7 @@
     "name": "→ L3 LWT log",
     "mode": "link",
     "links": [
-      "lk-l3-lwt-in"
+      "09a3dc141dc6caf5"
     ],
     "wires": []
   },
@@ -482,7 +482,7 @@
     "name": "→ L3 storage",
     "mode": "link",
     "links": [
-      "lk-l3-data-in"
+      "ff930e671df74d5d"
     ],
     "wires": []
   },
@@ -763,18 +763,110 @@
   {
     "id": "ui-base",
     "type": "ui-base",
-    "name": "BMS Dashboard",
-    "theme": "ui-theme",
-    "site": {
-      "name": "Smart Cafe BMS",
-      "hideToolbar": "false",
-      "allowSwipe": "false",
-      "lockMenu": "false",
-      "showTempGauge": "true",
-      "showDateInAppbar": "true",
-      "showHeader": "true",
-      "headerStyles": "{}"
-    }
+    "name": "BMS Dashboard"
+  },
+  {
+    "id": "ui-page-devices",
+    "type": "ui-page",
+    "name": "Devices",
+    "ui": "ui-base",
+    "path": "/devices",
+    "icon": "devices",
+    "layout": "notebook",
+    "visible": "true",
+    "disabled": false
+  },
+  {
+    "id": "ui-page-config",
+    "type": "ui-page",
+    "name": "Config",
+    "ui": "ui-base",
+    "path": "/config",
+    "icon": "settings",
+    "layout": "notebook",
+    "visible": "true",
+    "disabled": false
+  },
+  {
+    "id": "ui-page-log",
+    "type": "ui-page",
+    "name": "Log",
+    "ui": "ui-base",
+    "path": "/log",
+    "icon": "list_alt",
+    "layout": "notebook",
+    "visible": "true",
+    "disabled": false
+  },
+  {
+    "id": "ui-page-schedules",
+    "type": "ui-page",
+    "name": "Schedules",
+    "ui": "ui-base",
+    "path": "/schedules",
+    "icon": "schedule",
+    "layout": "notebook",
+    "visible": "true",
+    "disabled": false
+  },
+  {
+    "id": "ui-page-ac",
+    "type": "ui-page",
+    "name": "AC Control",
+    "ui": "ui-base",
+    "path": "/ac-control",
+    "icon": "ac_unit",
+    "layout": "notebook",
+    "visible": "true",
+    "disabled": false
+  },
+  {
+    "id": "ui-group-devices-main",
+    "type": "ui-group",
+    "name": "Device Status",
+    "page": "ui-page-devices",
+    "width": 12,
+    "order": 1
+  },
+  {
+    "id": "ui-group-devices-control",
+    "type": "ui-group",
+    "name": "Manual Control",
+    "page": "ui-page-devices",
+    "width": 6,
+    "order": 2
+  },
+  {
+    "id": "ui-group-config",
+    "type": "ui-group",
+    "name": "Add Device",
+    "page": "ui-page-config",
+    "width": 12,
+    "order": 1
+  },
+  {
+    "id": "ui-group-log",
+    "type": "ui-group",
+    "name": "Device Log",
+    "page": "ui-page-log",
+    "width": 12,
+    "order": 1
+  },
+  {
+    "id": "ui-group-schedules",
+    "type": "ui-group",
+    "name": "Schedule Management",
+    "page": "ui-page-schedules",
+    "width": 12,
+    "order": 1
+  },
+  {
+    "id": "ui-group-ac",
+    "type": "ui-group",
+    "name": "AC Settings",
+    "page": "ui-page-ac",
+    "width": 12,
+    "order": 1
   },
   {
     "id": "ui-theme",
@@ -787,126 +879,6 @@
       "groupBg": "#2A2A2A",
       "groupOutline": "#444444"
     }
-  },
-  {
-    "id": "ui-page-devices",
-    "type": "ui-page",
-    "name": "Devices",
-    "ui": "ui-base",
-    "path": "/devices",
-    "icon": "devices",
-    "layout": "notebook",
-    "defaultGroup": "ui-group-devices-main",
-    "visible": true,
-    "disabled": false
-  },
-  {
-    "id": "ui-page-config",
-    "type": "ui-page",
-    "name": "Config",
-    "ui": "ui-base",
-    "path": "/config",
-    "icon": "settings",
-    "layout": "notebook",
-    "defaultGroup": "ui-group-config",
-    "visible": true,
-    "disabled": false
-  },
-  {
-    "id": "ui-page-log",
-    "type": "ui-page",
-    "name": "Log",
-    "ui": "ui-base",
-    "path": "/log",
-    "icon": "list_alt",
-    "layout": "notebook",
-    "defaultGroup": "ui-group-log",
-    "visible": true,
-    "disabled": false
-  },
-  {
-    "id": "ui-page-schedules",
-    "type": "ui-page",
-    "name": "Schedules",
-    "ui": "ui-base",
-    "path": "/schedules",
-    "icon": "schedule",
-    "layout": "notebook",
-    "defaultGroup": "ui-group-schedules",
-    "visible": true,
-    "disabled": false
-  },
-  {
-    "id": "ui-page-ac",
-    "type": "ui-page",
-    "name": "AC Control",
-    "ui": "ui-base",
-    "path": "/ac-control",
-    "icon": "ac_unit",
-    "layout": "notebook",
-    "defaultGroup": "ui-group-ac",
-    "visible": true,
-    "disabled": false
-  },
-  {
-    "id": "ui-group-devices-main",
-    "type": "ui-group",
-    "name": "Device Status",
-    "page": "ui-page-devices",
-    "width": "12",
-    "order": 1,
-    "showTitle": true,
-    "className": ""
-  },
-  {
-    "id": "ui-group-devices-control",
-    "type": "ui-group",
-    "name": "Manual Control",
-    "page": "ui-page-devices",
-    "width": "6",
-    "order": 2,
-    "showTitle": true,
-    "className": ""
-  },
-  {
-    "id": "ui-group-config",
-    "type": "ui-group",
-    "name": "Add Device",
-    "page": "ui-page-config",
-    "width": "12",
-    "order": 1,
-    "showTitle": true,
-    "className": ""
-  },
-  {
-    "id": "ui-group-log",
-    "type": "ui-group",
-    "name": "Device Log",
-    "page": "ui-page-log",
-    "width": "12",
-    "order": 1,
-    "showTitle": true,
-    "className": ""
-  },
-  {
-    "id": "ui-group-schedules",
-    "type": "ui-group",
-    "name": "Schedule Management",
-    "page": "ui-page-schedules",
-    "width": "12",
-    "order": 1,
-    "showTitle": true,
-    "className": ""
-  },
-  {
-    "id": "ui-group-ac",
-    "type": "ui-group",
-    "name": "AC Settings",
-    "page": "ui-page-ac",
-    "width": "12",
-    "order": 1,
-    "showTitle": true,
-    "className": ""
   },
   {
     "id": "inj-l5-refresh",

@@ -37,7 +37,11 @@
     "rap": true,
     "rh": 0,
     "inputs": 0,
-    "wires": [["fn-l1-parser"]]
+    "wires": [
+      [
+        "fn-l1-parser"
+      ]
+    ]
   },
   {
     "id": "fn-l1-parser",
@@ -50,7 +54,11 @@
     "initialize": "",
     "finalize": "",
     "libs": [],
-    "wires": [["lk-l1-to-l2"]]
+    "wires": [
+      [
+        "lk-l1-to-l2"
+      ]
+    ]
   },
   {
     "id": "lk-l1-to-l2",
@@ -58,7 +66,9 @@
     "z": "tab-l1",
     "name": "→ L2 all devices",
     "mode": "link",
-    "links": ["lk-l2-all-in"],
+    "links": [
+      "lk-l2-all-in"
+    ],
     "wires": []
   },
   {
@@ -87,7 +97,11 @@
     "rap": true,
     "rh": 0,
     "inputs": 0,
-    "wires": [["fn-l1-lwt"]]
+    "wires": [
+      [
+        "fn-l1-lwt"
+      ]
+    ]
   },
   {
     "id": "fn-l1-lwt",
@@ -100,7 +114,11 @@
     "initialize": "",
     "finalize": "",
     "libs": [],
-    "wires": [["lk-l1-lwt-out"]]
+    "wires": [
+      [
+        "lk-l1-lwt-out"
+      ]
+    ]
   },
   {
     "id": "lk-l1-lwt-out",
@@ -108,7 +126,9 @@
     "z": "tab-l1",
     "name": "→ L3 LWT log",
     "mode": "link",
-    "links": ["lk-l3-lwt-in"],
+    "links": [
+      "09a3dc141dc6caf5"
+    ],
     "wires": []
   }
 ]
