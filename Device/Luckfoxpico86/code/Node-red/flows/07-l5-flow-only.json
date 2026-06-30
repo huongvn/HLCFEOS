@@ -53,7 +53,7 @@
     "label": "Thiet bi",
     "wires": [],
     "templateScope": "local",
-    "template": "<pre>{{ JSON.stringify(msg.payload, null, 2) }}</pre>"
+    "template": "{{msg.payload}}"
   },
   {
     "id": "ui-dropdown-manual-dev",
