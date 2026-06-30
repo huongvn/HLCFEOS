@@ -42,7 +42,7 @@
     "type": "function",
     "z": "tab-l2",
     "name": "Update global state",
-    "func": "// ── L2→L3: Update global devices cache ──────────────────────\nconst d       = msg.device;\nconst devices = global.get('devices') || {};\n\nconst prev    = devices[d.id];\nconst changed = !prev\n    || JSON.stringify(prev.state) !== JSON.stringify(d.state);\n\ndevices[d.id] = d;\nglobal.set('devices', devices);\n\nmsg._state_changed = changed;\nmsg._prev_state    = prev ? prev.state : null;\nreturn msg;",
+    "func": "// ── L2→L3: Update global devices cache ──────────────────────\nconst d       = msg.device;\nconst devices = global.get('devices') || {};\n\nconst prev    = devices[d.id];\n\n// Merge state thay vi overwrite — MQTT gui tung attribute rieng le\nif (prev) {\n    d.state = { ...prev.state, ...d.state };\n    d.raw   = { ...prev.raw,   ...d.raw };\n}\n\nconst changed = !prev\n    || JSON.stringify(prev.state) !== JSON.stringify(d.state);\n\ndevices[d.id] = d;\nglobal.set('devices', devices);\n\nmsg._state_changed = changed;\nmsg._prev_state    = prev ? prev.state : null;\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",

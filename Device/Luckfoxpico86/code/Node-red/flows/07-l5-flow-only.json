@@ -1157,7 +1157,8 @@
     "wires": [
       [
         "ui-dropdown-manual-dev",
-        "ui-dropdown-detail-dev"
+        "ui-dropdown-detail-dev",
+        "ui-dropdown-chart-device"
       ]
     ]
   },
@@ -1292,5 +1293,221 @@
     "fontSize": 14,
     "color": "#ffffff",
     "wires": []
+  },
+  {
+    "id": "ui-group-metric-chart",
+    "type": "ui-group",
+    "name": "Metric Chart",
+    "page": "d91d5a758b948c3b",
+    "width": "12",
+    "order": 4,
+    "showTitle": true,
+    "className": ""
+  },
+  {
+    "id": "ui-dropdown-chart-device",
+    "type": "ui-dropdown",
+    "z": "tab-l5",
+    "name": "Chart: Select device",
+    "group": "ui-group-metric-chart",
+    "order": 1,
+    "width": 0,
+    "height": 0,
+    "label": "Chon thiet bi",
+    "passthru": true,
+    "multiple": false,
+    "options": [],
+    "payload": "",
+    "topic": "chart_device",
+    "topicType": "msg",
+    "className": "",
+    "wires": [
+      [
+        "fn-l5-set-chart-device"
+      ]
+    ]
+  },
+  {
+    "id": "fn-l5-set-chart-device",
+    "type": "function",
+    "z": "tab-l5",
+    "name": "Store chart device",
+    "func": "flow.set('chart_device_id', msg.payload);\n// Trigger chart reload\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [
+      [
+        "fn-l5-chart-query"
+      ]
+    ]
+  },
+  {
+    "id": "ui-dropdown-chart-metric",
+    "type": "ui-dropdown",
+    "z": "tab-l5",
+    "name": "Chart: Select metric",
+    "group": "ui-group-metric-chart",
+    "order": 2,
+    "width": 0,
+    "height": 0,
+    "label": "Chon metric",
+    "passthru": true,
+    "multiple": false,
+    "options": [
+      {
+        "label": "Power (ON/OFF)",
+        "value": "power"
+      },
+      {
+        "label": "Link Quality",
+        "value": "link_quality"
+      },
+      {
+        "label": "Voltage (0272)",
+        "value": "meas_0272"
+      },
+      {
+        "label": "Current (0273)",
+        "value": "meas_0273"
+      },
+      {
+        "label": "Power W (0274)",
+        "value": "meas_0274"
+      },
+      {
+        "label": "Frequency (0276)",
+        "value": "meas_0276"
+      },
+      {
+        "label": "Energy kWh (0277)",
+        "value": "meas_0277"
+      },
+      {
+        "label": "Temperature (0283)",
+        "value": "meas_0283"
+      },
+      {
+        "label": "Raw 0170",
+        "value": "meas_0170"
+      },
+      {
+        "label": "Raw 046E",
+        "value": "meas_046E"
+      }
+    ],
+    "payload": "",
+    "topic": "chart_metric",
+    "topicType": "msg",
+    "className": "",
+    "wires": [
+      [
+        "fn-l5-set-chart-metric"
+      ]
+    ]
+  },
+  {
+    "id": "fn-l5-set-chart-metric",
+    "type": "function",
+    "z": "tab-l5",
+    "name": "Store chart metric",
+    "func": "flow.set('chart_metric', msg.payload);\n// Trigger chart reload\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [
+      [
+        "fn-l5-chart-query"
+      ]
+    ]
+  },
+  {
+    "id": "ui-button-chart-refresh",
+    "type": "ui-button",
+    "z": "tab-l5",
+    "name": "Chart refresh",
+    "group": "ui-group-metric-chart",
+    "order": 3,
+    "width": 0,
+    "height": 0,
+    "label": "Tai lai chart",
+    "color": "",
+    "bgcolor": "",
+    "className": "",
+    "payload": "refresh",
+    "payloadType": "str",
+    "topic": "chart_refresh",
+    "topicType": "msg",
+    "wires": [
+      [
+        "fn-l5-chart-query"
+      ]
+    ]
+  },
+  {
+    "id": "fn-l5-chart-query",
+    "type": "function",
+    "z": "tab-l5",
+    "name": "Build chart query",
+    "func": "function esc(v) { if (v === null || v === undefined) return 'NULL'; if (typeof v === 'number') return String(v); return \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nconst deviceId = flow.get('chart_device_id');\nconst metric = flow.get('chart_metric');\nif (!deviceId || !metric) {\n    msg.payload = '<div style=\\\"padding:20px;color:#888\\\">Chọn device và metric</div>';\n    return msg;\n}\nmsg.topic = 'SELECT ts, attr_value, attr_str FROM device_metric WHERE device_id = ' + esc(deviceId) + ' AND attr_name = ' + esc(metric) + ' ORDER BY ts DESC LIMIT 500';\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [
+      [
+        "sql-l5-chart"
+      ]
+    ]
+  },
+  {
+    "id": "sql-l5-chart",
+    "type": "sqlite",
+    "z": "tab-l5",
+    "name": "SELECT chart data",
+    "mydb": "cfg-sqlite-db",
+    "sqlquery": "msg.topic",
+    "sql": "",
+    "wires": [
+      [
+        "fn-l5-chart-data"
+      ]
+    ]
+  },
+  {
+    "id": "fn-l5-chart-data",
+    "type": "function",
+    "z": "tab-l5",
+    "name": "Format chart SVG",
+    "func": "const rows = msg.payload || [];\nif (rows.length === 0) {\n    msg.payload = '<div style=\\\"padding:20px;color:#888\\\">Không có dữ liệu</div>';\n    return msg;\n}\n\nrows.reverse(); // oldest first\nconst values = rows.map(r => r.attr_value !== null ? r.attr_value : 0);\nconst min = Math.min.apply(null, values);\nconst max = Math.max.apply(null, values);\nconst range = max - min || 1;\n\nconst points = rows.map((r, i) => {\n    const x = (i / (rows.length - 1)) * 600;\n    const y = 300 - ((values[i] - min) / range) * 280 - 10;\n    return x.toFixed(1) + ',' + y.toFixed(1);\n}).join(' ');\n\nmsg.payload = '<div style=\\\"width:100%;height:300px;background:#1a1a1a;padding:10px\\\">' +\n  '<svg width=\\\"100%\\\" height=\\\"100%\\\" viewBox=\\\"0 0 600 300\\\">' +\n  '<polyline fill=\\\"none\\\" stroke=\\\"#2196F3\\\" stroke-width=\\\"2\\\" points=\\\"' + points + '\\\"/>' +\n  '<text x=\\\"10\\\" y=\\\"20\\\" fill=\\\"#fff\\\" font-size=\\\"12\\\">Max: ' + max + '</text>' +\n  '<text x=\\\"10\\\" y=\\\"290\\\" fill=\\\"#fff\\\" font-size=\\\"12\\\">Min: ' + min + '</text>' +\n  '</svg></div>';\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [
+      [
+        "ui-template-chart"
+      ]
+    ]
+  },
+  {
+    "id": "ui-template-chart",
+    "type": "ui-template",
+    "z": "tab-l5",
+    "name": "Metric chart",
+    "group": "ui-group-metric-chart",
+    "order": 4,
+    "width": 0,
+    "height": 0,
+    "label": "",
+    "wires": [],
+    "templateScope": "local",
+    "template": "<div v-html=\\\"msg.payload\\\"></div>"
   }
 ]
