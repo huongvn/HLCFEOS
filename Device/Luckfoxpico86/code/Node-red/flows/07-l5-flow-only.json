@@ -243,7 +243,7 @@
     "type": "function",
     "z": "tab-l5",
     "name": "Build log query",
-    "func": "function esc(v) { if (v === null || v === undefined) return 'NULL'; if (typeof v === 'number') return String(v); return \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nconst devId = (typeof msg.payload === 'string' && msg.payload !== 'refresh') ? msg.payload : 'all';\nconst filter = devId === 'all' ? '%' : devId;\nmsg.topic = 'SELECT ts, device_id, event, payload FROM device_log WHERE device_id LIKE ' + esc(filter) + ' ORDER BY ts DESC LIMIT 100';\nreturn msg;",
+    "func": "function esc(v) { if (v === null || v === undefined) return 'NULL'; if (typeof v === 'number') return String(v); return \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nconst devId = (typeof msg.payload === 'string' && msg.payload !== 'refresh') ? msg.payload : 'all';\nconst filter = devId === 'all' ? '%' : devId;\nmsg.topic = 'SELECT ts, device_id, event, payload FROM device_log WHERE device_id LIKE ' + esc(filter) + ' ORDER BY ts DESC LIMIT 500';\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
@@ -282,7 +282,7 @@
     "label": "Nhat ky su kien",
     "wires": [],
     "autocols": true,
-    "maxrows": 100,
+    "maxrows": 500,
     "columns": []
   },
   {
