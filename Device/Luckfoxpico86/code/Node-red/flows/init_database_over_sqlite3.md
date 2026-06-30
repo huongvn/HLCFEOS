@@ -87,25 +87,25 @@ EOF
 ```bash
 sqlite3 /data/bms/bms.db <<'EOF'
 INSERT OR IGNORE INTO device_config VALUES
-('0x384C', 'mcb', 'zone_A', 'MCB Tong zone A', 1,
+ ('0x384C', 'mcb', 'zone_A', 'MCB Tong zone A', 1,
  '{"gateway":"tasmota_6DCAA8","power_attr":"0110",
    "attrs":{
-     "0110":{"key":"power","type":"bool"},
-     "0272":{"key":"meas_0272","type":"number"},
-     "0273":{"key":"meas_0273","type":"number"},
-     "0274":{"key":"meas_0274","type":"number"},
+     "0110":{"key":"control","type":"bool"},
+     "0170":{"key":"meas_0170","type":"number"},
+     "0201":{"key":"state_0201","type":"number"},
+     "0272":{"key":"rated_current","type":"number"},
+     "0273":{"key":"high_voltage_cutoff","type":"number"},
+     "0274":{"key":"low_voltage_cutoff","type":"number"},
      "0276":{"key":"meas_0276","type":"number"},
-     "0277":{"key":"meas_0277","type":"number"},
-     "0283":{"key":"meas_0283","type":"number"},
+     "0277":{"key":"max_power","type":"number"},
+     "027D":{"key":"state_027D","type":"number"},
+     "0283":{"key":"temp","type":"number","scale":0.1},
      "0466":{"key":"meas_0466","type":"number"},
      "0467":{"key":"meas_0467","type":"number"},
      "0468":{"key":"meas_0468","type":"number"},
      "0469":{"key":"meas_0469","type":"number"},
      "046B":{"key":"meas_046B","type":"number"},
      "046E":{"key":"meas_046E","type":"number"},
-     "0170":{"key":"meas_0170","type":"number"},
-     "0201":{"key":"state_0201","type":"number"},
-     "027D":{"key":"state_027D","type":"number"},
      "0006":{"key":"raw_hex","type":"hex"}
    }
  }'),
