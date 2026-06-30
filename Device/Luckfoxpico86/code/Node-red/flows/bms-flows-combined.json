@@ -1102,7 +1102,12 @@
     "width": 0,
     "height": 0,
     "label": "Them/Cap nhat thiet bi",
-    "formElements": [
+    "wires": [
+      [
+        "fn-l5-add-device"
+      ]
+    ],
+    "form": [
       {
         "type": "text",
         "label": "Device ID (Zigbee addr, vd: 0x1234)",
@@ -1182,11 +1187,6 @@
         "label": "Enabled",
         "key": "enabled"
       }
-    ],
-    "wires": [
-      [
-        "fn-l5-add-device"
-      ]
     ]
   },
   {
@@ -1368,7 +1368,12 @@
     "width": 0,
     "height": 0,
     "label": "Tao/Sua lich",
-    "formElements": [
+    "wires": [
+      [
+        "fn-l5-schedule-crud"
+      ]
+    ],
+    "form": [
       {
         "type": "text",
         "label": "Ten lich",
@@ -1446,11 +1451,6 @@
         "label": "Kich hoat",
         "key": "enabled"
       }
-    ],
-    "wires": [
-      [
-        "fn-l5-schedule-crud"
-      ]
     ]
   },
   {
