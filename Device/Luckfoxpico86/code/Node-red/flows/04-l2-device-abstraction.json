@@ -59,10 +59,11 @@
     "id": "lk-l2-to-l3",
     "type": "link out",
     "z": "tab-l2",
-    "name": "→ L3 storage",
+    "name": "→ L3 storage + metrics",
     "mode": "link",
     "links": [
-      "ff930e671df74d5d"
+      "ff930e671df74d5d",
+      "lk-l3-metrics-in"
     ],
     "wires": []
   },
