@@ -6,7 +6,7 @@ Moi device chi can 1 row trong `device_config`. Toan bo flow L1-L5 doc config tu
 
 ```json
 {
-  "gateway":          "tasmota-6DCAA8-2728-eth",
+  "gateway":          "tasmota_6DCAA8",
   "power_attr":       "0110",
   "ac_power_attr":    "0101",
   "ac_temp_attr":     "0202",
@@ -78,7 +78,7 @@ Schedule: `action=SET_TEMP, action_params={"deg":24}` → Write `{"0101":1, "020
 ```sql
 INSERT OR REPLACE INTO device_config VALUES (
   '0x384C', 'mcb', 'zone_A', 'MCB Tong zone A', 1,
-  '{"gateway":"tasmota-6DCAA8-2728-eth","power_attr":"0110","attrs":{
+  '{"gateway":"tasmota_6DCAA8","power_attr":"0110","attrs":{
     "0110":{"key":"power","type":"bool","desc":"Relay"},
     "0272":{"key":"meas_0272","type":"number"},
     "0273":{"key":"meas_0273","type":"number"},
@@ -97,7 +97,7 @@ INSERT OR REPLACE INTO device_config VALUES (
 ```sql
 INSERT OR REPLACE INTO device_config VALUES (
   '0x8150', 'ac_controller', 'zone_B', 'Dieu hoa zone B', 1,
-  '{"gateway":"tasmota-6DCAA8-2728-eth",
+  '{"gateway":"tasmota_6DCAA8",
     "power_attr":"0101",
     "ac_power_attr":"0101",
     "ac_temp_attr":"0202",
@@ -118,7 +118,7 @@ INSERT OR REPLACE INTO device_config VALUES (
 ```sql
 INSERT OR REPLACE INTO device_config VALUES (
   '0x5678', 'switch', 'zone_A', 'Cong tac cua chinh', 1,
-  '{"gateway":"tasmota-6DCAA8-2728-eth",
+  '{"gateway":"tasmota_6DCAA8",
     "power_attr":"0110",
     "attrs":{
       "0110":{"key":"power","type":"bool","desc":"Switch state"}
@@ -133,7 +133,7 @@ INSERT OR REPLACE INTO device_config VALUES (
 ```sql
 INSERT OR REPLACE INTO device_config VALUES (
   '0xABCD', 'dimmer', 'zone_C', 'Dimmer LED', 1,
-  '{"gateway":"tasmota-6DCAA8-2728-eth",
+  '{"gateway":"tasmota_6DCAA8",
     "power_attr":"0101",
     "attrs":{
       "0101":{"key":"power","type":"bool"},
@@ -162,7 +162,7 @@ Vao tab **Config** → dien form:
 |-------|-------|
 | Device ID | `0x5678` |
 | Device Type | `switch` |
-| Gateway hostname | `tasmota-6DCAA8-2728-eth` |
+| Gateway hostname | `tasmota_6DCAA8` |
 | Power attr ID | `0110` |
 | Attrs mapping (JSON) | `{"0110":{"key":"power","type":"bool"}}` |
 | Custom actions (JSON) | (bo trong hoac `{"DIM_50":{"0110":1,"0200":50}}`) |
@@ -176,17 +176,17 @@ Sau khi submit, an **Reload Config** → L1, L2, L4 tu dong nhan device moi.
 ```bash
 # Bat/Tat
 mosquitto_pub -h localhost -p 1883 \
-  -t "cmnd/tasmota-6DCAA8-2728-eth/ZbSend" \
+  -t "cmnd/tasmota_6DCAA8/ZbSend" \
   -m '{"device":"0x384C","send":{"Cluster":"0xEF00","Write":{"0110":1}}}'
 
 # AC
 mosquitto_pub -h localhost -p 1883 \
-  -t "cmnd/tasmota-6DCAA8-2728-eth/ZbSend" \
+  -t "cmnd/tasmota_6DCAA8/ZbSend" \
   -m '{"device":"0x8150","send":{"Cluster":"0xEF00","Write":{"0101":1,"0202":24,"0405":1}}}'
 
 # Doc attr
 mosquitto_pub -h localhost -p 1883 \
-  -t "cmnd/tasmota-6DCAA8-2728-eth/ZbSend" \
+  -t "cmnd/tasmota_6DCAA8/ZbSend" \
   -m '{"device":"0x8150","send":{"Cluster":"0xEF00","Read":["0101","0202","0405"]}}'
 ```
 

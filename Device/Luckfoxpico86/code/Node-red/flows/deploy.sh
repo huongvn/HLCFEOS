@@ -131,9 +131,9 @@ CREATE INDEX IF NOT EXISTS idx_sch_device  ON schedule(device_id);
 
 INSERT OR IGNORE INTO device_config VALUES
 ('0x384C', 'mcb', 'zone_A', 'MCB Tong zone A', 1,
- '{"gateway":"tasmota-6DCAA8-2728-eth","power_attr":"0110","attrs":{"0110":{"key":"power","type":"bool"},"0272":{"key":"meas_0272","type":"number"},"0273":{"key":"meas_0273","type":"number"},"0274":{"key":"meas_0274","type":"number"},"0276":{"key":"meas_0276","type":"number"},"0277":{"key":"meas_0277","type":"number"},"0283":{"key":"meas_0283","type":"number"},"0466":{"key":"meas_0466","type":"number"},"0467":{"key":"meas_0467","type":"number"},"0468":{"key":"meas_0468","type":"number"},"0469":{"key":"meas_0469","type":"number"},"046B":{"key":"meas_046B","type":"number"},"046E":{"key":"meas_046E","type":"number"},"0170":{"key":"meas_0170","type":"number"},"0201":{"key":"state_0201","type":"number"},"027D":{"key":"state_027D","type":"number"},"0006":{"key":"raw_hex","type":"hex"}}}'),
+ '{"gateway":"tasmota_6DCAA8","power_attr":"0110","attrs":{"0110":{"key":"power","type":"bool"},"0272":{"key":"meas_0272","type":"number"},"0273":{"key":"meas_0273","type":"number"},"0274":{"key":"meas_0274","type":"number"},"0276":{"key":"meas_0276","type":"number"},"0277":{"key":"meas_0277","type":"number"},"0283":{"key":"meas_0283","type":"number"},"0466":{"key":"meas_0466","type":"number"},"0467":{"key":"meas_0467","type":"number"},"0468":{"key":"meas_0468","type":"number"},"0469":{"key":"meas_0469","type":"number"},"046B":{"key":"meas_046B","type":"number"},"046E":{"key":"meas_046E","type":"number"},"0170":{"key":"meas_0170","type":"number"},"0201":{"key":"state_0201","type":"number"},"027D":{"key":"state_027D","type":"number"},"0006":{"key":"raw_hex","type":"hex"}}}'),
 ('0x8150', 'ac_controller', 'zone_B', 'Dieu hoa zone B', 1,
- '{"gateway":"tasmota-6DCAA8-2728-eth","power_attr":"0101","ac_power_attr":"0101","ac_temp_attr":"0202","ac_mode_attr":"0405","ac_mode_map":{"off":0,"cool":1,"heat":2,"fan_only":3,"dry":4},"attrs":{"0101":{"key":"power","type":"bool"},"0202":{"key":"temperature","type":"number"},"0405":{"key":"mode","type":"number"}}}');
+ '{"gateway":"tasmota_6DCAA8","power_attr":"0101","ac_power_attr":"0101","ac_temp_attr":"0202","ac_mode_attr":"0405","ac_mode_map":{"off":0,"cool":1,"heat":2,"fan_only":3,"dry":4},"attrs":{"0101":{"key":"power","type":"bool"},"0202":{"key":"temperature","type":"number"},"0405":{"key":"mode","type":"number"}}}');
 
 INSERT OR IGNORE INTO schedule
     (name, device_id, device_type, action, action_params, sch_minute, sch_hour, sch_dow) VALUES
@@ -257,12 +257,12 @@ case "${1:-}" in
         log "Running MQTT smoke test..."
         # Simulate Tasmota SENSOR message with MCB data
         mosquitto_pub -h localhost -p 1883 \
-            -t "tele/tasmota-6DCAA8-2728-eth/SENSOR" \
+            -t "tele/tasmota_6DCAA8/SENSOR" \
             -m '{"ZbReceived":{"0x384C":{"Device":"0x384C","EF00/0110":1,"EF00/0273":280,"EF00/0276":800,"Endpoint":1,"LinkQuality":123}}}'
         sleep 1
         # Simulate AC controller
         mosquitto_pub -h localhost -p 1883 \
-            -t "tele/tasmota-6DCAA8-2728-eth/SENSOR" \
+            -t "tele/tasmota_6DCAA8/SENSOR" \
             -m '{"ZbReceived":{"0x8150":{"Device":"0x8150","EF00/0101":1,"EF00/0202":25,"EF00/0405":1,"Endpoint":1,"LinkQuality":107}}}'
         sleep 1
         if [ -f "${BMS_DB}" ]; then
