@@ -690,7 +690,7 @@
     "type": "mqtt out",
     "z": "tab-l4",
     "name": "Publish ZbSend",
-    "topic": "manual_toggle",
+    "topic": "",
     "qos": "1",
     "retain": "false",
     "respTopic": "",
@@ -759,13 +759,6 @@
     "sqlquery": "msg.topic",
     "sql": "",
     "wires": []
-  },
-  {
-    "id": "tab-l5",
-    "type": "tab",
-    "label": "L5 Dashboard",
-    "disabled": false,
-    "info": "Dashboard data-driven: Device status, Manual ZbSend control, Add Device form, Log viewer, Schedule CRUD, AC control."
   },
   {
     "id": "ui-base",
@@ -979,7 +972,7 @@
     "multiple": false,
     "options": [],
     "payload": "",
-    "topic": "topic",
+    "topic": "manual_device",
     "topicType": "msg",
     "className": "",
     "wires": [
@@ -993,7 +986,7 @@
     "type": "function",
     "z": "tab-l5",
     "name": "Set manual device_id",
-    "func": "flow.set('manual_device_id', msg.payload);\nnode.status({ fill: 'green', shape: 'dot', text: String(msg.payload) });\nreturn null;",
+    "func": "flow.set('manual_device_id', msg.payload);\nreturn null;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
@@ -1032,8 +1025,8 @@
     "id": "fn-l5-build-manual",
     "type": "function",
     "z": "tab-l5",
-    "name": "Build manual ZbSend (generic)",
-    "func": "// ── L5: GENERIC manual command builder ────────────────────────\nconst deviceId = flow.get('manual_device_id');\nif (!deviceId) { node.warn('No device selected'); return null; }\n\nconst configs = global.get('device_configs') || {};\nconst cfg = configs[deviceId];\nif (!cfg || !cfg.extra) { node.warn(`No config for ${deviceId}`); return null; }\n\nconst extra = cfg.extra;\nconst gateway = cfg.gateway || extra.gateway;\nconst powerAttr = extra.power_attr || '0110';\nconst val = msg.payload === 'ON' ? 1 : 0;\n\nmsg.topic   = `cmnd/${gateway}/ZbSend`;\nmsg.payload = JSON.stringify({\n    device: deviceId,\n    send: { Cluster: '0xEF00', Write: { [powerAttr]: val } }\n});\nmsg._manual_device_id = deviceId;\nreturn msg;",
+    "name": "Build manual ZbSend",
+    "func": "const deviceId = flow.get('manual_device_id');\nif (!deviceId) { node.warn('No device selected'); return null; }\n\nconst configs = global.get('device_configs') || {};\nconst cfg = configs[deviceId];\nif (!cfg || !cfg.extra) { node.warn('No config for ' + deviceId); return null; }\n\nconst extra = cfg.extra;\nconst gateway = cfg.gateway || extra.gateway;\nconst powerAttr = extra.power_attr || '0110';\nconst val = msg.payload === 'ON' ? 1 : 0;\n\nmsg.topic   = 'cmnd/' + gateway + '/ZbSend';\nmsg.payload = JSON.stringify({ device: deviceId, send: { Cluster: '0xEF00', Write: { [powerAttr]: val } } });\nmsg._manual_device_id = deviceId;\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
@@ -1049,8 +1042,8 @@
     "id": "mqtt-l5-manual",
     "type": "mqtt out",
     "z": "tab-l5",
-    "name": "Publish ZbSend manual",
-    "topic": "manual_toggle",
+    "name": "Publish ZbSend",
+    "topic": "",
     "qos": "1",
     "retain": "false",
     "respTopic": "",
@@ -1069,7 +1062,7 @@
     "id": "fn-l5-log-manual",
     "type": "function",
     "z": "tab-l5",
-    "name": "Log manual command",
+    "name": "Log manual cmd",
     "func": "function esc(v) { if (v === null || v === undefined) return 'NULL'; if (typeof v === 'number') return String(v); return \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nconst now = new Date().toISOString();\nconst did = msg._manual_device_id || 'unknown';\nconst vals = [now, did, 'unknown', '', JSON.stringify({ manual: msg.payload }), 'manual_command'];\nmsg.topic = 'INSERT INTO device_log (ts, device_id, device_type, location, payload, event) VALUES (' + vals.map(esc).join(',') + ')';\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
@@ -1093,175 +1086,6 @@
     "wires": []
   },
   {
-    "id": "ui-form-add-device",
-    "type": "ui-form",
-    "z": "tab-l5",
-    "name": "Add Device form",
-    "group": "ui-group-config",
-    "order": 1,
-    "width": 0,
-    "height": 0,
-    "label": "Them/Cap nhat thiet bi",
-    "wires": [
-      [
-        "fn-l5-add-device"
-      ]
-    ],
-    "form": [
-      {
-        "type": "text",
-        "label": "Device ID (Zigbee addr, vd: 0x1234)",
-        "key": "device_id"
-      },
-      {
-        "type": "select",
-        "label": "Device Type",
-        "key": "device_type",
-        "options": [
-          {
-            "label": "MCB",
-            "value": "mcb"
-          },
-          {
-            "label": "Switch",
-            "value": "switch"
-          },
-          {
-            "label": "AC Controller",
-            "value": "ac_controller"
-          }
-        ]
-      },
-      {
-        "type": "text",
-        "label": "Gateway hostname",
-        "key": "gateway"
-      },
-      {
-        "type": "text",
-        "label": "Location (zone)",
-        "key": "location"
-      },
-      {
-        "type": "text",
-        "label": "Friendly name",
-        "key": "friendly_name"
-      },
-      {
-        "type": "text",
-        "label": "Power attr ID (hex, vd: 0110)",
-        "key": "power_attr"
-      },
-      {
-        "type": "text",
-        "label": "AC power attr (hex)",
-        "key": "ac_power_attr"
-      },
-      {
-        "type": "text",
-        "label": "AC temp attr (hex)",
-        "key": "ac_temp_attr"
-      },
-      {
-        "type": "text",
-        "label": "AC mode attr (hex)",
-        "key": "ac_mode_attr"
-      },
-      {
-        "type": "text",
-        "label": "AC mode map (JSON)",
-        "key": "ac_mode_map"
-      },
-      {
-        "type": "text",
-        "label": "Attrs mapping (JSON)",
-        "key": "attrs_json"
-      },
-      {
-        "type": "text",
-        "label": "Custom actions (JSON)",
-        "key": "custom_actions_json"
-      },
-      {
-        "type": "switch",
-        "label": "Enabled",
-        "key": "enabled"
-      }
-    ]
-  },
-  {
-    "id": "fn-l5-add-device",
-    "type": "function",
-    "z": "tab-l5",
-    "name": "Build INSERT device_config",
-    "func": "function esc(v) { if (v === null || v === undefined) return 'NULL'; if (typeof v === 'number') return String(v); return \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nconst f = msg.payload;\nif (!f.device_id || !f.device_type) { node.warn('Missing device_id or device_type'); return null; }\nconst extra = {};\nif (f.gateway) extra.gateway = f.gateway;\nif (f.power_attr) extra.power_attr = f.power_attr;\nif (f.ac_power_attr) extra.ac_power_attr = f.ac_power_attr;\nif (f.ac_temp_attr) extra.ac_temp_attr = f.ac_temp_attr;\nif (f.ac_mode_attr) extra.ac_mode_attr = f.ac_mode_attr;\nif (f.ac_mode_map) { try { extra.ac_mode_map = JSON.parse(f.ac_mode_map); } catch(e) {} }\nif (f.attrs_json) { try { extra.attrs = JSON.parse(f.attrs_json); } catch(e) {} }\nif (f.custom_actions_json) { try { extra.custom_actions = JSON.parse(f.custom_actions_json); } catch(e) {} }\nconst vals = [f.device_id, f.device_type, f.location || '', f.friendly_name || '', f.enabled ? '1' : '0', JSON.stringify(extra)];\nmsg.topic = 'INSERT OR REPLACE INTO device_config (device_id, device_type, location, friendly_name, enabled, extra) VALUES (' + vals.map(esc).join(',') + ')';\nmsg._reload_needed = true;\nreturn msg;",
-    "outputs": 1,
-    "noerr": 0,
-    "initialize": "",
-    "finalize": "",
-    "libs": [],
-    "wires": [
-      [
-        "sql-l5-add-device",
-        "fn-l5-reload-configs"
-      ]
-    ]
-  },
-  {
-    "id": "sql-l5-add-device",
-    "type": "sqlite",
-    "z": "tab-l5",
-    "name": "INSERT/REPLACE device_config",
-    "mydb": "cfg-sqlite-db",
-    "sqlquery": "msg.topic",
-    "sql": "",
-    "wires": []
-  },
-  {
-    "id": "fn-l5-reload-configs",
-    "type": "function",
-    "z": "tab-l5",
-    "name": "Reload configs -> global",
-    "func": "const reload = flow.get('_force_reload') || msg._reload_needed;\nif (!reload && !msg._reload_needed) return null;\nmsg.topic = 'SELECT * FROM device_config WHERE enabled = 1';\nreturn msg;",
-    "outputs": 1,
-    "noerr": 0,
-    "initialize": "",
-    "finalize": "",
-    "libs": [],
-    "wires": [
-      [
-        "sql-l5-load-configs"
-      ]
-    ]
-  },
-  {
-    "id": "sql-l5-load-configs",
-    "type": "sqlite",
-    "z": "tab-l5",
-    "name": "SELECT all configs",
-    "mydb": "cfg-sqlite-db",
-    "sqlquery": "msg.topic",
-    "sql": "",
-    "wires": [
-      [
-        "fn-l5-parse-configs"
-      ]
-    ]
-  },
-  {
-    "id": "fn-l5-parse-configs",
-    "type": "function",
-    "z": "tab-l5",
-    "name": "Parse configs -> global",
-    "func": "const rows = msg.payload || [];\nconst configs = {};\nrows.forEach(row => {\n    configs[row.device_id] = {\n        type:          row.device_type,\n        location:      row.location,\n        friendly_name: row.friendly_name,\n        enabled:       row.enabled,\n        gateway:       (row.extra ? JSON.parse(row.extra) : {}).gateway || '',\n        extra:         row.extra ? JSON.parse(row.extra) : {},\n    };\n});\nglobal.set('device_configs', configs);\nnode.status({ fill: 'green', shape: 'dot', text: `${Object.keys(configs).length} configs loaded` });\nnode.warn(`[Reload] ${Object.keys(configs).length} device configs loaded`);\nreturn null;",
-    "outputs": 1,
-    "noerr": 0,
-    "initialize": "",
-    "finalize": "",
-    "libs": [],
-    "wires": []
-  },
-  {
     "id": "ui-dropdown-log-device",
     "type": "ui-dropdown",
     "z": "tab-l5",
@@ -1279,8 +1103,7 @@
         "value": "all"
       }
     ],
-    "payload": "",
-    "topic": "topic",
+    "topic": "log_device",
     "topicType": "msg",
     "className": "",
     "wires": [
@@ -1304,7 +1127,7 @@
     "className": "",
     "payload": "refresh",
     "payloadType": "str",
-    "topic": "topic",
+    "topic": "log_refresh",
     "topicType": "msg",
     "wires": [
       [
@@ -1359,98 +1182,261 @@
     "wires": []
   },
   {
-    "id": "ui-form-schedule",
-    "type": "ui-form",
+    "id": "ui-text-sched-name",
+    "type": "ui-text-input",
     "z": "tab-l5",
-    "name": "Schedule form",
+    "name": "Sched: Ten lich",
     "group": "ui-group-schedules",
     "order": 1,
     "width": 0,
     "height": 0,
-    "label": "Tao/Sua lich",
+    "label": "Ten lich",
+    "mode": "text",
+    "passthru": true,
+    "topic": "sched_form",
+    "topicType": "msg",
+    "wires": [
+      [
+        "fn-l5-sched-store"
+      ]
+    ]
+  },
+  {
+    "id": "ui-text-sched-device",
+    "type": "ui-text-input",
+    "z": "tab-l5",
+    "name": "Sched: Device ID",
+    "group": "ui-group-schedules",
+    "order": 2,
+    "width": 0,
+    "height": 0,
+    "label": "Device ID (vd: 0x384C)",
+    "mode": "text",
+    "passthru": true,
+    "topic": "sched_form",
+    "topicType": "msg",
+    "wires": [
+      [
+        "fn-l5-sched-store"
+      ]
+    ]
+  },
+  {
+    "id": "ui-dropdown-sched-action",
+    "type": "ui-dropdown",
+    "z": "tab-l5",
+    "name": "Sched: Action",
+    "group": "ui-group-schedules",
+    "order": 3,
+    "width": 0,
+    "height": 0,
+    "label": "Hanh dong",
+    "passthru": true,
+    "multiple": false,
+    "options": [
+      {
+        "label": "Bat (POWER_ON)",
+        "value": "POWER_ON"
+      },
+      {
+        "label": "Tat (POWER_OFF)",
+        "value": "POWER_OFF"
+      },
+      {
+        "label": "Bat AC (AC_SET)",
+        "value": "AC_SET"
+      },
+      {
+        "label": "Tat AC (AC_OFF)",
+        "value": "AC_OFF"
+      }
+    ],
+    "topic": "sched_form",
+    "topicType": "msg",
+    "className": "",
+    "wires": [
+      [
+        "fn-l5-sched-store"
+      ]
+    ]
+  },
+  {
+    "id": "ui-text-sched-params",
+    "type": "ui-text-input",
+    "z": "tab-l5",
+    "name": "Sched: Action params",
+    "group": "ui-group-schedules",
+    "order": 4,
+    "width": 0,
+    "height": 0,
+    "label": "Action params JSON (vd: {\"temp\":24,\"mode\":\"cool\"})",
+    "mode": "text",
+    "passthru": true,
+    "topic": "sched_form",
+    "topicType": "msg",
+    "wires": [
+      [
+        "fn-l5-sched-store"
+      ]
+    ]
+  },
+  {
+    "id": "ui-num-sched-hour",
+    "type": "ui-text-input",
+    "z": "tab-l5",
+    "name": "Sched: Hour",
+    "group": "ui-group-schedules",
+    "order": 5,
+    "width": 0,
+    "height": 0,
+    "label": "Gio (0-23)",
+    "mode": "number",
+    "passthru": true,
+    "topic": "sched_form",
+    "topicType": "msg",
+    "wires": [
+      [
+        "fn-l5-sched-store"
+      ]
+    ]
+  },
+  {
+    "id": "ui-num-sched-minute",
+    "type": "ui-text-input",
+    "z": "tab-l5",
+    "name": "Sched: Minute",
+    "group": "ui-group-schedules",
+    "order": 6,
+    "width": 0,
+    "height": 0,
+    "label": "Phut (0-59)",
+    "mode": "number",
+    "passthru": true,
+    "topic": "sched_form",
+    "topicType": "msg",
+    "wires": [
+      [
+        "fn-l5-sched-store"
+      ]
+    ]
+  },
+  {
+    "id": "ui-dropdown-sched-dow",
+    "type": "ui-dropdown",
+    "z": "tab-l5",
+    "name": "Sched: Day of week",
+    "group": "ui-group-schedules",
+    "order": 7,
+    "width": 0,
+    "height": 0,
+    "label": "Ngay",
+    "passthru": true,
+    "multiple": false,
+    "options": [
+      {
+        "label": "Hang ngay",
+        "value": "*"
+      },
+      {
+        "label": "Thu 2-6",
+        "value": "1-5"
+      },
+      {
+        "label": "Cuoi tuan",
+        "value": "0,6"
+      }
+    ],
+    "topic": "sched_form",
+    "topicType": "msg",
+    "className": "",
+    "wires": [
+      [
+        "fn-l5-sched-store"
+      ]
+    ]
+  },
+  {
+    "id": "ui-switch-sched-oneshot",
+    "type": "ui-switch",
+    "z": "tab-l5",
+    "name": "Sched: One shot",
+    "group": "ui-group-schedules",
+    "order": 8,
+    "width": 0,
+    "height": 0,
+    "label": "Chay 1 lan roi tat",
+    "passthru": false,
+    "decouple": false,
+    "topic": "sched_form",
+    "topicType": "msg",
+    "onvalue": "1",
+    "onvalueType": "str",
+    "offvalue": "0",
+    "offvalueType": "str",
+    "wires": [
+      [
+        "fn-l5-sched-store"
+      ]
+    ]
+  },
+  {
+    "id": "ui-switch-sched-enabled",
+    "type": "ui-switch",
+    "z": "tab-l5",
+    "name": "Sched: Enabled",
+    "group": "ui-group-schedules",
+    "order": 9,
+    "width": 0,
+    "height": 0,
+    "label": "Kich hoat",
+    "passthru": false,
+    "decouple": false,
+    "topic": "sched_form",
+    "topicType": "msg",
+    "onvalue": "1",
+    "onvalueType": "str",
+    "offvalue": "0",
+    "offvalueType": "str",
+    "wires": [
+      [
+        "fn-l5-sched-store"
+      ]
+    ]
+  },
+  {
+    "id": "fn-l5-sched-store",
+    "type": "function",
+    "z": "tab-l5",
+    "name": "Store schedule form values",
+    "func": "const form = flow.get('sched_form') || {};\nconst topic = msg.topic || '';\n\n// Xac dinh field nao dang duoc gui (dung _msgid or widget index)\n// Dung msg.payload de nhan biet kieu: string -> name/device_id/params/dow, number -> hour/minute\nconst label = (msg.ui || {}).label || '';\nif (label.includes('Ten lich')) form.name = msg.payload;\nelse if (label.includes('Device ID')) form.device_id = msg.payload;\nelse if (label.includes('Hanh dong')) form.action = msg.payload;\nelse if (label.includes('Action params')) form.action_params = msg.payload;\nelse if (label.includes('Gio')) form.hour = msg.payload;\nelse if (label.includes('Phut')) form.minute = msg.payload;\nelse if (label.includes('Ngay')) form.dow = msg.payload;\nelse if (label.includes('Chay 1 lan')) form.one_shot = msg.payload;\nelse if (label.includes('Kich hoat')) form.enabled = msg.payload;\n\nflow.set('sched_form', form);\nreturn null;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": []
+  },
+  {
+    "id": "ui-button-sched-submit",
+    "type": "ui-button",
+    "z": "tab-l5",
+    "name": "Submit schedule",
+    "group": "ui-group-schedules",
+    "order": 10,
+    "width": 0,
+    "height": 0,
+    "label": "TAO LICH",
+    "color": "",
+    "bgcolor": "",
+    "className": "",
+    "payload": "submit",
+    "payloadType": "str",
+    "topic": "sched_submit",
+    "topicType": "msg",
     "wires": [
       [
         "fn-l5-schedule-crud"
       ]
-    ],
-    "form": [
-      {
-        "type": "text",
-        "label": "Ten lich",
-        "key": "name"
-      },
-      {
-        "type": "text",
-        "label": "Device ID (Zigbee addr)",
-        "key": "device_id"
-      },
-      {
-        "type": "select",
-        "label": "Hanh dong",
-        "key": "action",
-        "options": [
-          {
-            "label": "Bat (POWER_ON)",
-            "value": "POWER_ON"
-          },
-          {
-            "label": "Tat (POWER_OFF)",
-            "value": "POWER_OFF"
-          },
-          {
-            "label": "Bat AC (AC_SET)",
-            "value": "AC_SET"
-          },
-          {
-            "label": "Tat AC (AC_OFF)",
-            "value": "AC_OFF"
-          }
-        ]
-      },
-      {
-        "type": "text",
-        "label": "Action params (JSON, vd: {\"temp\":24,\"mode\":\"cool\"})",
-        "key": "action_params"
-      },
-      {
-        "type": "number",
-        "label": "Gio (0-23)",
-        "key": "hour"
-      },
-      {
-        "type": "number",
-        "label": "Phut (0-59)",
-        "key": "minute"
-      },
-      {
-        "type": "select",
-        "label": "Ngay",
-        "key": "dow",
-        "options": [
-          {
-            "label": "Hang ngay",
-            "value": "*"
-          },
-          {
-            "label": "Thu 2-6",
-            "value": "1-5"
-          },
-          {
-            "label": "Cuoi tuan",
-            "value": "0,6"
-          }
-        ]
-      },
-      {
-        "type": "switch",
-        "label": "Chay 1 lan",
-        "key": "one_shot"
-      },
-      {
-        "type": "switch",
-        "label": "Kich hoat",
-        "key": "enabled"
-      }
     ]
   },
   {
@@ -1458,7 +1444,7 @@
     "type": "function",
     "z": "tab-l5",
     "name": "Schedule CRUD",
-    "func": "function esc(v) { if (v === null || v === undefined) return 'NULL'; if (typeof v === 'number') return String(v); return \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nconst f = msg.payload;\nconst now = new Date().toISOString();\nif (!f.name || !f.device_id || !f.action) { node.warn('Missing fields'); return null; }\nconst min = String(f.minute ?? '*');\nconst hour = String(f.hour ?? '*');\nconst dow = f.dow ?? '*';\nconst params = f.action_params || null;\nconst vals = [f.name, f.device_id, f.action, params ? JSON.stringify(params) : 'NULL', min, hour, dow, f.enabled ? '1' : '0', f.one_shot ? '1' : '0', now];\nmsg.topic = 'INSERT INTO schedule (name, device_id, action, action_params, sch_minute, sch_hour, sch_dow, enabled, one_shot, created_at) VALUES (' + vals.map(esc).join(',') + ')';\nreturn [msg, msg];",
+    "func": "function esc(v) { if (v === null || v === undefined) return 'NULL'; if (typeof v === 'number') return String(v); return \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nconst f = flow.get('sched_form') || {};\nconst now = new Date().toISOString();\nif (!f.name || !f.device_id || !f.action) { node.warn('Missing fields: name, device_id, action'); return null; }\nconst min = String(f.minute ?? '*');\nconst hour = String(f.hour ?? '*');\nconst dow = f.dow || '*';\nconst params = f.action_params || null;\nconst vals = [f.name, f.device_id, f.action, params ? String(params) : 'NULL', min, hour, dow, f.enabled === '1' ? '1' : '0', f.one_shot === '1' ? '1' : '0', now];\nmsg.topic = 'INSERT INTO schedule (name, device_id, action, action_params, sch_minute, sch_hour, sch_dow, enabled, one_shot, created_at) VALUES (' + vals.map(esc).join(',') + ')';\nreturn [msg, msg];",
     "outputs": 2,
     "noerr": 0,
     "initialize": "",
@@ -1519,13 +1505,336 @@
     "type": "function",
     "z": "tab-l5",
     "name": "Save to global",
-    "func": "global.set('schedules', msg.payload || []);\nnode.status({ fill: 'green', shape: 'dot', text: `${(msg.payload || []).length} sched` });\nreturn null;",
+    "func": "global.set('schedules', msg.payload || []);\nnode.status({ fill: 'green', shape: 'dot', text: (msg.payload||[]).length + ' sched' });\nreturn null;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
     "finalize": "",
     "libs": [],
     "wires": []
+  },
+  {
+    "id": "ui-text-dev-id",
+    "type": "ui-text-input",
+    "z": "tab-l5",
+    "name": "Config: Device ID",
+    "group": "ui-group-config",
+    "order": 1,
+    "width": 0,
+    "height": 0,
+    "label": "Device ID (Zigbee addr: 0x1234)",
+    "mode": "text",
+    "passthru": true,
+    "topic": "dev_config",
+    "topicType": "msg",
+    "wires": [
+      [
+        "fn-l5-devcfg-store"
+      ]
+    ]
+  },
+  {
+    "id": "ui-dropdown-dev-type",
+    "type": "ui-dropdown",
+    "z": "tab-l5",
+    "name": "Config: Device type",
+    "group": "ui-group-config",
+    "order": 2,
+    "width": 0,
+    "height": 0,
+    "label": "Device Type",
+    "passthru": true,
+    "multiple": false,
+    "options": [
+      {
+        "label": "MCB",
+        "value": "mcb"
+      },
+      {
+        "label": "Switch",
+        "value": "switch"
+      },
+      {
+        "label": "AC Controller",
+        "value": "ac_controller"
+      }
+    ],
+    "topic": "dev_config",
+    "topicType": "msg",
+    "className": "",
+    "wires": [
+      [
+        "fn-l5-devcfg-store"
+      ]
+    ]
+  },
+  {
+    "id": "ui-text-dev-gw",
+    "type": "ui-text-input",
+    "z": "tab-l5",
+    "name": "Config: Gateway",
+    "group": "ui-group-config",
+    "order": 3,
+    "width": 0,
+    "height": 0,
+    "label": "Gateway hostname",
+    "mode": "text",
+    "passthru": true,
+    "topic": "dev_config",
+    "topicType": "msg",
+    "wires": [
+      [
+        "fn-l5-devcfg-store"
+      ]
+    ]
+  },
+  {
+    "id": "ui-text-dev-loc",
+    "type": "ui-text-input",
+    "z": "tab-l5",
+    "name": "Config: Location",
+    "group": "ui-group-config",
+    "order": 4,
+    "width": 0,
+    "height": 0,
+    "label": "Location (zone)",
+    "mode": "text",
+    "passthru": true,
+    "topic": "dev_config",
+    "topicType": "msg",
+    "wires": [
+      [
+        "fn-l5-devcfg-store"
+      ]
+    ]
+  },
+  {
+    "id": "ui-text-dev-name",
+    "type": "ui-text-input",
+    "z": "tab-l5",
+    "name": "Config: Friendly name",
+    "group": "ui-group-config",
+    "order": 5,
+    "width": 0,
+    "height": 0,
+    "label": "Friendly name",
+    "mode": "text",
+    "passthru": true,
+    "topic": "dev_config",
+    "topicType": "msg",
+    "wires": [
+      [
+        "fn-l5-devcfg-store"
+      ]
+    ]
+  },
+  {
+    "id": "ui-text-dev-pwr",
+    "type": "ui-text-input",
+    "z": "tab-l5",
+    "name": "Config: Power attr",
+    "group": "ui-group-config",
+    "order": 6,
+    "width": 0,
+    "height": 0,
+    "label": "Power attr ID (hex: 0110)",
+    "mode": "text",
+    "passthru": true,
+    "topic": "dev_config",
+    "topicType": "msg",
+    "wires": [
+      [
+        "fn-l5-devcfg-store"
+      ]
+    ]
+  },
+  {
+    "id": "ui-text-dev-attrs",
+    "type": "ui-text-input",
+    "z": "tab-l5",
+    "name": "Config: Attrs JSON",
+    "group": "ui-group-config",
+    "order": 7,
+    "width": 0,
+    "height": 0,
+    "label": "Attrs mapping JSON (vd: {\"0110\":{\"key\":\"power\",\"type\":\"bool\"}})",
+    "mode": "text",
+    "passthru": true,
+    "topic": "dev_config",
+    "topicType": "msg",
+    "wires": [
+      [
+        "fn-l5-devcfg-store"
+      ]
+    ]
+  },
+  {
+    "id": "ui-text-dev-custom",
+    "type": "ui-text-input",
+    "z": "tab-l5",
+    "name": "Config: Custom actions",
+    "group": "ui-group-config",
+    "order": 8,
+    "width": 0,
+    "height": 0,
+    "label": "Custom actions JSON (optional)",
+    "mode": "text",
+    "passthru": true,
+    "topic": "dev_config",
+    "topicType": "msg",
+    "wires": [
+      [
+        "fn-l5-devcfg-store"
+      ]
+    ]
+  },
+  {
+    "id": "fn-l5-devcfg-store",
+    "type": "function",
+    "z": "tab-l5",
+    "name": "Store device config form",
+    "func": "const form = flow.get('dev_config') || {};\nconst label = (msg.ui || {}).label || '';\nif (label.includes('Device ID')) form.device_id = msg.payload;\nelse if (label.includes('Device Type')) form.device_type = msg.payload;\nelse if (label.includes('Gateway')) form.gateway = msg.payload;\nelse if (label.includes('Location')) form.location = msg.payload;\nelse if (label.includes('Friendly')) form.friendly_name = msg.payload;\nelse if (label.includes('Power attr')) form.power_attr = msg.payload;\nelse if (label.includes('Attrs mapping')) form.attrs_json = msg.payload;\nelse if (label.includes('Custom actions')) form.custom_actions_json = msg.payload;\nflow.set('dev_config', form);\nreturn null;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": []
+  },
+  {
+    "id": "ui-button-devcfg-submit",
+    "type": "ui-button",
+    "z": "tab-l5",
+    "name": "Submit device config",
+    "group": "ui-group-config",
+    "order": 9,
+    "width": 0,
+    "height": 0,
+    "label": "THEM DEVICE",
+    "color": "",
+    "bgcolor": "",
+    "className": "",
+    "payload": "submit",
+    "payloadType": "str",
+    "topic": "devcfg_submit",
+    "topicType": "msg",
+    "wires": [
+      [
+        "fn-l5-add-device"
+      ]
+    ]
+  },
+  {
+    "id": "fn-l5-add-device",
+    "type": "function",
+    "z": "tab-l5",
+    "name": "Build INSERT device_config",
+    "func": "function esc(v) { if (v === null || v === undefined) return 'NULL'; if (typeof v === 'number') return String(v); return \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nconst f = flow.get('dev_config') || {};\nif (!f.device_id || !f.device_type) { node.warn('Missing device_id or device_type'); return null; }\nconst extra = {};\nif (f.gateway) extra.gateway = f.gateway;\nif (f.power_attr) extra.power_attr = f.power_attr;\nif (f.attrs_json) { try { extra.attrs = JSON.parse(f.attrs_json); } catch(e) {} }\nif (f.custom_actions_json) { try { extra.custom_actions = JSON.parse(f.custom_actions_json); } catch(e) {} }\nconst vals = [f.device_id, f.device_type, f.location || '', f.friendly_name || '', '1', JSON.stringify(extra)];\nmsg.topic = 'INSERT OR REPLACE INTO device_config (device_id, device_type, location, friendly_name, enabled, extra) VALUES (' + vals.map(esc).join(',') + ')';\nmsg._reload_needed = true;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [
+      [
+        "sql-l5-add-device",
+        "fn-l5-reload-configs"
+      ]
+    ]
+  },
+  {
+    "id": "sql-l5-add-device",
+    "type": "sqlite",
+    "z": "tab-l5",
+    "name": "INSERT/REPLACE device_config",
+    "mydb": "cfg-sqlite-db",
+    "sqlquery": "msg.topic",
+    "sql": "",
+    "wires": []
+  },
+  {
+    "id": "fn-l5-reload-configs",
+    "type": "function",
+    "z": "tab-l5",
+    "name": "Reload configs -> global",
+    "func": "const reload = flow.get('_force_reload') || msg._reload_needed;\nif (!reload && !msg._reload_needed) return null;\nmsg.topic = 'SELECT * FROM device_config WHERE enabled = 1';\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [
+      [
+        "sql-l5-load-configs"
+      ]
+    ]
+  },
+  {
+    "id": "sql-l5-load-configs",
+    "type": "sqlite",
+    "z": "tab-l5",
+    "name": "SELECT all configs",
+    "mydb": "cfg-sqlite-db",
+    "sqlquery": "msg.topic",
+    "sql": "",
+    "wires": [
+      [
+        "fn-l5-parse-configs"
+      ]
+    ]
+  },
+  {
+    "id": "fn-l5-parse-configs",
+    "type": "function",
+    "z": "tab-l5",
+    "name": "Parse configs -> global",
+    "func": "const rows = msg.payload || [];\nconst configs = {};\nrows.forEach(row => {\n    const extra = row.extra ? JSON.parse(row.extra) : {};\n    configs[row.device_id] = { type: row.device_type, location: row.location, friendly_name: row.friendly_name, enabled: row.enabled, gateway: extra.gateway || '', extra: extra };\n});\nglobal.set('device_configs', configs);\nnode.warn('[Reload] ' + Object.keys(configs).length + ' device configs loaded');\nreturn null;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": []
+  },
+  {
+    "id": "ui-button-config-reload",
+    "type": "ui-button",
+    "z": "tab-l5",
+    "name": "Reload config",
+    "group": "ui-group-config",
+    "order": 10,
+    "width": 0,
+    "height": 0,
+    "label": "Tai lai config tu DB",
+    "color": "",
+    "bgcolor": "",
+    "className": "",
+    "payload": "reload",
+    "payloadType": "str",
+    "topic": "config_reload",
+    "topicType": "msg",
+    "wires": [
+      [
+        "fn-l5-reload-trigger"
+      ]
+    ]
+  },
+  {
+    "id": "fn-l5-reload-trigger",
+    "type": "function",
+    "z": "tab-l5",
+    "name": "Trigger config reload",
+    "func": "flow.set('_force_reload', true);\nmsg._reload_needed = true;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [
+      [
+        "fn-l5-reload-configs"
+      ]
+    ]
   },
   {
     "id": "ui-slider-ac-temp",
@@ -1543,7 +1852,7 @@
     "thumbLabel": "true",
     "passthru": true,
     "outs": "all",
-    "topic": "topic",
+    "topic": "ac_temp",
     "topicType": "msg",
     "className": "",
     "wires": [
@@ -1582,8 +1891,7 @@
         "value": "dry"
       }
     ],
-    "payload": "",
-    "topic": "topic",
+    "topic": "ac_mode",
     "topicType": "msg",
     "className": "",
     "wires": [
@@ -1597,7 +1905,7 @@
     "type": "function",
     "z": "tab-l5",
     "name": "Store AC context",
-    "func": "const ctx = flow.get('ac_control') || {};\nif (msg.payload !== undefined && typeof msg.payload === 'number') ctx.temp = msg.payload;\nif (typeof msg.payload === 'string') ctx.mode = msg.payload;\nflow.set('ac_control', ctx);\nreturn null;",
+    "func": "const ctx = flow.get('ac_control') || {};\nif (typeof msg.payload === 'number') ctx.temp = msg.payload;\nif (typeof msg.payload === 'string' && msg.payload !== 'all') ctx.mode = msg.payload;\nflow.set('ac_control', ctx);\nreturn null;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
@@ -1620,7 +1928,7 @@
     "className": "",
     "payload": "send",
     "payloadType": "str",
-    "topic": "topic",
+    "topic": "ac_send",
     "topicType": "msg",
     "wires": [
       [
@@ -1632,8 +1940,8 @@
     "id": "fn-l5-ac-cmd",
     "type": "function",
     "z": "tab-l5",
-    "name": "Build AC ZbSend (generic)",
-    "func": "const configs = global.get('device_configs') || {};\nconst acEntry = Object.entries(configs).find(([_, v]) => v.type === 'ac_controller');\nif (!acEntry) { node.warn('No ac_controller in config'); return null; }\n\nconst acId  = acEntry[0];\nconst extra = acEntry[1].extra || {};\nconst gateway = acEntry[1].gateway || extra.gateway;\nconst ctx = flow.get('ac_control') || {};\n\nconst writes = {};\nwrites[extra.ac_power_attr || '0101'] = 1;\nwrites[extra.ac_temp_attr  || '0202'] = ctx.temp || 24;\nconst modeMap = extra.ac_mode_map || { off: 0, cool: 1, heat: 2, fan_only: 3, dry: 4 };\nwrites[extra.ac_mode_attr  || '0405'] = modeMap[ctx.mode] !== undefined ? modeMap[ctx.mode] : 1;\n\nmsg.topic   = `cmnd/${gateway}/ZbSend`;\nmsg.payload = JSON.stringify({\n    device: acId,\n    send: { Cluster: '0xEF00', Write: writes }\n});\nreturn msg;",
+    "name": "Build AC ZbSend",
+    "func": "const configs = global.get('device_configs') || {};\nconst acEntry = Object.entries(configs).find(function(e) { return e[1].type === 'ac_controller'; });\nif (!acEntry) { node.warn('No ac_controller in config'); return null; }\n\nconst acId  = acEntry[0];\nconst extra = acEntry[1].extra || {};\nconst gateway = acEntry[1].gateway || extra.gateway;\nconst ctx = flow.get('ac_control') || {};\n\nconst writes = {};\nwrites[extra.ac_power_attr || '0101'] = 1;\nwrites[extra.ac_temp_attr  || '0202'] = ctx.temp || 24;\nconst modeMap = extra.ac_mode_map || { off: 0, cool: 1, heat: 2, fan_only: 3, dry: 4 };\nwrites[extra.ac_mode_attr  || '0405'] = modeMap[ctx.mode] !== undefined ? modeMap[ctx.mode] : 1;\n\nmsg.topic   = 'cmnd/' + gateway + '/ZbSend';\nmsg.payload = JSON.stringify({ device: acId, send: { Cluster: '0xEF00', Write: writes } });\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
@@ -1649,7 +1957,7 @@
     "type": "mqtt out",
     "z": "tab-l5",
     "name": "Publish AC ZbSend",
-    "topic": "manual_toggle",
+    "topic": "",
     "qos": "1",
     "retain": "false",
     "respTopic": "",
@@ -1675,7 +1983,7 @@
     "className": "",
     "payload": "off",
     "payloadType": "str",
-    "topic": "topic",
+    "topic": "ac_off",
     "topicType": "msg",
     "wires": [
       [
@@ -1687,8 +1995,8 @@
     "id": "fn-l5-ac-off",
     "type": "function",
     "z": "tab-l5",
-    "name": "Build AC OFF ZbSend (generic)",
-    "func": "const configs = global.get('device_configs') || {};\nconst acEntry = Object.entries(configs).find(([_, v]) => v.type === 'ac_controller');\nif (!acEntry) { node.warn('No ac_controller'); return null; }\n\nconst acId  = acEntry[0];\nconst extra = acEntry[1].extra || {};\nconst gateway = acEntry[1].gateway || extra.gateway;\nconst offAttr = extra.ac_power_attr || extra.power_attr || '0101';\n\nmsg.topic   = `cmnd/${gateway}/ZbSend`;\nmsg.payload = JSON.stringify({\n    device: acId,\n    send: { Cluster: '0xEF00', Write: { [offAttr]: 0 } }\n});\nreturn msg;",
+    "name": "Build AC OFF ZbSend",
+    "func": "const configs = global.get('device_configs') || {};\nconst acEntry = Object.entries(configs).find(function(e) { return e[1].type === 'ac_controller'; });\nif (!acEntry) { node.warn('No ac_controller'); return null; }\n\nconst acId  = acEntry[0];\nconst extra = acEntry[1].extra || {};\nconst gateway = acEntry[1].gateway || extra.gateway;\nconst offAttr = extra.ac_power_attr || extra.power_attr || '0101';\n\nmsg.topic   = 'cmnd/' + gateway + '/ZbSend';\nmsg.payload = JSON.stringify({ device: acId, send: { Cluster: '0xEF00', Write: { [offAttr]: 0 } } });\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
@@ -1704,7 +2012,7 @@
     "type": "mqtt out",
     "z": "tab-l5",
     "name": "Publish AC OFF",
-    "topic": "manual_toggle",
+    "topic": "",
     "qos": "1",
     "retain": "false",
     "respTopic": "",
@@ -1719,7 +2027,7 @@
     "id": "inj-l5-populate-dropdown",
     "type": "inject",
     "z": "tab-l5",
-    "name": "Populate device dropdown",
+    "name": "Populate dropdown 30s",
     "props": [],
     "repeat": "30",
     "crontab": "",
@@ -1738,7 +2046,7 @@
     "type": "function",
     "z": "tab-l5",
     "name": "Build dropdown options",
-    "func": "const configs = global.get('device_configs') || {};\nconst opts = Object.entries(configs).map(([id, cfg]) => ({\n    label: `${cfg.friendly_name || id} (${cfg.type})`,\n    value: id\n}));\n\nmsg.options = opts;\nreturn msg;",
+    "func": "const configs = global.get('device_configs') || {};\nconst opts = Object.entries(configs).map(function(e) {\n    return { label: (e[1].friendly_name || e[0]) + ' (' + e[1].type + ')', value: e[0] };\n});\nmsg.options = opts;\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
@@ -1747,46 +2055,6 @@
     "wires": [
       [
         "ui-dropdown-manual-dev"
-      ]
-    ]
-  },
-  {
-    "id": "ui-button-config-reload",
-    "type": "ui-button",
-    "z": "tab-l5",
-    "name": "Reload config",
-    "group": "ui-group-config",
-    "order": 2,
-    "width": 0,
-    "height": 0,
-    "label": "Tai lai config tu DB",
-    "color": "",
-    "bgcolor": "",
-    "className": "",
-    "payload": "reload",
-    "payloadType": "str",
-    "topic": "topic",
-    "topicType": "msg",
-    "wires": [
-      [
-        "fn-l5-reload-trigger"
-      ]
-    ]
-  },
-  {
-    "id": "fn-l5-reload-trigger",
-    "type": "function",
-    "z": "tab-l5",
-    "name": "Trigger config reload",
-    "func": "flow.set('_force_reload', true);\nreturn { _reload_needed: true };",
-    "outputs": 1,
-    "noerr": 0,
-    "initialize": "",
-    "finalize": "",
-    "libs": [],
-    "wires": [
-      [
-        "fn-l5-reload-configs"
       ]
     ]
   },
@@ -1838,7 +2106,7 @@
     "type": "mqtt out",
     "z": "tab-hmi",
     "name": "Publish hmi/status",
-    "topic": "manual_toggle",
+    "topic": "",
     "qos": "0",
     "retain": "true",
     "respTopic": "",
