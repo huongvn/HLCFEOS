@@ -54,7 +54,7 @@
     "type": "function",
     "z": "tab-startup",
     "name": "Parse configs -> global",
-    "func": "const configs = {};\nconst rows = msg.payload || [];\nrows.forEach(row => {\n    configs[row.device_id] = {\n        type:          row.device_type,\n        location:      row.location,\n        friendly_name: row.friendly_name,\n        gateway:       (row.extra ? JSON.parse(row.extra) : {}).gateway || '',\n        extra:         row.extra ? JSON.parse(row.extra) : {},\n    };\n});\nglobal.set('device_configs', configs);\nnode.status({ fill: 'green', shape: 'dot', text: `${Object.keys(configs).length} devices loaded` });\nnode.warn(`[Startup] Loaded ${Object.keys(configs).length} device configs`);\nreturn null;",
+    "func": "const configs = {};\nconst rows = msg.payload || [];\nrows.forEach(row => {\n    const extra = row.extra ? JSON.parse(row.extra) : {};\n    configs[row.device_id] = {\n        type:          row.device_type,\n        location:      row.location,\n        friendly_name: row.friendly_name,\n        enabled:       row.enabled,\n        gateway:       extra.gateway || '',\n        extra:         extra,\n    };\n});\nglobal.set('device_configs', configs);\nnode.status({ fill: 'green', shape: 'dot', text: `${Object.keys(configs).length} devices loaded` });\nnode.warn(`[Startup] Loaded ${Object.keys(configs).length} device configs`);\nreturn null;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
