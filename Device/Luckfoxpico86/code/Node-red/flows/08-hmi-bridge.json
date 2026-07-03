@@ -139,8 +139,7 @@
     ],
     "wires": [
       [
-        "dbg-hmi-raw-in",
-        "fn-hmi-ac-feedback"
+        "queue-feedback"
       ]
     ]
   },
@@ -149,7 +148,7 @@
     "type": "function",
     "z": "tab-hmi",
     "name": "Build HMI feedback topics",
-    "func": "node.warn('=== FEEDBACK START ===');\nnode.warn('device=' + msg.device.id + ' type=' + msg.device.type);\nnode.warn('_state_changed=' + msg._state_changed);\n\nif (!msg._state_changed) {\n    node.warn('EXIT: _state_changed=false');\n    return null;\n}\n\nconst d = msg.device;\nconst prev = msg._prev_state || {};\nconst s = d.state;\nnode.warn('prev.fan_speed=' + prev.fan_speed + ' curr.fan_speed=' + s.fan_speed);\nnode.warn('prev.power=' + prev.power + ' curr.power=' + s.power);\n\nconst configs = global.get('device_configs') || {};\n\nif (d.type === 'ac_controller') {\n    node.warn('AC branch');\n    const ids = Object.keys(configs).filter(id => configs[id].type === 'ac_controller').sort();\n    const idx = ids.indexOf(d.id);\n    node.warn('idx=' + idx);\n    if (idx < 0) { node.warn('EXIT: idx<0'); return null; }\n\n    const msgs = [];\n    if (prev.power !== s.power) msgs.push({ topic: 'bms/ac/' + idx + '/power', payload: s.power ? 'ON' : 'OFF' });\n    if (prev.temperature !== s.temperature) msgs.push({ topic: 'bms/ac/' + idx + '/temperature', payload: String(s.temperature) });\n    if (prev.fan_speed !== s.fan_speed) msgs.push({ topic: 'bms/ac/' + idx + '/fan', payload: String(s.fan_speed) });\n    if (prev.online !== s.online) msgs.push({ topic: 'bms/ac/' + idx + '/online', payload: s.online ? 'ON' : 'OFF' });\n    \n    node.warn('msgs.length=' + msgs.length);\n    if (msgs.length === 0) { node.warn('EXIT: no changes'); return null; }\n    \n    node.warn('Sending first msg: topic=' + msgs[0].topic);\n    node.send(msgs[0]);\n    node.warn('Sent!');\n    return null;\n}\n\nif (d.type === 'mcb') {\n    node.warn('MCB branch');\n    const ids = Object.keys(configs).filter(id => configs[id].type === 'mcb').sort();\n    const idx = ids.indexOf(d.id);\n    if (idx < 0) return null;\n    \n    const msgs = [];\n    if (prev.control !== s.control) msgs.push({ topic: 'bms/sign/' + idx + '/power', payload: s.control ? 'ON' : 'OFF' });\n    if (prev.online !== s.online) msgs.push({ topic: 'bms/sign/' + idx + '/online', payload: s.online ? 'ON' : 'OFF' });\n    \n    if (msgs.length > 0) {\n        node.warn('MCB sending: ' + msgs[0].topic);\n        node.send(msgs[0]);\n    }\n    return null;\n}\n\nnode.warn('EXIT: unknown type');\nreturn null;",
+    "func": "if (!msg._state_changed) return null;\n\nconst d = msg.device;\nconst prev = msg._prev_state || {};\nconst s = d.state;\nconst configs = global.get('device_configs') || {};\n\n// ---- AC feedback ----\nif (d.type === 'ac_controller') {\n    const ids = Object.keys(configs).filter(id => configs[id].type === 'ac_controller').sort();\n    const idx = ids.indexOf(d.id);\n    if (idx < 0) return null;\n\n    const msgs = [];\n    if (prev.power !== s.power) msgs.push({ topic: 'bms/ac/' + idx + '/power', payload: s.power ? 'ON' : 'OFF' });\n    if (prev.temperature !== s.temperature) msgs.push({ topic: 'bms/ac/' + idx + '/temperature', payload: String(s.temperature) });\n    if (prev.fan_speed !== s.fan_speed) msgs.push({ topic: 'bms/ac/' + idx + '/fan', payload: String(s.fan_speed) });\n    if (prev.online !== s.online) msgs.push({ topic: 'bms/ac/' + idx + '/online', payload: s.online ? 'ON' : 'OFF' });\n    if (prev.ambient_temp !== s.ambient_temp && s.ambient_temp !== undefined) {\n        msgs.push({ topic: 'bms/ac/' + idx + '/room_temp', payload: String(s.ambient_temp) });\n    }\n    msgs.forEach(m => node.send(m));\n    return null;\n}\n\n// ---- MCB / Sign feedback ----\nif (d.type === 'mcb') {\n    const ids = Object.keys(configs).filter(id => configs[id].type === 'mcb').sort();\n    const idx = ids.indexOf(d.id);\n    if (idx < 0) return null;\n\n    const msgs = [];\n    if (prev.control !== s.control) msgs.push({ topic: 'bms/sign/' + idx + '/power', payload: s.control ? 'ON' : 'OFF' });\n    if (prev.online !== s.online) msgs.push({ topic: 'bms/sign/' + idx + '/online', payload: s.online ? 'ON' : 'OFF' });\n    msgs.forEach(m => node.send(m));\n    return null;\n}\n\nreturn null;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
@@ -157,8 +156,7 @@
     "libs": [],
     "wires": [
       [
-        "mqtt-hmi-feedback-out",
-        "dbg-hmi-feedback"
+        "mqtt-hmi-feedback-out"
       ]
     ]
   },
@@ -176,36 +174,6 @@
     "correl": "",
     "expiry": "",
     "broker": "cfg-mqtt-broker",
-    "wires": []
-  },
-  {
-    "id": "dbg-hmi-feedback",
-    "type": "debug",
-    "z": "tab-hmi",
-    "name": "HMI feedback debug",
-    "active": true,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": true,
-    "complete": "true",
-    "targetType": "full",
-    "statusVal": "topic",
-    "statusType": "msg",
-    "wires": []
-  },
-  {
-    "id": "dbg-hmi-raw-in",
-    "type": "debug",
-    "z": "tab-hmi",
-    "name": "HMI raw in",
-    "active": true,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": true,
-    "complete": "true",
-    "targetType": "full",
-    "statusVal": "device.id",
-    "statusType": "msg",
     "wires": []
   },
   {
