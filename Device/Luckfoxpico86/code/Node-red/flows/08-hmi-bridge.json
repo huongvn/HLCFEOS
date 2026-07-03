@@ -171,7 +171,7 @@
     "type": "function",
     "z": "tab-hmi",
     "name": "Build HMI feedback topics",
-    "func": "if (!msg._state_changed) return null;\n\nconst d = msg.device;\nconst prev = msg._prev_state || {};\nconst s = d.state;\n\nconst configs = global.get('device_configs') || {};\n\n// ---- AC feedback ----\nif (d.type === 'ac_controller') {\n    const ids = Object.keys(configs)\n        .filter(id => configs[id].type === 'ac_controller')\n        .sort();\n    const idx = ids.indexOf(d.id);\n    if (idx < 0) return null;\n\n    const msgs = [];\n    if (prev.power !== s.power) {\n        msgs.push({ topic: 'bms/ac/' + idx + '/power', payload: s.power ? 'ON' : 'OFF' });\n    }\n    if (prev.temperature !== s.temperature) {\n        msgs.push({ topic: 'bms/ac/' + idx + '/temperature', payload: String(s.temperature) });\n    }\n    if (prev.fan_speed !== s.fan_speed) {\n        msgs.push({ topic: 'bms/ac/' + idx + '/fan', payload: String(s.fan_speed) });\n    }\n    if (prev.online !== s.online) {\n        msgs.push({ topic: 'bms/ac/' + idx + '/online', payload: s.online ? 'ON' : 'OFF' });\n    }\n    if (prev.ambient_temp !== s.ambient_temp && s.ambient_temp !== undefined) {\n        msgs.push({ topic: 'bms/ac/' + idx + '/room_temp', payload: String(s.ambient_temp) });\n    }\n    return [msgs];\n}\n\n// ---- MCB / Sign feedback ----\nif (d.type === 'mcb') {\n    const ids = Object.keys(configs)\n        .filter(id => configs[id].type === 'mcb')\n        .sort();\n    const idx = ids.indexOf(d.id);\n    if (idx < 0) return null;\n\n    const msgs = [];\n    if (prev.power !== s.power) {\n        msgs.push({ topic: 'bms/sign/' + idx + '/power', payload: s.power ? 'ON' : 'OFF' });\n    }\n    if (prev.online !== s.online) {\n        msgs.push({ topic: 'bms/sign/' + idx + '/online', payload: s.online ? 'ON' : 'OFF' });\n    }\n    return [msgs];\n}\n\nreturn null;",
+    "func": "if (!msg._state_changed) return null;\n\nconst d = msg.device;\nconst prev = msg._prev_state || {};\nconst s = d.state;\n\nconst configs = global.get('device_configs') || {};\n\n// ---- AC feedback ----\nif (d.type === 'ac_controller') {\n    const ids = Object.keys(configs)\n        .filter(id => configs[id].type === 'ac_controller')\n        .sort();\n    const idx = ids.indexOf(d.id);\n    if (idx < 0) return null;\n\n    const msgs = [];\n    if (prev.power !== s.power) {\n        msgs.push({ topic: 'bms/ac/' + idx + '/power', payload: s.power ? 'ON' : 'OFF' });\n    }\n    if (prev.temperature !== s.temperature) {\n        msgs.push({ topic: 'bms/ac/' + idx + '/temperature', payload: String(s.temperature) });\n    }\n    if (prev.fan_speed !== s.fan_speed) {\n        msgs.push({ topic: 'bms/ac/' + idx + '/fan', payload: String(s.fan_speed) });\n    }\n    if (prev.online !== s.online) {\n        msgs.push({ topic: 'bms/ac/' + idx + '/online', payload: s.online ? 'ON' : 'OFF' });\n    }\n    if (prev.ambient_temp !== s.ambient_temp && s.ambient_temp !== undefined) {\n        msgs.push({ topic: 'bms/ac/' + idx + '/room_temp', payload: String(s.ambient_temp) });\n    }\n    msgs.forEach(m => node.send(m));\nreturn null;\n}\n\n// ---- MCB / Sign feedback ----\nif (d.type === 'mcb') {\n    const ids = Object.keys(configs)\n        .filter(id => configs[id].type === 'mcb')\n        .sort();\n    const idx = ids.indexOf(d.id);\n    if (idx < 0) return null;\n\n    const msgs = [];\n    if (prev.power !== s.power) {\n        msgs.push({ topic: 'bms/sign/' + idx + '/power', payload: s.power ? 'ON' : 'OFF' });\n    }\n    if (prev.online !== s.online) {\n        msgs.push({ topic: 'bms/sign/' + idx + '/online', payload: s.online ? 'ON' : 'OFF' });\n    }\n    msgs.forEach(m => node.send(m));\nreturn null;\n}\n\nreturn null;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
@@ -179,7 +179,8 @@
     "libs": [],
     "wires": [
       [
-        "mqtt-hmi-feedback-out"
+        "mqtt-hmi-feedback-out",
+        "dbg-hmi-feedback"
       ]
     ]
   },
@@ -197,6 +198,21 @@
     "correl": "",
     "expiry": "",
     "broker": "cfg-mqtt-broker",
+    "wires": []
+  },
+  {
+    "id": "dbg-hmi-feedback",
+    "type": "debug",
+    "z": "tab-hmi",
+    "name": "HMI feedback debug",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": true,
+    "complete": "true",
+    "targetType": "full",
+    "statusVal": "topic",
+    "statusType": "msg",
     "wires": []
   }
 ]
