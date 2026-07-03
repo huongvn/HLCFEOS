@@ -39,7 +39,7 @@
     "inputs": 0,
     "wires": [
       [
-        "fn-hmi-parse-set"
+        "queue-ac-in"
       ]
     ]
   },
@@ -107,7 +107,7 @@
     "inputs": 0,
     "wires": [
       [
-        "fn-hmi-parse-bb-set"
+        "queue-sign-in"
       ]
     ]
   },
@@ -162,29 +162,6 @@
     ]
   },
   {
-    "id": "delay-hmi-queue",
-    "type": "delay",
-    "z": "tab-hmi",
-    "name": "Queue 50ms no drop",
-    "pauseType": "rate",
-    "timeout": "50",
-    "timeoutUnits": "milliseconds",
-    "rate": "20",
-    "nbRateUnits": "1",
-    "rateUnits": "second",
-    "randomFirst": "1",
-    "randomLast": "5",
-    "randomUnits": "seconds",
-    "drop": false,
-    "allowrate": false,
-    "outputs": 1,
-    "wires": [
-      [
-        "fn-hmi-ac-feedback"
-      ]
-    ]
-  },
-  {
     "id": "mqtt-hmi-feedback-out",
     "type": "mqtt out",
     "z": "tab-hmi",
@@ -230,7 +207,76 @@
     "statusType": "msg",
     "wires": [
       [
-        "delay-hmi-queue"
+        "queue-feedback"
+      ]
+    ]
+  },
+  {
+    "id": "queue-ac-in",
+    "type": "delay",
+    "z": "tab-hmi",
+    "name": "Queue AC cmd in 20/s",
+    "pauseType": "rate",
+    "timeout": "50",
+    "timeoutUnits": "milliseconds",
+    "rate": "20",
+    "nbRateUnits": "1",
+    "rateUnits": "second",
+    "randomFirst": "1",
+    "randomLast": "5",
+    "randomUnits": "seconds",
+    "drop": false,
+    "allowrate": false,
+    "outputs": 1,
+    "wires": [
+      [
+        "fn-hmi-parse-set"
+      ]
+    ]
+  },
+  {
+    "id": "queue-sign-in",
+    "type": "delay",
+    "z": "tab-hmi",
+    "name": "Queue Sign cmd in 20/s",
+    "pauseType": "rate",
+    "timeout": "50",
+    "timeoutUnits": "milliseconds",
+    "rate": "20",
+    "nbRateUnits": "1",
+    "rateUnits": "second",
+    "randomFirst": "1",
+    "randomLast": "5",
+    "randomUnits": "seconds",
+    "drop": false,
+    "allowrate": false,
+    "outputs": 1,
+    "wires": [
+      [
+        "fn-hmi-parse-bb-set"
+      ]
+    ]
+  },
+  {
+    "id": "queue-feedback",
+    "type": "delay",
+    "z": "tab-hmi",
+    "name": "Queue feedback out 20/s",
+    "pauseType": "rate",
+    "timeout": "50",
+    "timeoutUnits": "milliseconds",
+    "rate": "20",
+    "nbRateUnits": "1",
+    "rateUnits": "second",
+    "randomFirst": "1",
+    "randomLast": "5",
+    "randomUnits": "seconds",
+    "drop": false,
+    "allowrate": false,
+    "outputs": 1,
+    "wires": [
+      [
+        "fn-hmi-ac-feedback"
       ]
     ]
   }
