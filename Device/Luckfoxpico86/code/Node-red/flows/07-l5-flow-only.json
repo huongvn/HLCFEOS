@@ -1591,8 +1591,7 @@
     "y": 0,
     "wires": [
       [
-        "dcf64d54aff47b10",
-        "8a7191fa837aa78e"
+        "queue-l5-cmd"
       ]
     ]
   },
