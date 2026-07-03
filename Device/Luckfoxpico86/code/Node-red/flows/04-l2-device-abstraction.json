@@ -51,7 +51,8 @@
     "wires": [
       [
         "lk-l2-to-l3",
-        "lk-l2-to-l5"
+        "lk-l2-to-l5",
+        "lk-l2-to-hmi"
       ]
     ]
   },
@@ -75,6 +76,17 @@
     "mode": "link",
     "links": [
       "lk-l5-refresh-in"
+    ],
+    "wires": []
+  },
+  {
+    "id": "lk-l2-to-hmi",
+    "type": "link out",
+    "z": "tab-l2",
+    "name": "→ HMI feedback",
+    "mode": "link",
+    "links": [
+      "lk-hmi-feedback-in"
     ],
     "wires": []
   }

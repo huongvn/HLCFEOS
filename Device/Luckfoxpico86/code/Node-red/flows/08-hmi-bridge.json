@@ -4,7 +4,7 @@
     "type": "tab",
     "label": "HMI Bridge",
     "disabled": false,
-    "info": "Nhan lenh ON/OFF tu LVGL cho AC va Billboard (MCB), khong phan hoi trang thai"
+    "info": "Nhan lenh ON/OFF tu LVGL cho AC va Billboard (MCB), phan hoi trang thai ve LVGL qua bms/ac/+/+ va bms/sign/+/+"
   },
   {
     "id": "cfg-mqtt-broker",
@@ -128,5 +128,75 @@
         "dbg-hmi-cmd"
       ]
     ]
+  },
+  {
+    "id": "lk-hmi-feedback-in",
+    "type": "link in",
+    "z": "tab-hmi",
+    "name": "← L2 state changed",
+    "links": [
+      "lk-l2-to-hmi"
+    ],
+    "wires": [
+      [
+        "delay-hmi-debounce"
+      ]
+    ]
+  },
+  {
+    "id": "delay-hmi-debounce",
+    "type": "delay",
+    "z": "tab-hmi",
+    "name": "Debounce 200ms",
+    "pauseType": "rate",
+    "timeout": "200",
+    "timeoutUnits": "milliseconds",
+    "rate": "5",
+    "nbRateUnits": "1",
+    "rateUnits": "second",
+    "randomFirst": "1",
+    "randomLast": "5",
+    "randomUnits": "seconds",
+    "drop": true,
+    "allowrate": false,
+    "outputs": 1,
+    "wires": [
+      [
+        "fn-hmi-ac-feedback"
+      ]
+    ]
+  },
+  {
+    "id": "fn-hmi-ac-feedback",
+    "type": "function",
+    "z": "tab-hmi",
+    "name": "Build AC feedback topics",
+    "func": "if (!msg._state_changed) return null;\n\nconst d = msg.device;\nconst prev = msg._prev_state || {};\nconst s = d.state;\n\nconst configs = global.get('device_configs') || {};\nconst ids = Object.keys(configs)\n    .filter(id => configs[id].type === 'ac_controller')\n    .sort();\nconst idx = ids.indexOf(d.id);\nif (idx < 0) return null;\n\nconst msgs = [];\n\nif (prev.power !== s.power) {\n    msgs.push({ topic: 'bms/ac/' + idx + '/power', payload: s.power ? 'ON' : 'OFF' });\n}\nif (prev.temperature !== s.temperature) {\n    msgs.push({ topic: 'bms/ac/' + idx + '/temperature', payload: String(s.temperature) });\n}\nif (prev.mode !== s.mode) {\n    msgs.push({ topic: 'bms/ac/' + idx + '/mode', payload: String(s.mode) });\n}\nif (prev.online !== s.online) {\n    msgs.push({ topic: 'bms/ac/' + idx + '/online', payload: s.online ? 'ON' : 'OFF' });\n}\nif (prev.room_temp !== s.room_temp && s.room_temp !== undefined) {\n    msgs.push({ topic: 'bms/ac/' + idx + '/room_temp', payload: String(s.room_temp) });\n}\n\nreturn [msgs];",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [
+      [
+        "mqtt-hmi-feedback-out"
+      ]
+    ]
+  },
+  {
+    "id": "mqtt-hmi-feedback-out",
+    "type": "mqtt out",
+    "z": "tab-hmi",
+    "name": "Publish feedback to LVGL",
+    "topic": "",
+    "qos": "1",
+    "retain": "false",
+    "respTopic": "",
+    "contentType": "",
+    "userProps": "",
+    "correl": "",
+    "expiry": "",
+    "broker": "cfg-mqtt-broker",
+    "wires": []
   }
 ]

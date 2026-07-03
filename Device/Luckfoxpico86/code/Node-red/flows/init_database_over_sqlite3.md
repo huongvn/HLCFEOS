@@ -130,8 +130,8 @@ INSERT OR IGNORE INTO device_config VALUES
    "attrs":{
      "0101":{"key":"power","type":"bool"},
      "0202":{"key":"temperature","type":"number"},
-     "0203":{"key":"ambient_temp","type":"number"},
-     "0405":{"key":"fan_speed","type":"number"}
+      "0203":{"key":"room_temp","type":"number"},
+      "0405":{"key":"mode","type":"number"}
    }
  }'),
 
@@ -143,8 +143,8 @@ INSERT OR IGNORE INTO device_config VALUES
    "attrs":{
      "0101":{"key":"power","type":"bool"},
      "0202":{"key":"temperature","type":"number"},
-     "0203":{"key":"ambient_temp","type":"number"},
-     "0405":{"key":"fan_speed","type":"number"}
+      "0203":{"key":"room_temp","type":"number"},
+      "0405":{"key":"mode","type":"number"}
    }
  }');
 EOF

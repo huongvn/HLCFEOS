@@ -106,6 +106,7 @@ INSERT OR REPLACE INTO device_config VALUES (
     "attrs":{
       "0101":{"key":"power","type":"bool","desc":"AC Power"},
       "0202":{"key":"temperature","type":"number","desc":"Setpoint C"},
+      "0203":{"key":"room_temp","type":"number","desc":"Room Temp C"},
       "0405":{"key":"mode","type":"number","desc":"Mode"}
     }}'
 );
