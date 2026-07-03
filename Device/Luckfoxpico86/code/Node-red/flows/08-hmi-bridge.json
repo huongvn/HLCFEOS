@@ -139,7 +139,8 @@
     ],
     "wires": [
       [
-        "dbg-hmi-raw-in"
+        "dbg-hmi-raw-in",
+        "fn-hmi-ac-feedback"
       ]
     ]
   },
@@ -205,11 +206,7 @@
     "targetType": "full",
     "statusVal": "device.id",
     "statusType": "msg",
-    "wires": [
-      [
-        "fn-hmi-ac-feedback"
-      ]
-    ]
+    "wires": []
   },
   {
     "id": "queue-ac-in",
