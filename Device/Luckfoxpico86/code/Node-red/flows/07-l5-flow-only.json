@@ -18,7 +18,13 @@
     "onceDelay": "3",
     "payload": "",
     "payloadType": "date",
-    "wires": []
+    "wires": [
+      [
+        "fn-sync-ac0",
+        "fn-sync-ac1",
+        "fn-sync-sign"
+      ]
+    ]
   },
   {
     "id": "fn-l5-build-manual",
