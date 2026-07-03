@@ -1438,7 +1438,9 @@
     "allowrate": false,
     "outputs": 1,
     "wires": [
-      []
+      [
+        "mqtt-l5-manual"
+      ]
     ]
   }
 ]

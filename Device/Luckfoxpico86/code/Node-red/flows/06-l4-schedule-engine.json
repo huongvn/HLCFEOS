@@ -192,7 +192,9 @@
     "allowrate": false,
     "outputs": 1,
     "wires": [
-      []
+      [
+        "mqtt-l4-cmd"
+      ]
     ]
   }
 ]
