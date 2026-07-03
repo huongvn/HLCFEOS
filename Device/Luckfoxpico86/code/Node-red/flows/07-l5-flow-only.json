@@ -1361,31 +1361,6 @@
     "wires": []
   },
   {
-    "id": "fn-l5-sync-switches",
-    "type": "function",
-    "z": "tab-l5",
-    "name": "Sync switch states",
-    "func": "const devices = global.get('devices') || {};\nconst configs = global.get('device_configs') || {};\n\nconst acIds = Object.keys(configs).filter(id => configs[id].type === 'ac_controller').sort();\nconst signIds = Object.keys(configs).filter(id => configs[id].type === 'mcb').sort();\n\nconst d0 = devices[acIds[0]];\nconst d1 = devices[acIds[1]];\nconst ds = devices[signIds[0]];\n\nfunction buildStatus(d) {\n    if (!d) return 'Chưa có dữ liệu';\n    const st = d.state || {};\n    let s = st.power || st.control ? '● ON' : '○ OFF';\n    if (st.temperature !== undefined) s += ' | Set:' + st.temperature + '°C';\n    if (st.fan_speed !== undefined) s += ' | Fan:' + st.fan_speed;\n    if (st.ambient_temp !== undefined) s += ' | Room:' + st.ambient_temp + '°C';\n    s += ' | Link:' + (st.link_quality || 0);\n    return s;\n}\n\nfunction buildDetail(d) {\n    if (!d) return '';\n    const cfg = configs[d.id];\n    let s = '';\n    if (cfg) {\n        s += 'ID: ' + d.id + ' | Type: ' + cfg.type;\n        s += ' | Gateway: ' + (cfg.gateway || '—') + '\\n';\n    }\n    const st = d.state || {};\n    for (const [k, v] of Object.entries(st)) {\n        if (k !== 'online' && k !== 'link_quality') s += k + ': ' + v + '\\n';\n    }\n    return s;\n}\n\nreturn [\n    { payload: buildStatus(d0) + '\\n' + buildDetail(d0) },\n    { payload: buildStatus(d1) + '\\n' + buildDetail(d1) },\n    { payload: buildStatus(ds) + '\\n' + buildDetail(ds) }\n];",
-    "outputs": 3,
-    "noerr": 0,
-    "initialize": "",
-    "finalize": "",
-    "libs": [],
-    "x": 0,
-    "y": 0,
-    "wires": [
-      [
-        "ui-text-ac0-status"
-      ],
-      [
-        "ui-text-ac1-status"
-      ],
-      [
-        "ui-text-sign-status"
-      ]
-    ]
-  },
-  {
     "id": "ui-text-ac0-status",
     "type": "ui-text",
     "z": "tab-l5",
@@ -1447,5 +1422,53 @@
     "x": 0,
     "y": 0,
     "wires": []
+  },
+  {
+    "id": "fn-sync-ac0",
+    "type": "function",
+    "z": "tab-l5",
+    "name": "Sync ac0",
+    "func": "const devices = global.get('devices') || {};\nconst configs = global.get('device_configs') || {};\nconst ids = Object.keys(configs).filter(id => configs[id].type === 'ac_controller').sort();\nconst d = devices[ids[0]];\nif (!d) { msg.payload = 'Chưa có dữ liệu'; return msg; }\nconst st = d.state || {};\nlet s = st.power || st.control ? '● ON' : '○ OFF';\nif (st.temperature !== undefined) s += ' | Set:' + st.temperature + '°C';\nif (st.fan_speed !== undefined) s += ' | Fan:' + st.fan_speed;\nif (st.ambient_temp !== undefined) s += ' | Room:' + st.ambient_temp + '°C';\ns += ' | Link:' + (st.link_quality || 0);\nmsg.payload = s;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 0,
+    "y": 0,
+    "wires": [
+      [
+        "ui-text-ac0-status"
+      ]
+    ]
+  },
+  {
+    "id": "fn-sync-ac1",
+    "type": "function",
+    "z": "tab-l5",
+    "name": "Sync ac1",
+    "func": "const devices = global.get('devices') || {};\nconst configs = global.get('device_configs') || {};\nconst ids = Object.keys(configs).filter(id => configs[id].type === 'ac_controller').sort();\nconst d = devices[ids[1]];\nif (!d) { msg.payload = 'Chưa có dữ liệu'; return msg; }\nconst st = d.state || {};\nlet s = st.power || st.control ? '● ON' : '○ OFF';\nif (st.temperature !== undefined) s += ' | Set:' + st.temperature + '°C';\nif (st.fan_speed !== undefined) s += ' | Fan:' + st.fan_speed;\nif (st.ambient_temp !== undefined) s += ' | Room:' + st.ambient_temp + '°C';\ns += ' | Link:' + (st.link_quality || 0);\nmsg.payload = s;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 0,
+    "y": 0,
+    "wires": [
+      [
+        "ui-text-ac1-status"
+      ]
+    ]
+  },
+  {
+    "id": "fn-sync-sign",
+    "type": "function",
+    "z": "tab-l5",
+    "name": "Sync sign",
+    "func": "const devices = global.get('devices') || {};\nconst configs = global.get('device_configs') || {};\nconst ids = Object.keys(configs).filter(id => configs[id].type === 'mcb').sort();\nconst d = devices[ids[0]];\nif (!d) { msg.payload = 'Chưa có dữ liệu'; return msg; }\nconst st = d.state || {};\nlet s = st.power || st.control ? '● ON' : '○ OFF';\nif (st.temperature !== undefined) s += ' | Set:' + st.temperature + '°C';\nif (st.fan_speed !== undefined) s += ' | Fan:' + st.fan_speed;\nif (st.ambient_temp !== undefined) s += ' | Room:' + st.ambient_temp + '°C';\ns += ' | Link:' + (st.link_quality || 0);\nmsg.payload = s;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 0,
+    "y": 0,
+    "wires": [
+      [
+        "ui-text-sign-status"
+      ]
+    ]
   }
 ]
