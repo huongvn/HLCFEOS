@@ -18,75 +18,7 @@
     "onceDelay": "3",
     "payload": "",
     "payloadType": "date",
-    "wires": [
-      [
-        "fn-l5-status-text"
-      ]
-    ]
-  },
-  {
-    "id": "ui-dropdown-manual-dev",
-    "type": "ui-dropdown",
-    "z": "tab-l5",
-    "name": "Select device",
-    "group": "ac8e9b2edae14ca3",
-    "order": 1,
-    "width": 0,
-    "height": 0,
-    "label": "Chon thiet bi",
-    "passthru": true,
-    "multiple": false,
-    "options": [],
-    "payload": "",
-    "topic": "manual_device",
-    "topicType": "msg",
-    "className": "",
-    "wires": [
-      [
-        "fn-l5-set-manual-dev",
-        "dbg-l5-dropdown"
-      ]
-    ]
-  },
-  {
-    "id": "fn-l5-set-manual-dev",
-    "type": "function",
-    "z": "tab-l5",
-    "name": "Set manual device_id",
-    "func": "flow.set('manual_device_id', msg.payload);\nreturn null;",
-    "outputs": 1,
-    "noerr": 0,
-    "initialize": "",
-    "finalize": "",
-    "libs": [],
     "wires": []
-  },
-  {
-    "id": "ui-switch-manual",
-    "type": "ui-switch",
-    "z": "tab-l5",
-    "name": "Manual toggle",
-    "group": "ac8e9b2edae14ca3",
-    "order": 2,
-    "width": 0,
-    "height": 0,
-    "label": "Bat/Tat",
-    "tooltip": "ON/OFF qua ZbSend",
-    "passthru": false,
-    "decouple": false,
-    "topic": "manual_toggle",
-    "topicType": "str",
-    "style": "",
-    "className": "",
-    "onvalue": "ON",
-    "onvalueType": "str",
-    "offvalue": "OFF",
-    "offvalueType": "str",
-    "wires": [
-      [
-        "fn-l5-build-manual"
-      ]
-    ]
   },
   {
     "id": "fn-l5-build-manual",
@@ -1123,7 +1055,6 @@
     "libs": [],
     "wires": [
       [
-        "ui-dropdown-manual-dev",
         "ui-dropdown-detail-dev"
       ]
     ]
@@ -1185,79 +1116,6 @@
     "initialize": "",
     "finalize": "",
     "libs": [],
-    "wires": [
-      [
-        "ui-switch-manual"
-      ]
-    ]
-  },
-  {
-    "id": "ui-group-device-detail",
-    "type": "ui-group",
-    "name": "Chi tiết thiết bị",
-    "page": "d91d5a758b948c3b",
-    "width": "12",
-    "order": 3,
-    "showTitle": true,
-    "className": ""
-  },
-  {
-    "id": "ui-dropdown-detail-dev",
-    "type": "ui-dropdown",
-    "z": "tab-l5",
-    "name": "Select device detail",
-    "group": "ui-group-device-detail",
-    "order": 1,
-    "width": 0,
-    "height": 0,
-    "label": "Chọn thiết bị xem chi tiết",
-    "passthru": true,
-    "multiple": false,
-    "options": [],
-    "payload": "",
-    "topic": "detail_device",
-    "topicType": "msg",
-    "className": "",
-    "wires": [
-      [
-        "fn-l5-detail-builder"
-      ]
-    ]
-  },
-  {
-    "id": "fn-l5-detail-builder",
-    "type": "function",
-    "z": "tab-l5",
-    "name": "Build device detail",
-    "func": "const selectedId = msg.payload || flow.get('detail_device_id');\nif (!selectedId) {\n    msg.payload = 'Chọn thiết bị để xem chi tiết';\n    return msg;\n}\n\n// Nếu triggered từ L2 state change, chỉ refresh nếu đúng device đang chọn\nif (msg._state_changed && msg.device && msg.device.id !== selectedId) {\n    return null;\n}\n\nflow.set('detail_device_id', selectedId);\n\nconst configs = global.get('device_configs') || {};\nconst devices = global.get('devices') || {};\nconst cfg = configs[selectedId];\nconst dev = devices[selectedId];\n\nlet text = '';\n\nif (cfg) {\n    text += 'ID: ' + selectedId + '\\n';\n    text += 'Tên: ' + (cfg.friendly_name || '—') + '\\n';\n    text += 'Loại: ' + (cfg.type || '—') + '\\n';\n    text += 'Vị trí: ' + (cfg.location || '—') + '\\n';\n    text += 'Gateway: ' + (cfg.gateway || '—') + '\\n';\n    text += 'Enabled: ' + (cfg.enabled ? 'Có' : 'Không') + '\\n';\n    if (cfg.extra) {\n        text += 'Power attr: ' + (cfg.extra.power_attr || '—') + '\\n';\n        if (cfg.extra.attrs) {\n            text += 'Attrs mapped: ' + Object.keys(cfg.extra.attrs).length + '\\n';\n        }\n        if (cfg.extra.custom_actions) {\n            text += 'Custom actions: ' + Object.keys(cfg.extra.custom_actions).join(', ') + '\\n';\n        }\n    }\n}\n\nif (dev) {\n    text += '\\n--- Trạng thái hiện tại ---\\n';\n    text += 'Online: ' + (dev.state && dev.state.online ? '✓ Có' : '✗ Không') + '\\n';\n    text += 'Link Quality: ' + (dev.state && dev.state.link_quality !== undefined ? dev.state.link_quality : '—') + '\\n';\n    text += 'Cập nhật lúc: ' + (dev.ts ? dev.ts.replace('T', ' ').slice(0, 19) : '—') + '\\n';\n    \n    const state = dev.state || {};\n    for (const key in state) {\n        if (key === 'online' || key === 'link_quality') continue;\n        text += key + ': ' + state[key] + '\\n';\n    }\n} else {\n    text += '\\n(Chưa có dữ liệu trạng thái realtime)';\n}\n\nmsg.payload = text;\nreturn msg;",
-    "outputs": 1,
-    "noerr": 0,
-    "initialize": "",
-    "finalize": "",
-    "libs": [],
-    "wires": [
-      [
-        "ui-text-detail"
-      ]
-    ]
-  },
-  {
-    "id": "ui-text-detail",
-    "type": "ui-text",
-    "z": "tab-l5",
-    "name": "Device detail text",
-    "group": "ui-group-device-detail",
-    "order": 2,
-    "width": 0,
-    "height": 0,
-    "label": "Thông tin chi tiết",
-    "format": "{{msg.payload}}",
-    "layout": "row-spread",
-    "className": "",
-    "style": false,
-    "font": "",
-    "fontSize": 14,
-    "color": "#ffffff",
     "wires": []
   },
   {
@@ -1317,75 +1175,6 @@
     "wires": []
   },
   {
-    "id": "ui-group-device-detail",
-    "type": "ui-group",
-    "name": "Chi tiết thiết bị",
-    "page": "d91d5a758b948c3b",
-    "width": "12",
-    "order": 3,
-    "showTitle": true,
-    "className": ""
-  },
-  {
-    "id": "ui-dropdown-detail-dev",
-    "type": "ui-dropdown",
-    "z": "tab-l5",
-    "name": "Select device detail",
-    "group": "ui-group-device-detail",
-    "order": 1,
-    "width": 0,
-    "height": 0,
-    "label": "Chọn thiết bị xem chi tiết",
-    "passthru": true,
-    "multiple": false,
-    "options": [],
-    "payload": "",
-    "topic": "detail_device",
-    "topicType": "msg",
-    "className": "",
-    "wires": [
-      [
-        "fn-l5-detail-builder"
-      ]
-    ]
-  },
-  {
-    "id": "fn-l5-detail-builder",
-    "type": "function",
-    "z": "tab-l5",
-    "name": "Build device detail",
-    "func": "const selectedId = msg.payload || flow.get('detail_device_id');\nif (!selectedId) {\n    msg.payload = 'Chọn thiết bị để xem chi tiết';\n    return msg;\n}\n\n// Nếu triggered từ L2 state change, chỉ refresh nếu đúng device đang chọn\nif (msg._state_changed && msg.device && msg.device.id !== selectedId) {\n    return null;\n}\n\nflow.set('detail_device_id', selectedId);\n\nconst configs = global.get('device_configs') || {};\nconst devices = global.get('devices') || {};\nconst cfg = configs[selectedId];\nconst dev = devices[selectedId];\n\nlet text = '';\n\nif (cfg) {\n    text += 'ID: ' + selectedId + '\\n';\n    text += 'Tên: ' + (cfg.friendly_name || '—') + '\\n';\n    text += 'Loại: ' + (cfg.type || '—') + '\\n';\n    text += 'Vị trí: ' + (cfg.location || '—') + '\\n';\n    text += 'Gateway: ' + (cfg.gateway || '—') + '\\n';\n    text += 'Enabled: ' + (cfg.enabled ? 'Có' : 'Không') + '\\n';\n    if (cfg.extra) {\n        text += 'Power attr: ' + (cfg.extra.power_attr || '—') + '\\n';\n        if (cfg.extra.attrs) {\n            text += 'Attrs mapped: ' + Object.keys(cfg.extra.attrs).length + '\\n';\n        }\n        if (cfg.extra.custom_actions) {\n            text += 'Custom actions: ' + Object.keys(cfg.extra.custom_actions).join(', ') + '\\n';\n        }\n    }\n}\n\nif (dev) {\n    text += '\\n--- Trạng thái hiện tại ---\\n';\n    text += 'Online: ' + (dev.state && dev.state.online ? '✓ Có' : '✗ Không') + '\\n';\n    text += 'Link Quality: ' + (dev.state && dev.state.link_quality !== undefined ? dev.state.link_quality : '—') + '\\n';\n    text += 'Cập nhật lúc: ' + (dev.ts ? dev.ts.replace('T', ' ').slice(0, 19) : '—') + '\\n';\n    \n    const state = dev.state || {};\n    for (const key in state) {\n        if (key === 'online' || key === 'link_quality') continue;\n        text += key + ': ' + state[key] + '\\n';\n    }\n} else {\n    text += '\\n(Chưa có dữ liệu trạng thái realtime)';\n}\n\nmsg.payload = text;\nreturn msg;",
-    "outputs": 1,
-    "noerr": 0,
-    "initialize": "",
-    "finalize": "",
-    "libs": [],
-    "wires": [
-      [
-        "ui-text-detail"
-      ]
-    ]
-  },
-  {
-    "id": "ui-text-detail",
-    "type": "ui-text",
-    "z": "tab-l5",
-    "name": "Device detail text",
-    "group": "ui-group-device-detail",
-    "order": 2,
-    "width": 0,
-    "height": 0,
-    "label": "Thông tin chi tiết",
-    "format": "{{msg.payload}}",
-    "layout": "row-spread",
-    "className": "",
-    "style": false,
-    "font": "",
-    "fontSize": 14,
-    "color": "#ffffff",
-    "wires": []
-  },
-  {
     "id": "queue-l5-cmd",
     "type": "delay",
     "z": "tab-l5",
@@ -1407,43 +1196,6 @@
         "mqtt-l5-manual"
       ]
     ]
-  },
-  {
-    "id": "fn-l5-status-text",
-    "type": "function",
-    "z": "tab-l5",
-    "name": "Build status text",
-    "func": "const devices = global.get('devices') || {};\nconst configs = global.get('device_configs') || {};\nlet lines = [];\nfor (const [id, d] of Object.entries(devices)) {\n  const cfg = configs[id];\n  if (!cfg) continue;\n  const name = cfg.friendly_name || id;\n  const st = d.state || {};\n  let status = st.power || st.control ? '● ON' : '○ OFF';\n  if (st.temperature !== undefined) status += ' | ' + st.temperature + '°C';\n  if (st.fan_speed !== undefined) status += ' | Fan:' + st.fan_speed;\n  if (st.ambient_temp !== undefined) status += ' | Room:' + st.ambient_temp + '°C';\n  lines.push(name + '  ' + status + '  (Link:' + (st.link_quality || 0) + ')');\n}\nmsg.payload = lines.join('\\n') || 'Chưa có dữ liệu';\nreturn msg;",
-    "outputs": 1,
-    "noerr": 0,
-    "x": 0,
-    "y": 0,
-    "wires": [
-      [
-        "ui-text-status"
-      ]
-    ]
-  },
-  {
-    "id": "ui-text-status",
-    "type": "ui-text",
-    "z": "tab-l5",
-    "group": "eba75532c348db87",
-    "order": 1,
-    "width": 0,
-    "height": 0,
-    "name": "Device status",
-    "label": "Trạng thái thiết bị",
-    "format": "{{msg.payload}}",
-    "layout": "row-spread",
-    "style": false,
-    "font": "",
-    "fontSize": 14,
-    "color": "#ffffff",
-    "className": "",
-    "x": 0,
-    "y": 0,
-    "wires": []
   },
   {
     "id": "ui-sw-ac0",
@@ -1613,7 +1365,7 @@
     "type": "function",
     "z": "tab-l5",
     "name": "Sync switch states",
-    "func": "const devices = global.get('devices') || {};\nconst configs = global.get('device_configs') || {};\nconst acIds = Object.keys(configs).filter(id => configs[id].type === 'ac_controller').sort();\nconst signIds = Object.keys(configs).filter(id => configs[id].type === 'mcb').sort();\n\nconst ac0 = devices[acIds[0]];\nconst ac1 = devices[acIds[1]];\nconst sign = devices[signIds[0]];\n\nreturn [\n    ac0 ? { payload: ac0.state?.power ? 'ON' : 'OFF' } : null,\n    ac1 ? { payload: ac1.state?.power ? 'ON' : 'OFF' } : null,\n    sign ? { payload: sign.state?.control ? 'ON' : 'OFF' } : null\n];",
+    "func": "const devices = global.get('devices') || {};\nconst configs = global.get('device_configs') || {};\n\nconst acIds = Object.keys(configs).filter(id => configs[id].type === 'ac_controller').sort();\nconst signIds = Object.keys(configs).filter(id => configs[id].type === 'mcb').sort();\n\nconst d0 = devices[acIds[0]];\nconst d1 = devices[acIds[1]];\nconst ds = devices[signIds[0]];\n\nfunction buildStatus(d) {\n    if (!d) return 'Chưa có dữ liệu';\n    const st = d.state || {};\n    let s = st.power || st.control ? '● ON' : '○ OFF';\n    if (st.temperature !== undefined) s += ' | Set:' + st.temperature + '°C';\n    if (st.fan_speed !== undefined) s += ' | Fan:' + st.fan_speed;\n    if (st.ambient_temp !== undefined) s += ' | Room:' + st.ambient_temp + '°C';\n    s += ' | Link:' + (st.link_quality || 0);\n    return s;\n}\n\nfunction buildDetail(d) {\n    if (!d) return '';\n    const cfg = configs[d.id];\n    let s = '';\n    if (cfg) {\n        s += 'ID: ' + d.id + ' | Type: ' + cfg.type;\n        s += ' | Gateway: ' + (cfg.gateway || '—') + '\\n';\n    }\n    const st = d.state || {};\n    for (const [k, v] of Object.entries(st)) {\n        if (k !== 'online' && k !== 'link_quality') s += k + ': ' + v + '\\n';\n    }\n    return s;\n}\n\nreturn [\n    { payload: buildStatus(d0) + '\\n' + buildDetail(d0) },\n    { payload: buildStatus(d1) + '\\n' + buildDetail(d1) },\n    { payload: buildStatus(ds) + '\\n' + buildDetail(ds) }\n];",
     "outputs": 3,
     "noerr": 0,
     "initialize": "",
@@ -1623,14 +1375,77 @@
     "y": 0,
     "wires": [
       [
-        "ui-sw-ac0"
+        "ui-text-ac0-status"
       ],
       [
-        "ui-sw-ac1"
+        "ui-text-ac1-status"
       ],
       [
-        "ui-sw-sign"
+        "ui-text-sign-status"
       ]
     ]
+  },
+  {
+    "id": "ui-text-ac0-status",
+    "type": "ui-text",
+    "z": "tab-l5",
+    "group": "eba75532c348db87",
+    "order": 1,
+    "width": 0,
+    "height": 0,
+    "name": "AC Khu A",
+    "label": "AC Khu A",
+    "format": "{{msg.payload}}",
+    "layout": "row-spread",
+    "style": false,
+    "font": "",
+    "fontSize": 13,
+    "color": "#ffffff",
+    "className": "",
+    "x": 0,
+    "y": 0,
+    "wires": []
+  },
+  {
+    "id": "ui-text-ac1-status",
+    "type": "ui-text",
+    "z": "tab-l5",
+    "group": "eba75532c348db87",
+    "order": 1,
+    "width": 0,
+    "height": 0,
+    "name": "AC Khu B",
+    "label": "AC Khu B",
+    "format": "{{msg.payload}}",
+    "layout": "row-spread",
+    "style": false,
+    "font": "",
+    "fontSize": 13,
+    "color": "#ffffff",
+    "className": "",
+    "x": 0,
+    "y": 0,
+    "wires": []
+  },
+  {
+    "id": "ui-text-sign-status",
+    "type": "ui-text",
+    "z": "tab-l5",
+    "group": "eba75532c348db87",
+    "order": 1,
+    "width": 0,
+    "height": 0,
+    "name": "Biển QC",
+    "label": "Biển QC",
+    "format": "{{msg.payload}}",
+    "layout": "row-spread",
+    "style": false,
+    "font": "",
+    "fontSize": 13,
+    "color": "#ffffff",
+    "className": "",
+    "x": 0,
+    "y": 0,
+    "wires": []
   }
 ]
