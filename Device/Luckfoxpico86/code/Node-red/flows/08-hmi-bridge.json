@@ -4,7 +4,7 @@
     "type": "tab",
     "label": "HMI Bridge",
     "disabled": false,
-    "info": "Nhan lenh ON/OFF tu LVGL cho AC va Billboard (MCB), phan hoi trang thai ve LVGL qua bms/ac/+/+ va bms/sign/+/+"
+    "info": "Nhan lenh ON/OFF tu LVGL cho AC (bms/ac/+/+/set) va Sign/MCB (bms/sign/+/power/set), phan hoi trang thai ve LVGL"
   },
   {
     "id": "cfg-mqtt-broker",
@@ -96,8 +96,8 @@
     "id": "mqtt-hmi-subscribe-bb",
     "type": "mqtt in",
     "z": "tab-hmi",
-    "name": "Subscribe bms/billboard/+/set",
-    "topic": "bms/billboard/+/set",
+    "name": "Subscribe bms/sign/+/power/set",
+    "topic": "bms/sign/+/power/set",
     "qos": "1",
     "datatype": "utf8",
     "broker": "cfg-mqtt-broker",
@@ -115,8 +115,8 @@
     "id": "fn-hmi-parse-bb-set",
     "type": "function",
     "z": "tab-hmi",
-    "name": "Parse Billboard set → ZbSend",
-    "func": "const topic = msg.topic;\nconst payload = msg.payload;\nconst parts = topic.split('/');\n\nconst configs = global.get('device_configs') || {};\nconst bbIds = Object.keys(configs)\n    .filter(id => configs[id].type === 'mcb')\n    .sort();\n\nconst idx = parseInt(parts[2]);\nconst deviceId = bbIds[idx];\nif (!deviceId) return null;\n\nconst cfg = configs[deviceId];\nconst ex = cfg.extra || {};\nconst gateway = cfg.gateway || ex.gateway;\n\nconst val = (payload === 'ON' || payload === '1' || payload === 1) ? 1 : 0;\nconst powerAttr = ex.power_attr || '0110';\n\n// MCB dung old format theo EF00 docs\nmsg.topic = 'cmnd/' + gateway + '/ZbSend';\nmsg.payload = JSON.stringify({\n    device: deviceId,\n    send: { Cluster: '0xEF00', Write: { [powerAttr]: val } }\n});\nmsg._hmi_cmd = { device: deviceId, action: payload };\nreturn msg;",
+    "name": "Parse Sign power set → ZbSend",
+    "func": "const topic = msg.topic;\nconst payload = msg.payload;\nconst parts = topic.split('/');\n\nconst configs = global.get('device_configs') || {};\nconst signIds = Object.keys(configs)\n    .filter(id => configs[id].type === 'mcb')\n    .sort();\n\nconst idx = parseInt(parts[2]);\nconst deviceId = signIds[idx];\nif (!deviceId) return null;\n\nconst cfg = configs[deviceId];\nconst ex = cfg.extra || {};\nconst gateway = cfg.gateway || ex.gateway;\n\nconst val = (payload === 'ON' || payload === '1' || payload === 1) ? 1 : 0;\nconst powerAttr = ex.power_attr || '0110';\n\n// MCB dung old format theo EF00 docs\nmsg.topic = 'cmnd/' + gateway + '/ZbSend';\nmsg.payload = JSON.stringify({\n    device: deviceId,\n    send: { Cluster: '0xEF00', Write: { [powerAttr]: val } }\n});\nmsg._hmi_cmd = { device: deviceId, action: payload };\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
