@@ -130,5 +130,26 @@
       "09a3dc141dc6caf5"
     ],
     "wires": []
+  },
+  {
+    "id": "queue-l1-ingress",
+    "type": "delay",
+    "z": "tab-l1",
+    "name": "Queue L1 ingress 50/s",
+    "pauseType": "rate",
+    "timeout": "50",
+    "timeoutUnits": "milliseconds",
+    "rate": "20",
+    "nbRateUnits": "1",
+    "rateUnits": "second",
+    "randomFirst": "1",
+    "randomLast": "5",
+    "randomUnits": "seconds",
+    "drop": false,
+    "allowrate": false,
+    "outputs": 1,
+    "wires": [
+      []
+    ]
   }
 ]

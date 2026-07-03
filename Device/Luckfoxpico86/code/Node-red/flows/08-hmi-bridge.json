@@ -56,7 +56,7 @@
     "libs": [],
     "wires": [
       [
-        "mqtt-hmi-cmd-out",
+        "queue-hmi-cmd",
         "dbg-hmi-cmd"
       ]
     ]
@@ -124,7 +124,7 @@
     "libs": [],
     "wires": [
       [
-        "mqtt-hmi-cmd-out",
+        "queue-hmi-cmd",
         "dbg-hmi-cmd"
       ]
     ]
@@ -278,6 +278,27 @@
       [
         "fn-hmi-ac-feedback"
       ]
+    ]
+  },
+  {
+    "id": "queue-hmi-cmd",
+    "type": "delay",
+    "z": "tab-hmi",
+    "name": "Queue HMI cmd out 20/s",
+    "pauseType": "rate",
+    "timeout": "50",
+    "timeoutUnits": "milliseconds",
+    "rate": "20",
+    "nbRateUnits": "1",
+    "rateUnits": "second",
+    "randomFirst": "1",
+    "randomLast": "5",
+    "randomUnits": "seconds",
+    "drop": false,
+    "allowrate": false,
+    "outputs": 1,
+    "wires": [
+      []
     ]
   }
 ]

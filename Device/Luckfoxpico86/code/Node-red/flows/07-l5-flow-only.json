@@ -136,7 +136,7 @@
     "libs": [],
     "wires": [
       [
-        "mqtt-l5-manual",
+        "queue-l5-cmd",
         "dbg-l5-manual-cmd"
       ]
     ]
@@ -1419,5 +1419,26 @@
     "fontSize": 14,
     "color": "#ffffff",
     "wires": []
+  },
+  {
+    "id": "queue-l5-cmd",
+    "type": "delay",
+    "z": "tab-l5",
+    "name": "Queue L5 cmd out 20/s",
+    "pauseType": "rate",
+    "timeout": "50",
+    "timeoutUnits": "milliseconds",
+    "rate": "20",
+    "nbRateUnits": "1",
+    "rateUnits": "second",
+    "randomFirst": "1",
+    "randomLast": "5",
+    "randomUnits": "seconds",
+    "drop": false,
+    "allowrate": false,
+    "outputs": 1,
+    "wires": [
+      []
+    ]
   }
 ]

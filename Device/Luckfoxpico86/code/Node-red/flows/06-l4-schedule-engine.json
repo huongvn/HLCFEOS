@@ -95,7 +95,7 @@
     "libs": [],
     "wires": [
       [
-        "mqtt-l4-cmd"
+        "queue-l4-cmd"
       ]
     ]
   },
@@ -173,5 +173,26 @@
     "sqlquery": "msg.topic",
     "sql": "",
     "wires": []
+  },
+  {
+    "id": "queue-l4-cmd",
+    "type": "delay",
+    "z": "tab-l4",
+    "name": "Queue L4 cmd out 20/s",
+    "pauseType": "rate",
+    "timeout": "50",
+    "timeoutUnits": "milliseconds",
+    "rate": "20",
+    "nbRateUnits": "1",
+    "rateUnits": "second",
+    "randomFirst": "1",
+    "randomLast": "5",
+    "randomUnits": "seconds",
+    "drop": false,
+    "allowrate": false,
+    "outputs": 1,
+    "wires": [
+      []
+    ]
   }
 ]
