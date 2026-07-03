@@ -20,44 +20,9 @@
     "payloadType": "date",
     "wires": [
       [
-        "fn-l5-device-cards"
+        "fn-l5-status-text"
       ]
     ]
-  },
-  {
-    "id": "fn-l5-device-cards",
-    "type": "function",
-    "z": "tab-l5",
-    "name": "Build device cards",
-    "func": "const devices = global.get(\"devices\") ?? {};\nconst configs = global.get(\"device_configs\") ?? {};\nconst rows = Object.values(devices).map(d => ({\n    ID: d.id,\n    Ten: configs[d.id]?.friendly_name ?? d.id,\n    Loai: d.type,\n    Gateway: d.gateway || \"—\",\n    \"Trang thai\": d.state?.power !== undefined ? (d.state.power ? \"ON\" : \"OFF\") : (d.state?.temperature !== undefined ? d.state.temperature + \"°C\" : \"—\"),\n    Online: d.state?.online ? \"✓\" : \"✗\",\n    LinkQ: d.state?.link_quality ?? \"—\",\n    \"Cap nhat\": d.ts ? d.ts.slice(11, 19) : \"—\",\n}));\n// Gui [] de clear truoc, roi gui data\nreturn [\n  { payload: [] },\n  { payload: rows }\n];",
-    "outputs": 2,
-    "noerr": 0,
-    "initialize": "",
-    "finalize": "",
-    "libs": [],
-    "wires": [
-      [
-        "ui-table-devices"
-      ],
-      [
-        "ui-table-devices"
-      ]
-    ]
-  },
-  {
-    "id": "ui-table-devices",
-    "type": "ui-table",
-    "z": "tab-l5",
-    "name": "Device status",
-    "group": "eba75532c348db87",
-    "order": 1,
-    "width": 0,
-    "height": 0,
-    "label": "Thiet bi",
-    "wires": [],
-    "autocols": true,
-    "maxrows": 20,
-    "columns": []
   },
   {
     "id": "ui-dropdown-manual-dev",
@@ -1444,60 +1409,204 @@
     ]
   },
   {
-    "id": "fn-l5-build-cards-html",
+    "id": "fn-l5-status-text",
     "type": "function",
     "z": "tab-l5",
-    "name": "Build device cards HTML",
-    "func": "const devices = global.get('devices') || {};\nconst configs = global.get('device_configs') || {};\n\nconst acDevices = [];\nconst signDevices = [];\nconst lightDevices = [];\n\nfor (const [id, d] of Object.entries(devices)) {\n    const cfg = configs[id];\n    if (!cfg) continue;\n    const card = {\n        id: id, name: cfg.friendly_name || id, type: d.type,\n        power: d.state?.power || d.state?.control || false,\n        online: d.state?.online || false, linkQ: d.state?.link_quality || 0,\n        temperature: d.state?.temperature, fan_speed: d.state?.fan_speed,\n        room_temp: d.state?.ambient_temp || d.state?.room_temp, mode: d.state?.mode\n    };\n    if (d.type === 'ac_controller') acDevices.push(card);\n    else if (d.type === 'mcb') signDevices.push(card);\n    else if (d.type === 'light') lightDevices.push(card);\n}\nacDevices.sort((a, b) => a.id.localeCompare(b.id));\nsignDevices.sort((a, b) => a.id.localeCompare(b.id));\n\nlet html = `<style>\n.device-section{margin-bottom:20px}\n.section-title{font-size:16px;font-weight:bold;color:#aaa;margin-bottom:10px;padding-left:4px;text-transform:uppercase}\n.device-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}\n@media(max-width:768px){.device-grid{grid-template-columns:1fr}}\n.device-card{border:2px solid #3A3A3A;border-radius:12px;padding:14px;background:#2A2A2A;color:#fff}\n.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px}\n.card-icon{font-size:20px}\n.card-name{flex:1;font-size:16px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}\n.badge{padding:4px 12px;border-radius:4px;font-size:13px;font-weight:600}\n.badge.on{background:#00C853;color:white}\n.badge.off{background:#3A3A3A;color:#888}\n.card-body{display:flex;justify-content:space-between;align-items:center;min-height:32px}\n.room-temp{font-size:13px;color:#888}\n.toggle-btn{padding:8px 20px;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600}\n.toggle-btn.on{background:#00C853;color:white}\n.toggle-btn.off{background:#555;color:#ccc}\n.expand-check{display:none}\n.expand-label{cursor:pointer;font-size:12px;color:#0094ce;margin-top:8px;display:block;text-align:center;padding:4px}\n.card-details{display:none;margin-top:10px;padding-top:10px;border-top:1px solid #444}\n.expand-check:checked ~ .card-details{display:block}\n.detail-row{display:flex;justify-content:space-between;margin:6px 0;font-size:13px}\n.detail-label{color:#888}\n.detail-value{color:#fff;font-weight:500}\n.scene-row{display:flex;gap:12px;margin-top:24px}\n.scene-btn{flex:1;padding:14px;border-radius:12px;border:1px solid;cursor:pointer;font-size:15px;font-weight:600;text-align:center}\n.scene-open{background:#1B3A2A;border-color:#00C853;color:#00C853}\n.scene-close{background:#3A2010;border-color:#FFA726;color:#FFA726}\n</style><div class=\"device-container\">`;\n\nfunction buildCard(d, icon, sectionClass) {\n    const idx = sectionClass === 'ac' ? acDevices.indexOf(d) : (sectionClass === 'sign' ? signDevices.indexOf(d) : lightDevices.indexOf(d));\n    let card = `<div class=\"device-card\"><div class=\"card-header\"><span class=\"card-icon\">${icon}</span><span class=\"card-name\">${d.name}</span><span class=\"badge ${d.power ? 'on' : 'off'}\">${d.power ? 'ON' : 'OFF'}</span></div>`;\n    card += `<div class=\"card-body\">${d.room_temp ? `<span class=\"room-temp\">Room: ${d.room_temp}°C</span>` : '<span></span>'}`;\n    card += `<button class=\"toggle-btn ${d.power ? 'on' : 'off'}\" @click=\"send({payload: {action:'power',device:'${d.id}',type:'${sectionClass}',idx:${idx},val:${!d.power}}})\">${d.power ? 'TẮT' : 'BẬT'}</button></div>`;\n    card += `<input type=\"checkbox\" class=\"expand-check\" id=\"expand-${d.id}\"><label class=\"expand-label\" for=\"expand-${d.id}\">Chi tiết ▼</label>`;\n    card += `<div class=\"card-details\">`;\n    card += `<div class=\"detail-row\"><span class=\"detail-label\">ID:</span><span class=\"detail-value\">${d.id}</span></div>`;\n    card += `<div class=\"detail-row\"><span class=\"detail-label\">Online:</span><span class=\"detail-value\">${d.online ? '✓' : '✗'} (${d.linkQ})</span></div>`;\n    if (d.temperature !== undefined) card += `<div class=\"detail-row\"><span class=\"detail-label\">Set temp:</span><span class=\"detail-value\">${d.temperature}°C</span></div>`;\n    if (d.fan_speed !== undefined) card += `<div class=\"detail-row\"><span class=\"detail-label\">Fan speed:</span><span class=\"detail-value\">${d.fan_speed}</span></div>`;\n    if (d.mode !== undefined) card += `<div class=\"detail-row\"><span class=\"detail-label\">Mode:</span><span class=\"detail-value\">${d.mode}</span></div>`;\n    card += `</div></div>`;\n    return card;\n}\n\nif (acDevices.length > 0) {\n    html += `<div class=\"device-section\"><div class=\"section-title\">❄️ AIR CONDITIONING</div><div class=\"device-grid\">`;\n    for (const d of acDevices) html += buildCard(d, '❄️', 'ac');\n    html += `</div></div>`;\n}\nif (signDevices.length > 0) {\n    html += `<div class=\"device-section\"><div class=\"section-title\">🪧 SIGNAGE</div><div class=\"device-grid\">`;\n    for (const d of signDevices) html += buildCard(d, '🪧', 'sign');\n    html += `</div></div>`;\n}\nif (lightDevices.length > 0) {\n    html += `<div class=\"device-section\"><div class=\"section-title\">💡 LIGHTING</div><div class=\"device-grid\">`;\n    for (const d of lightDevices) html += buildCard(d, '💡', 'light');\n    html += `</div></div>`;\n}\n\nhtml += `<div class=\"scene-row\"><button class=\"scene-btn scene-open\" @click=\"send({payload: {action:'scene',scene:'open'}})\">🔆 Open Store</button><button class=\"scene-btn scene-close\" @click=\"send({payload: {action:'scene',scene:'close'}})\">🌙 Close Store</button></div></div>`;\n\nmsg.template = html;\nreturn msg;",
+    "name": "Build status text",
+    "func": "const devices = global.get('devices') || {};\nconst configs = global.get('device_configs') || {};\nlet lines = [];\nfor (const [id, d] of Object.entries(devices)) {\n  const cfg = configs[id];\n  if (!cfg) continue;\n  const name = cfg.friendly_name || id;\n  const st = d.state || {};\n  let status = st.power || st.control ? '● ON' : '○ OFF';\n  if (st.temperature !== undefined) status += ' | ' + st.temperature + '°C';\n  if (st.fan_speed !== undefined) status += ' | Fan:' + st.fan_speed;\n  if (st.ambient_temp !== undefined) status += ' | Room:' + st.ambient_temp + '°C';\n  lines.push(name + '  ' + status + '  (Link:' + (st.link_quality || 0) + ')');\n}\nmsg.payload = lines.join('\\n') || 'Chưa có dữ liệu';\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
-    "initialize": "",
-    "finalize": "",
-    "libs": [],
-    "wires": [
-      [
-        "ui-template-devices"
-      ]
-    ],
     "x": 0,
-    "y": 0
-  },
-  {
-    "id": "ui-template-devices",
-    "type": "ui-template",
-    "z": "tab-l5",
-    "group": "eba75532c348db87",
-    "name": "Device cards",
-    "order": 1,
-    "width": 0,
-    "height": 0,
-    "format": "{{msg.template}}",
-    "template": "",
-    "className": "",
+    "y": 0,
     "wires": [
       [
-        "fn-l5-template-action"
+        "ui-text-status"
       ]
     ]
   },
   {
-    "id": "fn-l5-template-action",
+    "id": "ui-text-status",
+    "type": "ui-text",
+    "z": "tab-l5",
+    "group": "eba75532c348db87",
+    "order": 1,
+    "width": 0,
+    "height": 0,
+    "name": "Device status",
+    "label": "Trạng thái thiết bị",
+    "format": "{{msg.payload}}",
+    "layout": "row-spread",
+    "style": false,
+    "font": "",
+    "fontSize": 14,
+    "color": "#ffffff",
+    "className": "",
+    "x": 0,
+    "y": 0,
+    "wires": []
+  },
+  {
+    "id": "ui-sw-ac0",
+    "type": "ui-switch",
+    "z": "tab-l5",
+    "name": "AC Khu A",
+    "label": "AC Khu A",
+    "group": "ac8e9b2edae14ca3",
+    "order": 1,
+    "width": 6,
+    "height": 1,
+    "passthru": false,
+    "decouple": false,
+    "topic": "ac0_power",
+    "topicType": "msg",
+    "style": "",
+    "className": "",
+    "onvalue": "ON",
+    "onvalueType": "str",
+    "offvalue": "OFF",
+    "offvalueType": "str",
+    "x": 0,
+    "y": 0,
+    "wires": [
+      [
+        "fn-l5-cmd-builder"
+      ]
+    ]
+  },
+  {
+    "id": "ui-sw-ac1",
+    "type": "ui-switch",
+    "z": "tab-l5",
+    "name": "AC Khu B",
+    "label": "AC Khu B",
+    "group": "ac8e9b2edae14ca3",
+    "order": 2,
+    "width": 6,
+    "height": 1,
+    "passthru": false,
+    "decouple": false,
+    "topic": "ac1_power",
+    "topicType": "msg",
+    "style": "",
+    "className": "",
+    "onvalue": "ON",
+    "onvalueType": "str",
+    "offvalue": "OFF",
+    "offvalueType": "str",
+    "x": 0,
+    "y": 0,
+    "wires": [
+      [
+        "fn-l5-cmd-builder"
+      ]
+    ]
+  },
+  {
+    "id": "ui-sw-sign",
+    "type": "ui-switch",
+    "z": "tab-l5",
+    "name": "Biển QC",
+    "label": "Biển QC",
+    "group": "ac8e9b2edae14ca3",
+    "order": 3,
+    "width": 6,
+    "height": 1,
+    "passthru": false,
+    "decouple": false,
+    "topic": "sign_power",
+    "topicType": "msg",
+    "style": "",
+    "className": "",
+    "onvalue": "ON",
+    "onvalueType": "str",
+    "offvalue": "OFF",
+    "offvalueType": "str",
+    "x": 0,
+    "y": 0,
+    "wires": [
+      [
+        "fn-l5-cmd-builder"
+      ]
+    ]
+  },
+  {
+    "id": "ui-btn-open",
+    "type": "ui-button",
+    "z": "tab-l5",
+    "group": "ac8e9b2edae14ca3",
+    "name": "Open Store",
+    "label": "🔆 Open Store",
+    "order": 4,
+    "width": 3,
+    "height": 1,
+    "color": "",
+    "bgcolor": "#1B3A2A",
+    "className": "",
+    "payload": "ON",
+    "payloadType": "str",
+    "topic": "scene_master",
+    "topicType": "msg",
+    "x": 0,
+    "y": 0,
+    "wires": [
+      [
+        "mqtt-l5-scene"
+      ]
+    ]
+  },
+  {
+    "id": "ui-btn-close",
+    "type": "ui-button",
+    "z": "tab-l5",
+    "group": "ac8e9b2edae14ca3",
+    "name": "Close Store",
+    "label": "🌙 Close Store",
+    "order": 5,
+    "width": 3,
+    "height": 1,
+    "color": "",
+    "bgcolor": "#3A2010",
+    "className": "",
+    "payload": "OFF",
+    "payloadType": "str",
+    "topic": "scene_master",
+    "topicType": "msg",
+    "x": 0,
+    "y": 0,
+    "wires": [
+      [
+        "mqtt-l5-scene"
+      ]
+    ]
+  },
+  {
+    "id": "fn-l5-cmd-builder",
     "type": "function",
     "z": "tab-l5",
-    "name": "Handle template action",
-    "func": "const p = msg.payload;\nif (!p || !p.action) return null;\n\nif (p.action === 'power') {\n    const configs = global.get('device_configs') || {};\n    const cfg = configs[p.device];\n    if (!cfg || !cfg.extra) return null;\n    const extra = cfg.extra;\n    const gateway = cfg.gateway || extra.gateway;\n    const powerAttr = extra.power_attr || '0110';\n    const val = p.val ? 1 : 0;\n    msg.topic = 'cmnd/' + gateway + '/ZbSend';\n    if (cfg.type === 'mcb') {\n        msg.payload = JSON.stringify({ Device: p.device, Write: { ['EF00/' + powerAttr]: val }, Endpoint: 1 });\n    } else {\n        msg.payload = JSON.stringify({ Device: p.device, Write: { ['EF00/' + powerAttr]: val } });\n    }\n    msg._manual_device_id = p.device;\n    return [msg, null];\n}\n\nif (p.action === 'scene') {\n    msg.topic = 'bms/scene/master';\n    msg.payload = p.scene === 'open' ? 'ON' : 'OFF';\n    return [msg, null];\n}\n\nreturn null;",
-    "outputs": 2,
+    "name": "Build switch cmd",
+    "func": "const configs = global.get('device_configs') || {};\nconst topic = msg.topic;\nlet deviceId, attr;\n\nif (topic === 'ac0_power') {\n  const ids = Object.keys(configs).filter(id => configs[id].type === 'ac_controller').sort();\n  deviceId = ids[0];\n  attr = 'power';\n} else if (topic === 'ac1_power') {\n  const ids = Object.keys(configs).filter(id => configs[id].type === 'ac_controller').sort();\n  deviceId = ids[1];\n  attr = 'power';\n} else if (topic === 'sign_power') {\n  const ids = Object.keys(configs).filter(id => configs[id].type === 'mcb').sort();\n  deviceId = ids[0];\n  attr = 'power';\n}\n\nif (!deviceId) { node.warn('Unknown topic: ' + topic); return null; }\n\nconst cfg = configs[deviceId];\nconst ex = cfg.extra || {};\nconst gateway = cfg.gateway || ex.gateway;\nconst powerAttr = ex.power_attr || '0110';\nconst val = msg.payload === 'ON' ? 1 : 0;\n\nmsg.topic = 'cmnd/' + gateway + '/ZbSend';\nif (cfg.type === 'mcb') {\n  msg.payload = JSON.stringify({ Device: deviceId, Write: { ['EF00/' + powerAttr]: val }, Endpoint: 1 });\n} else {\n  msg.payload = JSON.stringify({ Device: deviceId, Write: { ['EF00/' + powerAttr]: val } });\n}\nmsg._manual_device_id = deviceId;\nreturn msg;",
+    "outputs": 1,
     "noerr": 0,
-    "initialize": "",
-    "finalize": "",
-    "libs": [],
+    "x": 0,
+    "y": 0,
     "wires": [
       [
         "dcf64d54aff47b10",
         "8a7191fa837aa78e"
       ]
-    ],
+    ]
+  },
+  {
+    "id": "mqtt-l5-scene",
+    "type": "mqtt out",
+    "z": "tab-l5",
+    "name": "Publish scene",
+    "topic": "bms/scene/master",
+    "qos": "1",
+    "retain": "false",
+    "broker": "cfg-mqtt-broker",
     "x": 0,
-    "y": 0
+    "y": 0,
+    "wires": []
   }
 ]
