@@ -1075,9 +1075,9 @@
     ],
     "wires": [
       [
-        "fn-l5-device-cards",
-        "fn-l5-sync-switch",
-        "fn-l5-detail-builder"
+        "fn-sync-ac0",
+        "fn-sync-ac1",
+        "fn-sync-sign"
       ]
     ]
   },
@@ -1434,14 +1434,17 @@
     "type": "function",
     "z": "tab-l5",
     "name": "Sync ac0",
-    "func": "const devices = global.get('devices') || {};\nconst configs = global.get('device_configs') || {};\nconst ids = Object.keys(configs).filter(id => configs[id].type === 'ac_controller').sort();\nconst d = devices[ids[0]];\nif (!d) { msg.payload = 'Chưa có dữ liệu'; return msg; }\nconst st = d.state || {};\nlet s = st.power || st.control ? '● ON' : '○ OFF';\nif (st.temperature !== undefined) s += ' | Set:' + st.temperature + '°C';\nif (st.fan_speed !== undefined) s += ' | Fan:' + st.fan_speed;\nif (st.ambient_temp !== undefined) s += ' | Room:' + st.ambient_temp + '°C';\ns += ' | Link:' + (st.link_quality || 0);\nmsg.payload = s;\nreturn msg;",
-    "outputs": 1,
+    "func": "const devices = global.get('devices') || {};\nconst configs = global.get('device_configs') || {};\nconst ids = Object.keys(configs).filter(id => configs[id].type === 'ac_controller').sort();\nconst d = devices[ids[0]];\nif (!d) { msg.payload = 'Chưa có dữ liệu'; return msg; }\nconst st = d.state || {};\nlet s = st.power || st.control ? '● ON' : '○ OFF';\nif (st.temperature !== undefined) s += ' | Set:' + st.temperature + '°C';\nif (st.fan_speed !== undefined) s += ' | Fan:' + st.fan_speed;\nif (st.ambient_temp !== undefined) s += ' | Room:' + st.ambient_temp + '°C';\ns += ' | Link:' + (st.link_quality || 0);\nreturn [{payload: s}, {payload: (st.power || st.control) ? 'ON' : 'OFF'}];",
+    "outputs": 2,
     "noerr": 0,
     "x": 0,
     "y": 0,
     "wires": [
       [
         "ui-text-ac0-status"
+      ],
+      [
+        "ui-sw-ac0"
       ]
     ]
   },
@@ -1450,14 +1453,17 @@
     "type": "function",
     "z": "tab-l5",
     "name": "Sync ac1",
-    "func": "const devices = global.get('devices') || {};\nconst configs = global.get('device_configs') || {};\nconst ids = Object.keys(configs).filter(id => configs[id].type === 'ac_controller').sort();\nconst d = devices[ids[1]];\nif (!d) { msg.payload = 'Chưa có dữ liệu'; return msg; }\nconst st = d.state || {};\nlet s = st.power || st.control ? '● ON' : '○ OFF';\nif (st.temperature !== undefined) s += ' | Set:' + st.temperature + '°C';\nif (st.fan_speed !== undefined) s += ' | Fan:' + st.fan_speed;\nif (st.ambient_temp !== undefined) s += ' | Room:' + st.ambient_temp + '°C';\ns += ' | Link:' + (st.link_quality || 0);\nmsg.payload = s;\nreturn msg;",
-    "outputs": 1,
+    "func": "const devices = global.get('devices') || {};\nconst configs = global.get('device_configs') || {};\nconst ids = Object.keys(configs).filter(id => configs[id].type === 'ac_controller').sort();\nconst d = devices[ids[1]];\nif (!d) { msg.payload = 'Chưa có dữ liệu'; return msg; }\nconst st = d.state || {};\nlet s = st.power || st.control ? '● ON' : '○ OFF';\nif (st.temperature !== undefined) s += ' | Set:' + st.temperature + '°C';\nif (st.fan_speed !== undefined) s += ' | Fan:' + st.fan_speed;\nif (st.ambient_temp !== undefined) s += ' | Room:' + st.ambient_temp + '°C';\ns += ' | Link:' + (st.link_quality || 0);\nreturn [{payload: s}, {payload: (st.power || st.control) ? 'ON' : 'OFF'}];",
+    "outputs": 2,
     "noerr": 0,
     "x": 0,
     "y": 0,
     "wires": [
       [
         "ui-text-ac1-status"
+      ],
+      [
+        "ui-sw-ac1"
       ]
     ]
   },
@@ -1466,14 +1472,17 @@
     "type": "function",
     "z": "tab-l5",
     "name": "Sync sign",
-    "func": "const devices = global.get('devices') || {};\nconst configs = global.get('device_configs') || {};\nconst ids = Object.keys(configs).filter(id => configs[id].type === 'mcb').sort();\nconst d = devices[ids[0]];\nif (!d) { msg.payload = 'Chưa có dữ liệu'; return msg; }\nconst st = d.state || {};\nlet s = st.power || st.control ? '● ON' : '○ OFF';\nif (st.temperature !== undefined) s += ' | Set:' + st.temperature + '°C';\nif (st.fan_speed !== undefined) s += ' | Fan:' + st.fan_speed;\nif (st.ambient_temp !== undefined) s += ' | Room:' + st.ambient_temp + '°C';\ns += ' | Link:' + (st.link_quality || 0);\nmsg.payload = s;\nreturn msg;",
-    "outputs": 1,
+    "func": "const devices = global.get('devices') || {};\nconst configs = global.get('device_configs') || {};\nconst ids = Object.keys(configs).filter(id => configs[id].type === 'mcb').sort();\nconst d = devices[ids[0]];\nif (!d) { msg.payload = 'Chưa có dữ liệu'; return msg; }\nconst st = d.state || {};\nlet s = st.power || st.control ? '● ON' : '○ OFF';\nif (st.temperature !== undefined) s += ' | Set:' + st.temperature + '°C';\nif (st.fan_speed !== undefined) s += ' | Fan:' + st.fan_speed;\nif (st.ambient_temp !== undefined) s += ' | Room:' + st.ambient_temp + '°C';\ns += ' | Link:' + (st.link_quality || 0);\nreturn [{payload: s}, {payload: (st.power || st.control) ? 'ON' : 'OFF'}];",
+    "outputs": 2,
     "noerr": 0,
     "x": 0,
     "y": 0,
     "wires": [
       [
         "ui-text-sign-status"
+      ],
+      [
+        "ui-sw-sign"
       ]
     ]
   }
