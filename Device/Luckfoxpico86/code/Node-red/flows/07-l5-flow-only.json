@@ -1607,5 +1607,30 @@
     "x": 0,
     "y": 0,
     "wires": []
+  },
+  {
+    "id": "fn-l5-sync-switches",
+    "type": "function",
+    "z": "tab-l5",
+    "name": "Sync switch states",
+    "func": "const devices = global.get('devices') || {};\nconst configs = global.get('device_configs') || {};\nconst acIds = Object.keys(configs).filter(id => configs[id].type === 'ac_controller').sort();\nconst signIds = Object.keys(configs).filter(id => configs[id].type === 'mcb').sort();\n\nconst ac0 = devices[acIds[0]];\nconst ac1 = devices[acIds[1]];\nconst sign = devices[signIds[0]];\n\nreturn [\n    ac0 ? { payload: ac0.state?.power ? 'ON' : 'OFF' } : null,\n    ac1 ? { payload: ac1.state?.power ? 'ON' : 'OFF' } : null,\n    sign ? { payload: sign.state?.control ? 'ON' : 'OFF' } : null\n];",
+    "outputs": 3,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 0,
+    "y": 0,
+    "wires": [
+      [
+        "ui-sw-ac0"
+      ],
+      [
+        "ui-sw-ac1"
+      ],
+      [
+        "ui-sw-sign"
+      ]
+    ]
   }
 ]
