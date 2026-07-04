@@ -39,7 +39,7 @@
     "inputs": 0,
     "wires": [
       [
-        "fn-l1-parser"
+        "queue-l1-ingress"
       ]
     ]
   },
@@ -150,7 +150,7 @@
     "outputs": 1,
     "wires": [
       [
-        "fn-l1-parse"
+        "fn-l1-parser"
       ]
     ]
   }
