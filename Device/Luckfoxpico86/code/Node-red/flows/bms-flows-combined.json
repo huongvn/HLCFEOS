@@ -1,134 +1,16 @@
 [
   {
-    "id": "tab-db-init",
+    "id": "tab-startup",
     "type": "tab",
-    "label": "DB Init",
+    "label": "Startup",
     "disabled": false,
-    "info": "Khoi tao SQLite schema + seed data. Chi chay 1 lan khi deploy."
+    "info": "Load device_configs & schedules vao global context khi Node-RED khoi dong"
   },
   {
     "id": "cfg-sqlite-db",
     "type": "sqlitedb",
     "db": "/data/bms/bms.db",
     "mode": "RWC"
-  },
-  {
-    "id": "inj-db-init",
-    "type": "inject",
-    "z": "tab-db-init",
-    "name": "Deploy trigger",
-    "props": [],
-    "repeat": "",
-    "crontab": "",
-    "once": true,
-    "onceDelay": "0.1",
-    "payload": "",
-    "payloadType": "date",
-    "wires": [
-      [
-        "fn-db-init-sql"
-      ]
-    ]
-  },
-  {
-    "id": "fn-db-init-sql",
-    "type": "function",
-    "z": "tab-db-init",
-    "name": "Build schema SQL",
-    "func": "const sql = `\nCREATE TABLE IF NOT EXISTS device_log (\n    id          INTEGER PRIMARY KEY AUTOINCREMENT,\n    ts          TEXT    NOT NULL,\n    device_id   TEXT    NOT NULL,\n    device_type TEXT,\n    location    TEXT,\n    payload     TEXT,\n    event       TEXT\n);\nCREATE INDEX IF NOT EXISTS idx_log_ts        ON device_log(ts);\nCREATE INDEX IF NOT EXISTS idx_log_device_ts ON device_log(device_id, ts);\nCREATE INDEX IF NOT EXISTS idx_log_event     ON device_log(event);\n\nCREATE TABLE IF NOT EXISTS device_config (\n    device_id     TEXT PRIMARY KEY,\n    device_type   TEXT,\n    location      TEXT,\n    friendly_name TEXT,\n    enabled       INTEGER DEFAULT 1,\n    extra         TEXT\n);\n\nCREATE TABLE IF NOT EXISTS schedule (\n    id            INTEGER PRIMARY KEY AUTOINCREMENT,\n    name          TEXT    NOT NULL,\n    device_id     TEXT    NOT NULL,\n    device_type   TEXT,\n    action        TEXT    NOT NULL,\n    action_params TEXT,\n    sch_minute    TEXT    DEFAULT '*',\n    sch_hour      TEXT    DEFAULT '*',\n    sch_dow       TEXT    DEFAULT '*',\n    sch_dom       TEXT    DEFAULT '*',\n    sch_month     TEXT    DEFAULT '*',\n    enabled       INTEGER DEFAULT 1,\n    one_shot      INTEGER DEFAULT 0,\n    last_run      TEXT,\n    created_at    TEXT    DEFAULT (datetime('now')),\n    updated_at    TEXT\n);\nCREATE INDEX IF NOT EXISTS idx_sch_enabled ON schedule(enabled);\nCREATE INDEX IF NOT EXISTS idx_sch_device  ON schedule(device_id);\n`;\n\nmsg.topic   = sql;\nmsg.payload = [];\nreturn msg;",
-    "outputs": 1,
-    "noerr": 0,
-    "initialize": "",
-    "finalize": "",
-    "libs": [],
-    "wires": [
-      [
-        "sql-db-init"
-      ]
-    ]
-  },
-  {
-    "id": "sql-db-init",
-    "type": "sqlite",
-    "z": "tab-db-init",
-    "name": "Execute schema",
-    "mydb": "cfg-sqlite-db",
-    "sqlquery": "msg.topic",
-    "sql": "",
-    "wires": [
-      [
-        "inj-db-seed"
-      ]
-    ]
-  },
-  {
-    "id": "inj-db-seed",
-    "type": "inject",
-    "z": "tab-db-init",
-    "name": "Trigger seed",
-    "props": [],
-    "repeat": "",
-    "crontab": "",
-    "once": true,
-    "onceDelay": "0.5",
-    "payload": "",
-    "payloadType": "date",
-    "wires": [
-      [
-        "fn-db-seed"
-      ]
-    ]
-  },
-  {
-    "id": "fn-db-seed",
-    "type": "function",
-    "z": "tab-db-init",
-    "name": "Build seed INSERTs",
-    "func": "const sql = `\nINSERT OR IGNORE INTO device_config VALUES\n('0x384C', 'mcb', 'zone_A', 'MCB Tong zone A', 1, '{\"gateway\":\"tasmota_6DCAA8\",\"power_attr\":\"0110\",\"attrs\":{\"0110\":{\"key\":\"power\",\"type\":\"bool\"},\"0272\":{\"key\":\"meas_0272\",\"type\":\"number\"},\"0273\":{\"key\":\"meas_0273\",\"type\":\"number\"},\"0274\":{\"key\":\"meas_0274\",\"type\":\"number\"},\"0276\":{\"key\":\"meas_0276\",\"type\":\"number\"},\"0277\":{\"key\":\"meas_0277\",\"type\":\"number\"},\"0283\":{\"key\":\"meas_0283\",\"type\":\"number\"},\"0466\":{\"key\":\"meas_0466\",\"type\":\"number\"},\"0467\":{\"key\":\"meas_0467\",\"type\":\"number\"},\"0468\":{\"key\":\"meas_0468\",\"type\":\"number\"},\"0469\":{\"key\":\"meas_0469\",\"type\":\"number\"},\"046B\":{\"key\":\"meas_046B\",\"type\":\"number\"},\"046E\":{\"key\":\"meas_046E\",\"type\":\"number\"},\"0170\":{\"key\":\"meas_0170\",\"type\":\"number\"},\"0201\":{\"key\":\"state_0201\",\"type\":\"number\"},\"027D\":{\"key\":\"state_027D\",\"type\":\"number\"},\"0006\":{\"key\":\"raw_hex\",\"type\":\"hex\"}}}'),\n('0x8150', 'ac_controller', 'zone_B', 'Dieu hoa zone B', 1, '{\"gateway\":\"tasmota_6DCAA8\",\"power_attr\":\"0101\",\"ac_power_attr\":\"0101\",\"ac_temp_attr\":\"0202\",\"ac_mode_attr\":\"0405\",\"ac_mode_map\":{\"off\":0,\"cool\":1,\"heat\":2,\"fan_only\":3,\"dry\":4},\"attrs\":{\"0101\":{\"key\":\"power\",\"type\":\"bool\"},\"0202\":{\"key\":\"temperature\",\"type\":\"number\"},\"0405\":{\"key\":\"mode\",\"type\":\"number\"}}}');\n`;\nmsg.topic   = sql;\nmsg.payload = [];\nreturn msg;",
-    "outputs": 1,
-    "noerr": 0,
-    "initialize": "",
-    "finalize": "",
-    "libs": [],
-    "wires": [
-      [
-        "sql-db-seed"
-      ]
-    ]
-  },
-  {
-    "id": "sql-db-seed",
-    "type": "sqlite",
-    "z": "tab-db-init",
-    "name": "Execute seed INSERTs",
-    "mydb": "cfg-sqlite-db",
-    "sqlquery": "msg.topic",
-    "sql": "",
-    "wires": [
-      [
-        "dbg-db-init"
-      ]
-    ]
-  },
-  {
-    "id": "dbg-db-init",
-    "type": "debug",
-    "z": "tab-db-init",
-    "name": "DB init result",
-    "active": true,
-    "tosidebar": true,
-    "console": false,
-    "tostatus": false,
-    "complete": "payload",
-    "targetType": "msg",
-    "wires": []
-  },
-  {
-    "id": "tab-startup",
-    "type": "tab",
-    "label": "Startup",
-    "disabled": false,
-    "info": "Load device_configs & schedules vao global context khi Node-RED khoi dong"
   },
   {
     "id": "inj-load-config",
@@ -397,7 +279,7 @@
     "type": "function",
     "z": "tab-l1",
     "name": "LWT handler",
-    "func": "// ── L1: LWT handler — cap nhat online state cho tat ca device cua gateway ──\nconst parts    = msg.topic.split('/');\nconst gatewayId = parts[1];\nconst isOnline  = (msg.payload === 'Online');\n\nconst configs = global.get('device_configs') || {};\nconst devices = global.get('devices') || {};\nlet updated = 0;\n\nfor (const [addr, cfg] of Object.entries(configs)) {\n    if (cfg.extra && cfg.extra.gateway === gatewayId) {\n        if (!devices[addr]) devices[addr] = {};\n        devices[addr].online  = isOnline;\n        devices[addr].lwt_ts  = new Date().toISOString();\n        updated++;\n    }\n}\nglobal.set('devices', devices);\n\nconst gateways = global.get('gateways') || {};\ngateways[gatewayId] = { online: isOnline, last_seen: new Date().toISOString() };\nglobal.set('gateways', gateways);\n\nnode.status({ fill: isOnline ? 'green' : 'red', shape: 'dot', text: `${gatewayId}: ${isOnline ? 'ON' : 'OFF'} (${updated}d)` });\n\nmsg._lwt_gateway   = gatewayId;\nmsg._lwt_online    = isOnline;\nmsg._lwt_dev_count = updated;\nreturn msg;",
+    "func": "// ── L1: LWT handler — cap nhat online state cho tat ca device cua gateway ──\nconst parts    = msg.topic.split('/');\nconst gatewayId = parts[1];\nconst isOnline  = (msg.payload === 'Online');\n\nconst configs = global.get('device_configs') || {};\nconst devices = global.get('devices') || {};\nlet updated = 0;\n\nfor (const [addr, cfg] of Object.entries(configs)) {\n    if (cfg.extra && cfg.extra.gateway === gatewayId) {\n        if (!devices[addr]) devices[addr] = {};\n        devices[addr].online  = isOnline;\n        devices[addr].lwt_ts  = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).replace(' ', 'T');\n        updated++;\n    }\n}\nglobal.set('devices', devices);\n\nconst gateways = global.get('gateways') || {};\ngateways[gatewayId] = { online: isOnline, last_seen: new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).replace(' ', 'T') };\nglobal.set('gateways', gateways);\n\nnode.status({ fill: isOnline ? 'green' : 'red', shape: 'dot', text: `${gatewayId}: ${isOnline ? 'ON' : 'OFF'} (${updated}d)` });\n\nmsg._lwt_gateway   = gatewayId;\nmsg._lwt_online    = isOnline;\nmsg._lwt_dev_count = updated;\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
@@ -419,6 +301,29 @@
       "09a3dc141dc6caf5"
     ],
     "wires": []
+  },
+  {
+    "id": "queue-l1-ingress",
+    "type": "delay",
+    "z": "tab-l1",
+    "name": "Queue L1 ingress 50/s",
+    "pauseType": "rate",
+    "timeout": "50",
+    "timeoutUnits": "milliseconds",
+    "rate": "20",
+    "nbRateUnits": "1",
+    "rateUnits": "second",
+    "randomFirst": "1",
+    "randomLast": "5",
+    "randomUnits": "seconds",
+    "drop": false,
+    "allowrate": false,
+    "outputs": 1,
+    "wires": [
+      [
+        "fn-l1-parse"
+      ]
+    ]
   },
   {
     "id": "tab-l2",
@@ -446,7 +351,7 @@
     "type": "function",
     "z": "tab-l2",
     "name": "Generic normalize (data-driven)",
-    "func": "// ── L2: GENERIC normalize — doc tu device_config.extra.attrs ─\n// Tuong thich moi device type, chi can cau hinh trong extra\n\nconst raw  = msg.payload_raw || {};\nconst cfg  = (global.get('device_configs') || {})[msg.device_id] || {};\nconst extra = cfg.extra || {};\nconst attrs_cfg = extra.attrs || {};\n\nconst state = {\n    online:       true,\n    link_quality: msg.link_quality,\n};\n\n// ── Anh xa EF00/XXXX -> state property theo attrs_cfg ──────\nfor (const [key, val] of Object.entries(raw)) {\n    if (!key.startsWith('EF00/')) continue;\n    const attrId = key.slice(5);\n    const mapping = attrs_cfg[attrId];\n\n    if (mapping) {\n        let v = val;\n        switch (mapping.type) {\n            case 'bool':\n                v = (val === 1 || val === '1' || val === true);\n                break;\n            case 'number':\n                v = Number(val);\n                if (mapping.scale) v = v * mapping.scale;\n                break;\n            case 'hex':\n                v = String(val);\n                break;\n            case 'string':\n                v = String(val);\n                break;\n            default:\n                v = val;\n        }\n        state[mapping.key] = v;\n    } else {\n        // Attr chua duoc mapping -> luu raw\n        state[`raw_${attrId}`] = val;\n    }\n}\n\nmsg.device = {\n    id:       msg.device_id,\n    type:     cfg.type || 'unknown',\n    location: cfg.location  || '',\n    gateway:  msg.gateway   || extra.gateway || '',\n    ts:       new Date().toISOString(),\n    state:    state,\n    raw:      raw,\n};\n\nreturn msg;",
+    "func": "// ── L2: GENERIC normalize — doc tu device_config.extra.attrs ─\n// Tuong thich moi device type, chi can cau hinh trong extra\n\nconst raw  = msg.payload_raw || {};\nconst cfg  = (global.get('device_configs') || {})[msg.device_id] || {};\nconst extra = cfg.extra || {};\nconst attrs_cfg = extra.attrs || {};\n\nconst state = {\n    online:       true,\n    link_quality: msg.link_quality,\n};\n\n// ── Anh xa EF00/XXXX -> state property theo attrs_cfg ──────\nfor (const [key, val] of Object.entries(raw)) {\n    if (!key.startsWith('EF00/')) continue;\n    const attrId = key.slice(5);\n    const mapping = attrs_cfg[attrId];\n\n    if (mapping) {\n        let v = val;\n        switch (mapping.type) {\n            case 'bool':\n                v = (val === 1 || val === '1' || val === true);\n                break;\n            case 'number':\n                v = Number(val);\n                if (mapping.scale) v = v * mapping.scale;\n                break;\n            case 'hex':\n                v = String(val);\n                break;\n            case 'string':\n                v = String(val);\n                break;\n            default:\n                v = val;\n        }\n        state[mapping.key] = v;\n    } else {\n        // Attr chua duoc mapping -> luu raw\n        state[`raw_${attrId}`] = val;\n    }\n}\n\nmsg.device = {\n    id:       msg.device_id,\n    type:     cfg.type || 'unknown',\n    location: cfg.location  || '',\n    gateway:  msg.gateway   || extra.gateway || '',\n    ts:       new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).replace(' ', 'T'),\n    state:    state,\n    raw:      raw,\n};\n\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
@@ -463,7 +368,7 @@
     "type": "function",
     "z": "tab-l2",
     "name": "Update global state",
-    "func": "// ── L2→L3: Update global devices cache ──────────────────────\nconst d       = msg.device;\nconst devices = global.get('devices') || {};\n\nconst prev    = devices[d.id];\nconst changed = !prev\n    || JSON.stringify(prev.state) !== JSON.stringify(d.state);\n\ndevices[d.id] = d;\nglobal.set('devices', devices);\n\nmsg._state_changed = changed;\nmsg._prev_state    = prev ? prev.state : null;\nreturn msg;",
+    "func": "// ── L2→L3: Update global devices cache ──────────────────────\nconst d       = msg.device;\nconst devices = global.get('devices') || {};\n\nconst prev    = devices[d.id];\n\n// Merge state thay vi overwrite — MQTT gui tung attribute rieng le\nif (prev) {\n    d.state = { ...prev.state, ...d.state };\n    d.raw   = { ...prev.raw,   ...d.raw };\n}\n\nconst changed = !prev\n    || JSON.stringify(prev.state) !== JSON.stringify(d.state);\n\ndevices[d.id] = d;\nglobal.set('devices', devices);\n\nmsg._state_changed = changed;\nmsg._prev_state    = prev ? prev.state : null;\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
@@ -472,7 +377,9 @@
     "wires": [
       [
         "lk-l2-to-l3",
-        "lk-l2-to-l5"
+        "lk-l2-to-l5",
+        "lk-l2-to-hmi",
+        "lk-l2-to-remote"
       ]
     ]
   },
@@ -480,10 +387,11 @@
     "id": "lk-l2-to-l3",
     "type": "link out",
     "z": "tab-l2",
-    "name": "→ L3 storage",
+    "name": "→ L3 storage + metrics",
     "mode": "link",
     "links": [
-      "ff930e671df74d5d"
+      "ff930e671df74d5d",
+      "lk-l3-metrics-in"
     ],
     "wires": []
   },
@@ -495,6 +403,28 @@
     "mode": "link",
     "links": [
       "lk-l5-refresh-in"
+    ],
+    "wires": []
+  },
+  {
+    "id": "lk-l2-to-hmi",
+    "type": "link out",
+    "z": "tab-l2",
+    "name": "→ HMI feedback",
+    "mode": "link",
+    "links": [
+      "lk-hmi-feedback-in"
+    ],
+    "wires": []
+  },
+  {
+    "id": "lk-l2-to-remote",
+    "type": "link out",
+    "z": "tab-l2",
+    "name": "→ Remote bridge",
+    "mode": "link",
+    "links": [
+      "lk-remote-event-in"
     ],
     "wires": []
   },
@@ -582,7 +512,7 @@
     "type": "function",
     "z": "tab-l3",
     "name": "Insert LWT log",
-    "func": "function esc(v) { if (v === null || v === undefined) return 'NULL'; if (typeof v === 'number') return String(v); return \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nconst gateway = msg._lwt_gateway;\nconst isOnline = msg._lwt_online;\nconst devCount = msg._lwt_dev_count || 0;\nconst vals = [new Date().toISOString(), gateway, 'gateway', '', JSON.stringify({ online: isOnline, devices_affected: devCount }), isOnline ? 'gateway_online' : 'gateway_offline'];\nmsg.topic = 'INSERT INTO device_log (ts, device_id, device_type, location, payload, event) VALUES (' + vals.map(esc).join(',') + ')';\nnode.status({ fill: isOnline ? 'green' : 'red', shape: 'dot', text: gateway + ': ' + (isOnline ? 'ONLINE' : 'OFFLINE') });\nreturn msg;",
+    "func": "function esc(v) { if (v === null || v === undefined) return 'NULL'; if (typeof v === 'number') return String(v); return \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nconst gateway = msg._lwt_gateway;\nconst isOnline = msg._lwt_online;\nconst devCount = msg._lwt_dev_count || 0;\nconst vals = [new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).replace(' ', 'T'), gateway, 'gateway', '', JSON.stringify({ online: isOnline, devices_affected: devCount }), isOnline ? 'gateway_online' : 'gateway_offline'];\nmsg.topic = 'INSERT INTO device_log (ts, device_id, device_type, location, payload, event) VALUES (' + vals.map(esc).join(',') + ')';\nnode.status({ fill: isOnline ? 'green' : 'red', shape: 'dot', text: gateway + ': ' + (isOnline ? 'ONLINE' : 'OFFLINE') });\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
@@ -614,6 +544,64 @@
     "z": "tab-l3",
     "name": "LWT log result",
     "active": false,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "wires": []
+  },
+  {
+    "id": "lk-l3-metrics-in",
+    "type": "link in",
+    "z": "tab-l3",
+    "name": "← L2 device metrics",
+    "links": [
+      "lk-l2-to-l3"
+    ],
+    "wires": [
+      [
+        "fn-l3-metrics"
+      ]
+    ]
+  },
+  {
+    "id": "fn-l3-metrics",
+    "type": "function",
+    "z": "tab-l3",
+    "name": "Insert device_metric (all attrs)",
+    "func": "const d = msg.device;\nconst state = d.state || {};\n\nfunction esc(v) {\n    if (v === null || v === undefined) return 'NULL';\n    if (typeof v === 'number') return String(v);\n    return \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\n}\n\nconst now = d.ts;\nconst deviceId = d.id;\nconst deviceType = d.type;\n\nconst rows = [];\nfor (const [key, val] of Object.entries(state)) {\n    let attrValue = 'NULL';\n    let attrStr = 'NULL';\n    let attrType = typeof val;\n    \n    if (typeof val === 'number') {\n        attrValue = String(val);\n        attrStr = esc(String(val));\n    } else if (typeof val === 'boolean') {\n        attrStr = esc(val ? 'true' : 'false');\n        attrType = 'bool';\n    } else {\n        attrStr = esc(String(val));\n    }\n    \n    let rawAttrId = 'NULL';\n    if (key.startsWith('raw_')) {\n        rawAttrId = esc(key.slice(4));\n    } else if (d.raw && d.raw['EF00/' + key]) {\n        rawAttrId = esc(key);\n    }\n    \n    rows.push(`(${esc(now)}, ${esc(deviceId)}, ${esc(deviceType)}, ${esc(key)}, ${attrValue}, ${attrStr}, ${esc(attrType)}, ${rawAttrId})`);\n}\n\nif (rows.length === 0) return null;\n\nmsg.topic = 'INSERT INTO device_metric (ts, device_id, device_type, attr_name, attr_value, attr_str, attr_type, raw_attr_id) VALUES ' + rows.join(',');\nnode.status({ fill: 'green', shape: 'dot', text: rows.length + ' metrics' });\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [
+      [
+        "sql-l3-metrics"
+      ]
+    ]
+  },
+  {
+    "id": "sql-l3-metrics",
+    "type": "sqlite",
+    "z": "tab-l3",
+    "name": "INSERT device_metric",
+    "mydb": "cfg-sqlite-db",
+    "sqlquery": "msg.topic",
+    "sql": "",
+    "wires": [
+      [
+        "dbg-l3-metrics"
+      ]
+    ]
+  },
+  {
+    "id": "dbg-l3-metrics",
+    "type": "debug",
+    "z": "tab-l3",
+    "name": "Metric insert result",
+    "active": true,
     "tosidebar": true,
     "console": false,
     "tostatus": false,
@@ -685,7 +673,7 @@
     "type": "function",
     "z": "tab-l4",
     "name": "Build ZbSend (data-driven)",
-    "func": "// ── L4: DATA-DRIVEN command builder ───────────────────────────\n// Doc device_config.extra de biet cach build ZbSend payload\n// Mo rong: them action moi = them vao extra.custom_actions\n\nconst s = msg.payload;\nconst configs = global.get('device_configs') || {};\nconst cfg = configs[s.device_id] || {};\nconst extra = cfg.extra || {};\nconst gateway = cfg.gateway || extra.gateway;\n\nif (!gateway) {\n    node.warn(`No gateway for device ${s.device_id}`);\n    return null;\n}\n\n// ── Resolve command writes tu extra ─────────────────────────\nconst writes = _buildWrites(s, extra);\nif (!writes) {\n    node.warn(`Cannot build cmd for action=${s.action} device=${s.device_id}`);\n    return null;\n}\n\nmsg.topic   = `cmnd/${gateway}/ZbSend`;\nmsg.payload = JSON.stringify({\n    device: s.device_id,\n    send: { Cluster: '0xEF00', Write: writes }\n});\n\nmsg._schedule_id   = s.schedule_id;\nmsg._schedule_name = s.schedule_name;\nmsg._one_shot      = s.one_shot;\nmsg._log = { device_id: s.device_id, event: 'schedule_command', detail: `${s.schedule_name} -> ${s.action}` };\nmsg._cmd_device_id  = s.device_id;\nmsg._cmd_action     = s.action;\n\nreturn msg;\n\n// ── Helper: build Write object tu action + extra config ─────\nfunction _buildWrites(s, extra) {\n    const params = s.action_params || {};\n\n    // 1. Kiem tra custom_actions truoc (mo rong tuy y)\n    const custom = extra.custom_actions || {};\n    if (custom[s.action]) {\n        // Substitute {{var}} trong values\n        const tmpl = JSON.stringify(custom[s.action]);\n        const resolved = JSON.parse(tmpl.replace(/\\{\\{(\\w+)\\}\\}/g, (_, k) => params[k] ?? ''));\n        return resolved;\n    }\n\n    // 2. Built-in actions\n    switch (s.action) {\n        case 'POWER_ON':\n            return { [extra.power_attr || '0110']: 1 };\n\n        case 'POWER_OFF':\n            return { [extra.power_attr || '0110']: 0 };\n\n        case 'AC_SET': {\n            const w = {};\n            w[extra.ac_power_attr || '0101'] = 1;\n            w[extra.ac_temp_attr  || '0202'] = params.temp || 25;\n            const modeMap = extra.ac_mode_map || { off: 0, cool: 1, heat: 2, fan_only: 3, dry: 4 };\n            w[extra.ac_mode_attr  || '0405'] = modeMap[params.mode] !== undefined ? modeMap[params.mode] : 1;\n            return w;\n        }\n\n        case 'AC_OFF':\n            return { [extra.ac_power_attr || '0101']: 0 };\n\n        default:\n            return null;\n    }\n}",
+    "func": "// ── L4: DATA-DRIVEN command builder ───────────────────────────\n// Doc device_config.extra de biet cach build ZbSend payload\n// Mo rong: them action moi = them vao extra.custom_actions\n\nconst s = msg.payload;\nconst configs = global.get('device_configs') || {};\nconst cfg = configs[s.device_id] || {};\nconst extra = cfg.extra || {};\nconst gateway = cfg.gateway || extra.gateway;\n\nif (!gateway) {\n    node.warn(`No gateway for device ${s.device_id}`);\n    return null;\n}\n\n// ── Resolve command writes tu extra ─────────────────────────\nconst writes = _buildWrites(s, extra);\nif (!writes) {\n    node.warn(`Cannot build cmd for action=${s.action} device=${s.device_id}`);\n    return null;\n}\n\nmsg.topic   = `cmnd/${gateway}/ZbSend`;\n\n// MCB dung old format theo docs, cac device khac dung new format\nif (cfg.type === 'mcb') {\n    msg.payload = JSON.stringify({\n        device: s.device_id,\n        send: { Cluster: '0xEF00', Write: writes }\n    });\n} else {\n    const writeObj = {};\n    for (const [key, val] of Object.entries(writes)) {\n        const writeKey = key.includes(\"/\") ? key : \"EF00/\" + key;\n        writeObj[writeKey] = val;\n    }\n    msg.payload = JSON.stringify({\n        Device: s.device_id,\n        Write: writeObj\n    });\n}\n\nmsg._schedule_id   = s.schedule_id;\nmsg._schedule_name = s.schedule_name;\nmsg._one_shot      = s.one_shot;\nmsg._log = { device_id: s.device_id, event: 'schedule_command', detail: `${s.schedule_name} -> ${s.action}` };\nmsg._cmd_device_id  = s.device_id;\nmsg._cmd_action     = s.action;\n\nreturn msg;\n\n// ── Helper: build Write object tu action + extra config ─────\nfunction _buildWrites(s, extra) {\n    const params = s.action_params || {};\n\n    // 1. Kiem tra custom_actions truoc (mo rong tuy y)\n    const custom = extra.custom_actions || {};\n    if (custom[s.action]) {\n        // Substitute {{var}} trong values\n        const tmpl = JSON.stringify(custom[s.action]);\n        const resolved = JSON.parse(tmpl.replace(/\\{\\{(\\w+)\\}\\}/g, (_, k) => params[k] ?? ''));\n        return resolved;\n    }\n\n    // 2. Built-in actions\n    switch (s.action) {\n        case 'POWER_ON':\n            return { [extra.power_attr || '0110']: 1 };\n\n        case 'POWER_OFF':\n            return { [extra.power_attr || '0110']: 0 };\n\n        case 'AC_SET': {\n            const w = {};\n            w[extra.ac_power_attr || '0101'] = 1;\n            w[extra.ac_temp_attr  || '0202'] = params.temp || 25;\n            const modeMap = extra.ac_mode_map || { off: 0, cool: 1, heat: 2, fan_only: 3, dry: 4 };\n            w[extra.ac_mode_attr  || '0405'] = modeMap[params.mode] !== undefined ? modeMap[params.mode] : 1;\n            return w;\n        }\n\n        case 'AC_OFF':\n            return { [extra.ac_power_attr || '0101']: 0 };\n\n        default:\n            return null;\n    }\n}",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
@@ -693,7 +681,7 @@
     "libs": [],
     "wires": [
       [
-        "mqtt-l4-cmd"
+        "queue-l4-cmd"
       ]
     ]
   },
@@ -723,7 +711,7 @@
     "type": "function",
     "z": "tab-l4",
     "name": "Update last_run + one_shot",
-    "func": "function esc(v) { if (v === null || v === undefined) return 'NULL'; if (typeof v === 'number') return String(v); return \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nconst now = new Date().toISOString();\nconst id = msg._schedule_id;\nif (msg._one_shot) {\n    msg.topic = \"UPDATE schedule SET enabled=0, last_run=\" + esc(now) + \", updated_at=\" + esc(now) + \" WHERE id=\" + esc(id);\n} else {\n    msg.topic = \"UPDATE schedule SET last_run=\" + esc(now) + \", updated_at=\" + esc(now) + \" WHERE id=\" + esc(id);\n}\nconst updated = (global.get('schedules') ?? []).map(s => s.id === id ? { ...s, last_run: now, enabled: msg._one_shot ? 0 : s.enabled } : s);\nglobal.set('schedules', updated);\nreturn msg;",
+    "func": "function esc(v) { if (v === null || v === undefined) return 'NULL'; if (typeof v === 'number') return String(v); return \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nconst now = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).replace(' ', 'T');\nconst id = msg._schedule_id;\nif (msg._one_shot) {\n    msg.topic = \"UPDATE schedule SET enabled=0, last_run=\" + esc(now) + \", updated_at=\" + esc(now) + \" WHERE id=\" + esc(id);\n} else {\n    msg.topic = \"UPDATE schedule SET last_run=\" + esc(now) + \", updated_at=\" + esc(now) + \" WHERE id=\" + esc(id);\n}\nconst updated = (global.get('schedules') ?? []).map(s => s.id === id ? { ...s, last_run: now, enabled: msg._one_shot ? 0 : s.enabled } : s);\nglobal.set('schedules', updated);\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
@@ -750,7 +738,7 @@
     "type": "function",
     "z": "tab-l4",
     "name": "Insert command log",
-    "func": "function esc(v) { if (v === null || v === undefined) return 'NULL'; if (typeof v === 'number') return String(v); return \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nif (!msg._log) return null;\nconst log = msg._log;\nconst now = new Date().toISOString();\nconst vals = [now, log.device_id, 'unknown', '', JSON.stringify({ command: log.detail, action: msg._cmd_action }), log.event];\nmsg.topic = 'INSERT INTO device_log (ts, device_id, device_type, location, payload, event) VALUES (' + vals.map(esc).join(',') + ')';\nreturn msg;",
+    "func": "function esc(v) { if (v === null || v === undefined) return 'NULL'; if (typeof v === 'number') return String(v); return \"'\" + String(v).replace(/'/g, \"''\") + \"'\"; }\nif (!msg._log) return null;\nconst log = msg._log;\nconst now = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).replace(' ', 'T');\nconst vals = [now, log.device_id, 'unknown', '', JSON.stringify({ command: log.detail, action: msg._cmd_action }), log.event];\nmsg.topic = 'INSERT INTO device_log (ts, device_id, device_type, location, payload, event) VALUES (' + vals.map(esc).join(',') + ')';\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
@@ -771,6 +759,29 @@
     "sqlquery": "msg.topic",
     "sql": "",
     "wires": []
+  },
+  {
+    "id": "queue-l4-cmd",
+    "type": "delay",
+    "z": "tab-l4",
+    "name": "Queue L4 cmd out 20/s",
+    "pauseType": "rate",
+    "timeout": "50",
+    "timeoutUnits": "milliseconds",
+    "rate": "20",
+    "nbRateUnits": "1",
+    "rateUnits": "second",
+    "randomFirst": "1",
+    "randomLast": "5",
+    "randomUnits": "seconds",
+    "drop": false,
+    "allowrate": false,
+    "outputs": 1,
+    "wires": [
+      [
+        "mqtt-l4-cmd"
+      ]
+    ]
   },
   {
     "id": "550ff488dd47dfa0",
@@ -2424,29 +2435,414 @@
     ],
     "wires": [
       [
-        "fn-l5-device-cards"
+        "fn-sync-ac0",
+        "fn-sync-ac1",
+        "fn-sync-sign"
       ]
     ]
   },
   {
-    "id": "delay-l5-table",
+    "id": "dbg-l5-dropdown",
+    "type": "debug",
+    "z": "tab-l5",
+    "name": "Debug dropdown select",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": true,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "payload",
+    "statusType": "msg",
+    "wires": []
+  },
+  {
+    "id": "dbg-l5-manual-cmd",
+    "type": "debug",
+    "z": "tab-l5",
+    "name": "Debug manual ZbSend",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": true,
+    "complete": "true",
+    "targetType": "full",
+    "statusVal": "topic",
+    "statusType": "msg",
+    "wires": []
+  },
+  {
+    "id": "fn-l5-sync-switch",
+    "type": "function",
+    "z": "tab-l5",
+    "name": "Sync switch state",
+    "func": "if (!msg._state_changed) return null;\nconst selected = flow.get('manual_device_id');\nif (!selected || !msg.device || msg.device.id !== selected) return null;\n\nconst configs = global.get('device_configs') || {};\nconst cfg = configs[selected] || {};\nconst extra = cfg.extra || {};\nconst powerAttr = extra.power_attr || '0110';\nconst powerKey = (extra.attrs || {})[powerAttr]?.key || 'power';\n\nconst state = msg.device.state || {};\nlet powerVal = state[powerKey];\n\n// Fallback: neu powerKey khong co, thu raw_XXXX\nif (powerVal === undefined) {\n    powerVal = state['raw_' + powerAttr];\n}\n\nif (powerVal === undefined) return null;\n\n// Convert sang bool\nconst isOn = (powerVal === 1 || powerVal === '1' || powerVal === true);\nmsg.payload = isOn ? 'ON' : 'OFF';\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": []
+  },
+  {
+    "id": "fn-l5-log-format",
+    "type": "function",
+    "z": "tab-l5",
+    "name": "Format log + clear",
+    "func": "const rows = msg.payload || [];\nif (rows.length === 0) {\n    return { payload: [{ts:'', device_id:'', event:'Khong co du lieu', payload:''}] };\n}\n// Clear table first, then send data\nreturn [\n    { payload: [] },\n    { payload: rows }\n];",
+    "outputs": 2,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [
+      [
+        "ui-table-log"
+      ],
+      [
+        "ui-table-log"
+      ]
+    ]
+  },
+  {
+    "id": "fn-l5-log-preview",
+    "type": "function",
+    "z": "tab-l5",
+    "name": "Format JSON preview",
+    "func": "const rows = msg.payload || [];\nif (rows.length === 0) {\n    msg.payload = 'Chon thiet bi va tai lai de xem log';\n    return msg;\n}\nconst latest = rows[0];\nlet text = 'Log moi nhat: ' + latest.ts + '\\n';\ntext += 'Device: ' + latest.device_id + ' | Event: ' + latest.event + '\\n';\ntry {\n    const obj = JSON.parse(latest.payload);\n    text += 'Payload JSON:\\n' + JSON.stringify(obj, null, 2);\n} catch(e) {\n    text += 'Payload: ' + latest.payload;\n}\nmsg.payload = text;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [
+      [
+        "ui-text-log-preview"
+      ]
+    ]
+  },
+  {
+    "id": "ui-text-log-preview",
+    "type": "ui-text",
+    "z": "tab-l5",
+    "name": "Log JSON preview",
+    "group": "54090829431b65ce",
+    "order": 4,
+    "width": 0,
+    "height": 0,
+    "label": "Chi tiet JSON",
+    "format": "{{msg.payload}}",
+    "layout": "row-spread",
+    "className": "",
+    "style": false,
+    "font": "",
+    "fontSize": 11,
+    "color": "#cccccc",
+    "wires": []
+  },
+  {
+    "id": "queue-l5-cmd",
     "type": "delay",
     "z": "tab-l5",
-    "name": "50ms debounce",
-    "pauseType": "delay",
+    "name": "Queue L5 cmd out 20/s",
+    "pauseType": "rate",
     "timeout": "50",
     "timeoutUnits": "milliseconds",
-    "rate": "1",
+    "rate": "20",
     "nbRateUnits": "1",
     "rateUnits": "second",
     "randomFirst": "1",
     "randomLast": "5",
     "randomUnits": "seconds",
-    "drop": true,
+    "drop": false,
     "allowrate": false,
+    "outputs": 1,
     "wires": [
       [
-        "ui-table-devices"
+        "mqtt-l5-manual"
+      ]
+    ]
+  },
+  {
+    "id": "ui-sw-ac0",
+    "type": "ui-switch",
+    "z": "tab-l5",
+    "name": "AC Khu A",
+    "label": "AC Khu A",
+    "group": "ac8e9b2edae14ca3",
+    "order": 1,
+    "width": 6,
+    "height": 1,
+    "passthru": false,
+    "decouple": false,
+    "topic": "ac0_power",
+    "topicType": "str",
+    "style": "",
+    "className": "",
+    "onvalue": "ON",
+    "onvalueType": "str",
+    "offvalue": "OFF",
+    "offvalueType": "str",
+    "x": 0,
+    "y": 0,
+    "wires": [
+      [
+        "fn-l5-cmd-builder"
+      ]
+    ]
+  },
+  {
+    "id": "ui-sw-ac1",
+    "type": "ui-switch",
+    "z": "tab-l5",
+    "name": "AC Khu B",
+    "label": "AC Khu B",
+    "group": "ac8e9b2edae14ca3",
+    "order": 2,
+    "width": 6,
+    "height": 1,
+    "passthru": false,
+    "decouple": false,
+    "topic": "ac1_power",
+    "topicType": "str",
+    "style": "",
+    "className": "",
+    "onvalue": "ON",
+    "onvalueType": "str",
+    "offvalue": "OFF",
+    "offvalueType": "str",
+    "x": 0,
+    "y": 0,
+    "wires": [
+      [
+        "fn-l5-cmd-builder"
+      ]
+    ]
+  },
+  {
+    "id": "ui-sw-sign",
+    "type": "ui-switch",
+    "z": "tab-l5",
+    "name": "Biển QC",
+    "label": "Biển QC",
+    "group": "ac8e9b2edae14ca3",
+    "order": 3,
+    "width": 6,
+    "height": 1,
+    "passthru": false,
+    "decouple": false,
+    "topic": "sign_power",
+    "topicType": "str",
+    "style": "",
+    "className": "",
+    "onvalue": "ON",
+    "onvalueType": "str",
+    "offvalue": "OFF",
+    "offvalueType": "str",
+    "x": 0,
+    "y": 0,
+    "wires": [
+      [
+        "fn-l5-cmd-builder"
+      ]
+    ]
+  },
+  {
+    "id": "ui-btn-open",
+    "type": "ui-button",
+    "z": "tab-l5",
+    "group": "ac8e9b2edae14ca3",
+    "name": "Open Store",
+    "label": "🔆 Open Store",
+    "order": 4,
+    "width": 3,
+    "height": 1,
+    "color": "",
+    "bgcolor": "#1B3A2A",
+    "className": "",
+    "payload": "ON",
+    "payloadType": "str",
+    "topic": "scene_master",
+    "topicType": "msg",
+    "x": 0,
+    "y": 0,
+    "wires": [
+      [
+        "mqtt-l5-scene"
+      ]
+    ]
+  },
+  {
+    "id": "ui-btn-close",
+    "type": "ui-button",
+    "z": "tab-l5",
+    "group": "ac8e9b2edae14ca3",
+    "name": "Close Store",
+    "label": "🌙 Close Store",
+    "order": 5,
+    "width": 3,
+    "height": 1,
+    "color": "",
+    "bgcolor": "#3A2010",
+    "className": "",
+    "payload": "OFF",
+    "payloadType": "str",
+    "topic": "scene_master",
+    "topicType": "msg",
+    "x": 0,
+    "y": 0,
+    "wires": [
+      [
+        "mqtt-l5-scene"
+      ]
+    ]
+  },
+  {
+    "id": "fn-l5-cmd-builder",
+    "type": "function",
+    "z": "tab-l5",
+    "name": "Build switch cmd",
+    "func": "const configs = global.get('device_configs') || {};\nconst topic = msg.topic;\nlet deviceId, attr;\n\nif (topic === 'ac0_power') {\n  const ids = Object.keys(configs).filter(id => configs[id].type === 'ac_controller').sort();\n  deviceId = ids[0];\n  attr = 'power';\n} else if (topic === 'ac1_power') {\n  const ids = Object.keys(configs).filter(id => configs[id].type === 'ac_controller').sort();\n  deviceId = ids[1];\n  attr = 'power';\n} else if (topic === 'sign_power') {\n  const ids = Object.keys(configs).filter(id => configs[id].type === 'mcb').sort();\n  deviceId = ids[0];\n  attr = 'power';\n}\n\nif (!deviceId) { node.warn('Unknown topic: ' + topic); return null; }\n\nconst cfg = configs[deviceId];\nconst ex = cfg.extra || {};\nconst gateway = cfg.gateway || ex.gateway;\nconst powerAttr = ex.power_attr || '0110';\nconst val = msg.payload === 'ON' ? 1 : 0;\n\nmsg.topic = 'cmnd/' + gateway + '/ZbSend';\nif (cfg.type === 'mcb') {\n  msg.payload = JSON.stringify({ Device: deviceId, Write: { ['EF00/' + powerAttr]: val }, Endpoint: 1 });\n} else {\n  msg.payload = JSON.stringify({ Device: deviceId, Write: { ['EF00/' + powerAttr]: val } });\n}\nmsg._manual_device_id = deviceId;\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "x": 0,
+    "y": 0,
+    "wires": [
+      [
+        "queue-l5-cmd"
+      ]
+    ]
+  },
+  {
+    "id": "mqtt-l5-scene",
+    "type": "mqtt out",
+    "z": "tab-l5",
+    "name": "Publish scene",
+    "topic": "bms/scene/master",
+    "qos": "1",
+    "retain": "false",
+    "broker": "cfg-mqtt-broker",
+    "x": 0,
+    "y": 0,
+    "wires": []
+  },
+  {
+    "id": "ui-text-ac0-status",
+    "type": "ui-text",
+    "z": "tab-l5",
+    "group": "eba75532c348db87",
+    "order": 1,
+    "width": 0,
+    "height": 0,
+    "name": "AC Khu A",
+    "label": "AC Khu A",
+    "format": "{{msg.payload}}",
+    "layout": "row-spread",
+    "style": false,
+    "font": "",
+    "fontSize": 13,
+    "color": "#ffffff",
+    "className": "",
+    "x": 0,
+    "y": 0,
+    "wires": []
+  },
+  {
+    "id": "ui-text-ac1-status",
+    "type": "ui-text",
+    "z": "tab-l5",
+    "group": "eba75532c348db87",
+    "order": 1,
+    "width": 0,
+    "height": 0,
+    "name": "AC Khu B",
+    "label": "AC Khu B",
+    "format": "{{msg.payload}}",
+    "layout": "row-spread",
+    "style": false,
+    "font": "",
+    "fontSize": 13,
+    "color": "#ffffff",
+    "className": "",
+    "x": 0,
+    "y": 0,
+    "wires": []
+  },
+  {
+    "id": "ui-text-sign-status",
+    "type": "ui-text",
+    "z": "tab-l5",
+    "group": "eba75532c348db87",
+    "order": 1,
+    "width": 0,
+    "height": 0,
+    "name": "Biển QC",
+    "label": "Biển QC",
+    "format": "{{msg.payload}}",
+    "layout": "row-spread",
+    "style": false,
+    "font": "",
+    "fontSize": 13,
+    "color": "#ffffff",
+    "className": "",
+    "x": 0,
+    "y": 0,
+    "wires": []
+  },
+  {
+    "id": "fn-sync-ac0",
+    "type": "function",
+    "z": "tab-l5",
+    "name": "Sync ac0",
+    "func": "const devices = global.get('devices') || {};\nconst configs = global.get('device_configs') || {};\nconst ids = Object.keys(configs).filter(id => configs[id].type === 'ac_controller').sort();\nconst d = devices[ids[0]];\nif (!d) { msg.payload = 'Chưa có dữ liệu'; return msg; }\nconst st = d.state || {};\nlet s = st.power || st.control ? '● ON' : '○ OFF';\nif (st.temperature !== undefined) s += ' | Set:' + st.temperature + '°C';\nif (st.fan_speed !== undefined) s += ' | Fan:' + st.fan_speed;\nif (st.ambient_temp !== undefined) s += ' | Room:' + st.ambient_temp + '°C';\ns += ' | Link:' + (st.link_quality || 0);\nreturn [{payload: s}, {payload: (st.power || st.control) ? 'ON' : 'OFF'}];",
+    "outputs": 2,
+    "noerr": 0,
+    "x": 0,
+    "y": 0,
+    "wires": [
+      [
+        "ui-text-ac0-status"
+      ],
+      [
+        "ui-sw-ac0"
+      ]
+    ]
+  },
+  {
+    "id": "fn-sync-ac1",
+    "type": "function",
+    "z": "tab-l5",
+    "name": "Sync ac1",
+    "func": "const devices = global.get('devices') || {};\nconst configs = global.get('device_configs') || {};\nconst ids = Object.keys(configs).filter(id => configs[id].type === 'ac_controller').sort();\nconst d = devices[ids[1]];\nif (!d) { msg.payload = 'Chưa có dữ liệu'; return msg; }\nconst st = d.state || {};\nlet s = st.power || st.control ? '● ON' : '○ OFF';\nif (st.temperature !== undefined) s += ' | Set:' + st.temperature + '°C';\nif (st.fan_speed !== undefined) s += ' | Fan:' + st.fan_speed;\nif (st.ambient_temp !== undefined) s += ' | Room:' + st.ambient_temp + '°C';\ns += ' | Link:' + (st.link_quality || 0);\nreturn [{payload: s}, {payload: (st.power || st.control) ? 'ON' : 'OFF'}];",
+    "outputs": 2,
+    "noerr": 0,
+    "x": 0,
+    "y": 0,
+    "wires": [
+      [
+        "ui-text-ac1-status"
+      ],
+      [
+        "ui-sw-ac1"
+      ]
+    ]
+  },
+  {
+    "id": "fn-sync-sign",
+    "type": "function",
+    "z": "tab-l5",
+    "name": "Sync sign",
+    "func": "const devices = global.get('devices') || {};\nconst configs = global.get('device_configs') || {};\nconst ids = Object.keys(configs).filter(id => configs[id].type === 'mcb').sort();\nconst d = devices[ids[0]];\nif (!d) { msg.payload = 'Chưa có dữ liệu'; return msg; }\nconst st = d.state || {};\nlet s = st.power || st.control ? '● ON' : '○ OFF';\nif (st.temperature !== undefined) s += ' | Set:' + st.temperature + '°C';\nif (st.fan_speed !== undefined) s += ' | Fan:' + st.fan_speed;\nif (st.ambient_temp !== undefined) s += ' | Room:' + st.ambient_temp + '°C';\ns += ' | Link:' + (st.link_quality || 0);\nreturn [{payload: s}, {payload: (st.power || st.control) ? 'ON' : 'OFF'}];",
+    "outputs": 2,
+    "noerr": 0,
+    "x": 0,
+    "y": 0,
+    "wires": [
+      [
+        "ui-text-sign-status"
+      ],
+      [
+        "ui-sw-sign"
       ]
     ]
   },
@@ -2455,32 +2851,33 @@
     "type": "tab",
     "label": "HMI Bridge",
     "disabled": false,
-    "info": "Dinh ky tong hop trang thai he thong va publish len topic hmi/status de LVGL C app hien thi len man hinh."
+    "info": "Nhan lenh ON/OFF tu LVGL cho AC (bms/ac/+/+/set) va Sign/MCB (bms/sign/+/power/set), phan hoi trang thai ve LVGL"
   },
   {
-    "id": "inj-hmi-tick",
-    "type": "inject",
+    "id": "mqtt-hmi-subscribe",
+    "type": "mqtt in",
     "z": "tab-hmi",
-    "name": "Tick 10s",
-    "props": [],
-    "repeat": "10",
-    "crontab": "",
-    "once": true,
-    "onceDelay": "3",
-    "payload": "",
-    "payloadType": "date",
+    "name": "Subscribe bms/ac/+/+/set",
+    "topic": "bms/ac/+/+/set",
+    "qos": "1",
+    "datatype": "utf8",
+    "broker": "cfg-mqtt-broker",
+    "nl": false,
+    "rap": true,
+    "rh": 0,
+    "inputs": 0,
     "wires": [
       [
-        "fn-hmi-build"
+        "queue-ac-in"
       ]
     ]
   },
   {
-    "id": "fn-hmi-build",
+    "id": "fn-hmi-parse-set",
     "type": "function",
     "z": "tab-hmi",
-    "name": "Build HMI payload",
-    "func": "const devices = global.get('devices') ?? {};\nconst allDevices = Object.values(devices);\nconst online     = allDevices.filter(d => d.state?.online).length;\n\nconst ac = allDevices.find(d => d.type === 'ac_controller');\nconst mcb = allDevices.find(d => d.type === 'mcb');\n\nconst alerts = [];\nallDevices.forEach(d => {\n    if (!d.state?.online) alerts.push(`${d.id}: OFFLINE`);\n});\n\nmsg.topic   = 'hmi/status';\nmsg.payload = JSON.stringify({\n    ts:          new Date().toISOString(),\n    devices_on:  online,\n    devices_tot: allDevices.length,\n    ac_temp:     ac?.state?.temperature  ?? null,\n    ac_power:    ac?.state?.power        ?? null,\n    mcb_power:   mcb?.state?.power       ?? null,\n    alerts:      alerts.slice(0, 3),\n});\nreturn msg;",
+    "name": "Parse AC set → ZbSend",
+    "func": "const topic = msg.topic;\nconst payload = msg.payload;\nconst parts = topic.split('/');\n\nconst configs = global.get('device_configs') || {};\nconst acIds = Object.keys(configs)\n    .filter(id => configs[id].type === 'ac_controller')\n    .sort();\n\nconst idx = parseInt(parts[2]);\nconst deviceId = acIds[idx];\nif (!deviceId) return null;\n\nconst cfg = configs[deviceId];\nconst ex = cfg.extra || {};\nconst gateway = cfg.gateway || ex.gateway;\nconst attr = parts[3];\n\nconst writes = {};\nif (attr === 'power') {\n    writes['EF00/' + (ex.power_attr || '0101')] = payload === 'ON' ? 1 : 0;\n} else if (attr === 'temperature') {\n    writes['EF00/' + (ex.ac_temp_attr || '0202')] = parseInt(payload);\n} else if (attr === 'fan') {\n    writes['EF00/' + (ex.ac_mode_attr || '0405')] = parseInt(payload);\n}\n\nmsg.topic = 'cmnd/' + gateway + '/ZbSend';\nmsg.payload = JSON.stringify({ Device: deviceId, Write: writes });\nreturn msg;",
     "outputs": 1,
     "noerr": 0,
     "initialize": "",
@@ -2488,19 +2885,19 @@
     "libs": [],
     "wires": [
       [
-        "mqtt-hmi-status",
-        "dbg-hmi"
+        "queue-hmi-cmd",
+        "dbg-hmi-cmd"
       ]
     ]
   },
   {
-    "id": "mqtt-hmi-status",
+    "id": "mqtt-hmi-cmd-out",
     "type": "mqtt out",
     "z": "tab-hmi",
-    "name": "Publish hmi/status",
+    "name": "Publish ZbSend",
     "topic": "",
-    "qos": "0",
-    "retain": "true",
+    "qos": "1",
+    "retain": "false",
     "respTopic": "",
     "contentType": "",
     "userProps": "",
@@ -2510,17 +2907,195 @@
     "wires": []
   },
   {
-    "id": "dbg-hmi",
+    "id": "dbg-hmi-cmd",
     "type": "debug",
     "z": "tab-hmi",
-    "name": "HMI payload",
-    "active": false,
+    "name": "HMI cmd debug",
+    "active": true,
     "tosidebar": true,
     "console": false,
-    "tostatus": false,
-    "complete": "payload",
-    "targetType": "msg",
+    "tostatus": true,
+    "complete": "true",
+    "targetType": "full",
+    "statusVal": "_hmi_cmd.action",
+    "statusType": "msg",
     "wires": []
+  },
+  {
+    "id": "mqtt-hmi-subscribe-bb",
+    "type": "mqtt in",
+    "z": "tab-hmi",
+    "name": "Subscribe bms/sign/+/power/set",
+    "topic": "bms/sign/+/power/set",
+    "qos": "1",
+    "datatype": "utf8",
+    "broker": "cfg-mqtt-broker",
+    "nl": false,
+    "rap": true,
+    "rh": 0,
+    "inputs": 0,
+    "wires": [
+      [
+        "queue-sign-in"
+      ]
+    ]
+  },
+  {
+    "id": "fn-hmi-parse-bb-set",
+    "type": "function",
+    "z": "tab-hmi",
+    "name": "Parse Sign power set → ZbSend",
+    "func": "const topic = msg.topic;\nconst payload = msg.payload;\nconst parts = topic.split('/');\n\nconst configs = global.get('device_configs') || {};\nconst signIds = Object.keys(configs)\n    .filter(id => configs[id].type === 'mcb')\n    .sort();\n\nconst idx = parseInt(parts[2]);\nconst deviceId = signIds[idx];\nif (!deviceId) return null;\n\nconst cfg = configs[deviceId];\nconst ex = cfg.extra || {};\nconst gateway = cfg.gateway || ex.gateway;\n\nconst val = (payload === 'ON' || payload === '1' || payload === 1) ? 1 : 0;\nconst powerAttr = ex.power_attr || '0110';\n\n// MCB dung NEW format (giong AC)\nmsg.topic = 'cmnd/' + gateway + '/ZbSend';\nmsg.payload = JSON.stringify({\n    Device: deviceId,\n    Write: { ['EF00/' + powerAttr]: val },\n    Endpoint: 1\n});\nmsg._hmi_cmd = { device: deviceId, action: payload };\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [
+      [
+        "queue-hmi-cmd",
+        "dbg-hmi-cmd"
+      ]
+    ]
+  },
+  {
+    "id": "lk-hmi-feedback-in",
+    "type": "link in",
+    "z": "tab-hmi",
+    "name": "← L2 state changed",
+    "links": [
+      "lk-l2-to-hmi"
+    ],
+    "wires": [
+      [
+        "queue-feedback"
+      ]
+    ]
+  },
+  {
+    "id": "fn-hmi-ac-feedback",
+    "type": "function",
+    "z": "tab-hmi",
+    "name": "Build HMI feedback topics",
+    "func": "if (!msg._state_changed) return null;\n\nconst d = msg.device;\nconst prev = msg._prev_state || {};\nconst s = d.state;\nconst configs = global.get('device_configs') || {};\n\n// ---- AC feedback ----\nif (d.type === 'ac_controller') {\n    const ids = Object.keys(configs).filter(id => configs[id].type === 'ac_controller').sort();\n    const idx = ids.indexOf(d.id);\n    if (idx < 0) return null;\n\n    const msgs = [];\n    if (prev.power !== s.power) msgs.push({ topic: 'bms/ac/' + idx + '/power', payload: s.power ? 'ON' : 'OFF' });\n    if (prev.temperature !== s.temperature) msgs.push({ topic: 'bms/ac/' + idx + '/temperature', payload: String(s.temperature) });\n    if (prev.fan_speed !== s.fan_speed) msgs.push({ topic: 'bms/ac/' + idx + '/fan', payload: String(s.fan_speed) });\n    if (prev.online !== s.online) msgs.push({ topic: 'bms/ac/' + idx + '/online', payload: s.online ? 'ON' : 'OFF' });\n    if (prev.ambient_temp !== s.ambient_temp && s.ambient_temp !== undefined) {\n        msgs.push({ topic: 'bms/ac/' + idx + '/room_temp', payload: String(s.ambient_temp) });\n    }\n    msgs.forEach(m => node.send(m));\n    return null;\n}\n\n// ---- MCB / Sign feedback ----\nif (d.type === 'mcb') {\n    const ids = Object.keys(configs).filter(id => configs[id].type === 'mcb').sort();\n    const idx = ids.indexOf(d.id);\n    if (idx < 0) return null;\n\n    const msgs = [];\n    if (prev.control !== s.control) msgs.push({ topic: 'bms/sign/' + idx + '/power', payload: s.control ? 'ON' : 'OFF' });\n    if (prev.online !== s.online) msgs.push({ topic: 'bms/sign/' + idx + '/online', payload: s.online ? 'ON' : 'OFF' });\n    msgs.forEach(m => node.send(m));\n    return null;\n}\n\nreturn null;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "wires": [
+      [
+        "mqtt-hmi-feedback-out"
+      ]
+    ]
+  },
+  {
+    "id": "mqtt-hmi-feedback-out",
+    "type": "mqtt out",
+    "z": "tab-hmi",
+    "name": "Publish feedback to LVGL",
+    "topic": "",
+    "qos": "1",
+    "retain": "false",
+    "respTopic": "",
+    "contentType": "",
+    "userProps": "",
+    "correl": "",
+    "expiry": "",
+    "broker": "cfg-mqtt-broker",
+    "wires": []
+  },
+  {
+    "id": "queue-ac-in",
+    "type": "delay",
+    "z": "tab-hmi",
+    "name": "Queue AC cmd in 20/s",
+    "pauseType": "rate",
+    "timeout": "50",
+    "timeoutUnits": "milliseconds",
+    "rate": "20",
+    "nbRateUnits": "1",
+    "rateUnits": "second",
+    "randomFirst": "1",
+    "randomLast": "5",
+    "randomUnits": "seconds",
+    "drop": false,
+    "allowrate": false,
+    "outputs": 1,
+    "wires": [
+      [
+        "fn-hmi-parse-set"
+      ]
+    ]
+  },
+  {
+    "id": "queue-sign-in",
+    "type": "delay",
+    "z": "tab-hmi",
+    "name": "Queue Sign cmd in 20/s",
+    "pauseType": "rate",
+    "timeout": "50",
+    "timeoutUnits": "milliseconds",
+    "rate": "20",
+    "nbRateUnits": "1",
+    "rateUnits": "second",
+    "randomFirst": "1",
+    "randomLast": "5",
+    "randomUnits": "seconds",
+    "drop": false,
+    "allowrate": false,
+    "outputs": 1,
+    "wires": [
+      [
+        "fn-hmi-parse-bb-set"
+      ]
+    ]
+  },
+  {
+    "id": "queue-feedback",
+    "type": "delay",
+    "z": "tab-hmi",
+    "name": "Queue feedback out 20/s",
+    "pauseType": "rate",
+    "timeout": "50",
+    "timeoutUnits": "milliseconds",
+    "rate": "20",
+    "nbRateUnits": "1",
+    "rateUnits": "second",
+    "randomFirst": "1",
+    "randomLast": "5",
+    "randomUnits": "seconds",
+    "drop": false,
+    "allowrate": false,
+    "outputs": 1,
+    "wires": [
+      [
+        "fn-hmi-ac-feedback"
+      ]
+    ]
+  },
+  {
+    "id": "queue-hmi-cmd",
+    "type": "delay",
+    "z": "tab-hmi",
+    "name": "Queue HMI cmd out 20/s",
+    "pauseType": "rate",
+    "timeout": "50",
+    "timeoutUnits": "milliseconds",
+    "rate": "20",
+    "nbRateUnits": "1",
+    "rateUnits": "second",
+    "randomFirst": "1",
+    "randomLast": "5",
+    "randomUnits": "seconds",
+    "drop": false,
+    "allowrate": false,
+    "outputs": 1,
+    "wires": [
+      [
+        "mqtt-hmi-cmd-out"
+      ]
+    ]
   },
   {
     "id": "tab-db-maint",
@@ -2583,6 +3158,215 @@
     "tostatus": false,
     "complete": "payload",
     "targetType": "msg",
+    "wires": []
+  },
+  {
+    "id": "tab-remote",
+    "type": "tab",
+    "label": "Remote Bridge",
+    "disabled": false,
+    "info": "Push AC+MCB data to mqtt.xsolar.energy every 10min + on state change"
+  },
+  {
+    "id": "cfg-remote-broker",
+    "type": "mqtt-broker",
+    "name": "xsolar.energy",
+    "broker": "mqtt.xsolar.energy",
+    "port": "1883",
+    "clientid": "",
+    "autoConnect": true,
+    "usetls": false,
+    "protocolVersion": "4",
+    "keepalive": "60",
+    "cleansession": true,
+    "birthTopic": "",
+    "birthQos": "0",
+    "birthPayload": "",
+    "birthMsg": {},
+    "closeTopic": "",
+    "closeQos": "0",
+    "closePayload": "",
+    "closeMsg": {},
+    "willTopic": "",
+    "willQos": "0",
+    "willPayload": "",
+    "willMsg": {},
+    "sessionExpiry": ""
+  },
+  {
+    "id": "lk-remote-event-in",
+    "type": "link in",
+    "z": "tab-remote",
+    "name": "← L2 state changed",
+    "links": [
+      "lk-l2-to-remote"
+    ],
+    "wires": [
+      [
+        "queue-remote-event"
+      ]
+    ]
+  },
+  {
+    "id": "queue-remote-event",
+    "type": "delay",
+    "z": "tab-remote",
+    "name": "Queue remote event (50/s)",
+    "pauseType": "rate",
+    "timeout": "5",
+    "timeoutUnits": "seconds",
+    "rate": "50",
+    "nbRateUnits": "1",
+    "rateUnits": "second",
+    "randomFirst": "1",
+    "randomLast": "5",
+    "randomUnits": "seconds",
+    "drop": false,
+    "x": 280,
+    "y": 60,
+    "wires": [
+      [
+        "fn-remote-event-format"
+      ]
+    ]
+  },
+  {
+    "id": "fn-remote-event-format",
+    "type": "function",
+    "z": "tab-remote",
+    "name": "Format remote event",
+    "func": "if (!msg._state_changed) return null;\nconst d = msg.device;\nif (d.type !== 'ac_controller' && d.type !== 'mcb') return null;\n\nconst cfg = (global.get('device_configs') || {})[d.id] || {};\nconst ts = d.ts || new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).replace(' ', 'T');\nconst deviceName = cfg.friendly_name || d.id;\nconst location = cfg.location || '';\n\nconst baseTopic = 'smarteos/bluCafe/' + d.type + '/' + d.id + '/';\nconst state = d.state || {};\n\nfunction pub(attr, val, name, unit) {\n    if (val === undefined || val === null) return;\n    const payload = { ts: ts, value: val, name: name, device_name: deviceName, location: location };\n    if (unit) payload.unit = unit;\n    node.send({ topic: baseTopic + attr, payload: JSON.stringify(payload) });\n}\n\nif (d.type === 'ac_controller') {\n    pub('power', state.power, 'Power Status');\n    pub('temperature', state.temperature, 'Set Temperature', '°C');\n    pub('fan_speed', state.fan_speed, 'Fan Speed');\n    pub('ambient_temp', state.ambient_temp, 'Room Temperature', '°C');\n    pub('online', state.online, 'Online Status');\n    pub('link_quality', state.link_quality, 'Link Quality');\n} else if (d.type === 'mcb') {\n    pub('control', state.control, 'Relay Status');\n    pub('temp', state.temp, 'Device Temperature', '°C');\n    pub('current_power', state.meas_0276, 'Current Power', 'W');\n    pub('current_energy', state.meas_0283, 'Current Energy', 'Wh');\n    pub('current_ampe', state.meas_0272, 'Current Amperage', 'A');\n    pub('rated_current', state.meas_0272, 'Rated Current', 'A');\n    pub('high_voltage_cutoff', state.meas_0273, 'High Voltage Cutoff', 'V');\n    pub('low_voltage_cutoff', state.meas_0274, 'Low Voltage Cutoff', 'V');\n    pub('max_power', state.meas_0277, 'Max Power', 'W');\n    pub('online', state.online, 'Online Status');\n    pub('link_quality', state.link_quality, 'Link Quality');\n}\nreturn null;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 470,
+    "y": 60,
+    "wires": [
+      [
+        "queue-remote-publish"
+      ]
+    ]
+  },
+  {
+    "id": "inj-remote-10min",
+    "type": "inject",
+    "z": "tab-remote",
+    "name": "Every 10 min",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "600",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "30",
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 130,
+    "y": 140,
+    "wires": [
+      [
+        "fn-remote-query"
+      ]
+    ]
+  },
+  {
+    "id": "fn-remote-query",
+    "type": "function",
+    "z": "tab-remote",
+    "name": "Build periodic SQL",
+    "func": "msg.topic = \"SELECT device_id, attr_name, attr_value, attr_str, ts FROM device_metric WHERE ts >= datetime('now', '-10 minutes') AND device_id IN (SELECT device_id FROM device_config WHERE device_type IN ('ac_controller', 'mcb')) ORDER BY device_id, attr_name, ts DESC\";\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 300,
+    "y": 140,
+    "wires": [
+      [
+        "sql-remote-latest"
+      ]
+    ]
+  },
+  {
+    "id": "sql-remote-latest",
+    "type": "sqlite",
+    "z": "tab-remote",
+    "mydb": "cfg-sqlite-db",
+    "sqlquery": "msg.topic",
+    "sql": "",
+    "name": "Query latest metrics",
+    "x": 480,
+    "y": 140,
+    "wires": [
+      [
+        "fn-remote-build-periodic"
+      ]
+    ]
+  },
+  {
+    "id": "fn-remote-build-periodic",
+    "type": "function",
+    "z": "tab-remote",
+    "name": "Build periodic msgs",
+    "func": "const rows = msg.payload || [];\nif (rows.length === 0) return null;\n\nconst configs = global.get('device_configs') || {};\n\nconst byDevice = {};\nfor (const r of rows) {\n    if (!byDevice[r.device_id]) byDevice[r.device_id] = [];\n    byDevice[r.device_id].push(r);\n}\n\nfor (const [deviceId, deviceRows] of Object.entries(byDevice)) {\n    const cfg = configs[deviceId] || {};\n    const deviceName = cfg.friendly_name || deviceId;\n    const location = cfg.location || '';\n    const type = cfg.type || 'unknown';\n    \n    const latest = {};\n    for (const r of deviceRows) {\n        if (!latest[r.attr_name] || r.ts > latest[r.attr_name].ts) {\n            latest[r.attr_name] = r;\n        }\n    }\n    \n    const baseTopic = 'smarteos/bluCafe/' + type + '/' + deviceId + '/';\n    const ts = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).replace(' ', 'T');\n    \n    function pub(attr, val, name, unit) {\n        if (val === undefined || val === null) return;\n        const payload = { ts: ts, value: val, name: name, device_name: deviceName, location: location };\n        if (unit) payload.unit = unit;\n        node.send({ topic: baseTopic + attr, payload: JSON.stringify(payload) });\n    }\n    \n    for (const [attr, r] of Object.entries(latest)) {\n        let val = r.attr_value;\n        if (val === null) val = r.attr_str;\n        if (val === null) continue;\n        \n        if (val === 'true') val = true;\n        if (val === 'false') val = false;\n        \n        let name = attr;\n        let unit = null;\n        \n        switch(attr) {\n            case 'power': name = 'Power Status'; break;\n            case 'temperature': name = 'Set Temperature'; unit = '°C'; break;\n            case 'fan_speed': name = 'Fan Speed'; break;\n            case 'ambient_temp': name = 'Room Temperature'; unit = '°C'; break;\n            case 'control': name = 'Relay Status'; break;\n            case 'temp': name = 'Device Temperature'; unit = '°C'; break;\n            case 'meas_0276': name = 'Current Power'; unit = 'W'; break;\n            case 'meas_0283': name = 'Current Energy'; unit = 'Wh'; break;\n            case 'meas_0272': name = 'Current Amperage'; unit = 'A'; break;\n            case 'meas_0273': name = 'High Voltage Cutoff'; unit = 'V'; break;\n            case 'meas_0274': name = 'Low Voltage Cutoff'; unit = 'V'; break;\n            case 'meas_0277': name = 'Max Power'; unit = 'W'; break;\n            case 'online': name = 'Online Status'; break;\n            case 'link_quality': name = 'Link Quality'; break;\n        }\n        \n        pub(attr, val, name, unit);\n    }\n}\nreturn null;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 680,
+    "y": 140,
+    "wires": [
+      [
+        "queue-remote-publish"
+      ]
+    ]
+  },
+  {
+    "id": "queue-remote-publish",
+    "type": "delay",
+    "z": "tab-remote",
+    "name": "Queue remote publish (20/s)",
+    "pauseType": "rate",
+    "timeout": "5",
+    "timeoutUnits": "seconds",
+    "rate": "20",
+    "nbRateUnits": "1",
+    "rateUnits": "second",
+    "randomFirst": "1",
+    "randomLast": "5",
+    "randomUnits": "seconds",
+    "drop": false,
+    "x": 880,
+    "y": 100,
+    "wires": [
+      [
+        "mqtt-remote-out"
+      ]
+    ]
+  },
+  {
+    "id": "mqtt-remote-out",
+    "type": "mqtt out",
+    "z": "tab-remote",
+    "name": "Publish to xsolar",
+    "topic": "",
+    "qos": "0",
+    "retain": "false",
+    "respTopic": "",
+    "contentType": "",
+    "userProps": "",
+    "correl": "",
+    "expiry": "",
+    "broker": "cfg-remote-broker",
+    "x": 1080,
+    "y": 100,
     "wires": []
   }
 ]

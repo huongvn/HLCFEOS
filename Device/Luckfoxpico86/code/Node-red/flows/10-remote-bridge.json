@@ -1,0 +1,211 @@
+[
+  {
+    "id": "tab-remote",
+    "type": "tab",
+    "label": "Remote Bridge",
+    "disabled": false,
+    "info": "Push AC+MCB data to mqtt.xsolar.energy every 10min + on state change"
+  },
+  {
+    "id": "cfg-remote-broker",
+    "type": "mqtt-broker",
+    "name": "xsolar.energy",
+    "broker": "mqtt.xsolar.energy",
+    "port": "1883",
+    "clientid": "",
+    "autoConnect": true,
+    "usetls": false,
+    "protocolVersion": "4",
+    "keepalive": "60",
+    "cleansession": true,
+    "birthTopic": "",
+    "birthQos": "0",
+    "birthPayload": "",
+    "birthMsg": {},
+    "closeTopic": "",
+    "closeQos": "0",
+    "closePayload": "",
+    "closeMsg": {},
+    "willTopic": "",
+    "willQos": "0",
+    "willPayload": "",
+    "willMsg": {},
+    "sessionExpiry": ""
+  },
+  {
+    "id": "lk-remote-event-in",
+    "type": "link in",
+    "z": "tab-remote",
+    "name": "← L2 state changed",
+    "links": [
+      "lk-l2-to-remote"
+    ],
+    "wires": [
+      [
+        "queue-remote-event"
+      ]
+    ]
+  },
+  {
+    "id": "queue-remote-event",
+    "type": "delay",
+    "z": "tab-remote",
+    "name": "Queue remote event (50/s)",
+    "pauseType": "rate",
+    "timeout": "5",
+    "timeoutUnits": "seconds",
+    "rate": "50",
+    "nbRateUnits": "1",
+    "rateUnits": "second",
+    "randomFirst": "1",
+    "randomLast": "5",
+    "randomUnits": "seconds",
+    "drop": false,
+    "x": 280,
+    "y": 60,
+    "wires": [
+      [
+        "fn-remote-event-format"
+      ]
+    ]
+  },
+  {
+    "id": "fn-remote-event-format",
+    "type": "function",
+    "z": "tab-remote",
+    "name": "Format remote event",
+    "func": "if (!msg._state_changed) return null;\nconst d = msg.device;\nif (d.type !== 'ac_controller' && d.type !== 'mcb') return null;\n\nconst cfg = (global.get('device_configs') || {})[d.id] || {};\nconst ts = d.ts || new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).replace(' ', 'T');\nconst deviceName = cfg.friendly_name || d.id;\nconst location = cfg.location || '';\n\nconst baseTopic = 'smarteos/bluCafe/' + d.type + '/' + d.id + '/';\nconst state = d.state || {};\n\nfunction pub(attr, val, name, unit) {\n    if (val === undefined || val === null) return;\n    const payload = { ts: ts, value: val, name: name, device_name: deviceName, location: location };\n    if (unit) payload.unit = unit;\n    node.send({ topic: baseTopic + attr, payload: JSON.stringify(payload) });\n}\n\nif (d.type === 'ac_controller') {\n    pub('power', state.power, 'Power Status');\n    pub('temperature', state.temperature, 'Set Temperature', '°C');\n    pub('fan_speed', state.fan_speed, 'Fan Speed');\n    pub('ambient_temp', state.ambient_temp, 'Room Temperature', '°C');\n    pub('online', state.online, 'Online Status');\n    pub('link_quality', state.link_quality, 'Link Quality');\n} else if (d.type === 'mcb') {\n    pub('control', state.control, 'Relay Status');\n    pub('temp', state.temp, 'Device Temperature', '°C');\n    pub('current_power', state.meas_0276, 'Current Power', 'W');\n    pub('current_energy', state.meas_0283, 'Current Energy', 'Wh');\n    pub('current_ampe', state.meas_0272, 'Current Amperage', 'A');\n    pub('rated_current', state.meas_0272, 'Rated Current', 'A');\n    pub('high_voltage_cutoff', state.meas_0273, 'High Voltage Cutoff', 'V');\n    pub('low_voltage_cutoff', state.meas_0274, 'Low Voltage Cutoff', 'V');\n    pub('max_power', state.meas_0277, 'Max Power', 'W');\n    pub('online', state.online, 'Online Status');\n    pub('link_quality', state.link_quality, 'Link Quality');\n}\nreturn null;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 470,
+    "y": 60,
+    "wires": [
+      [
+        "queue-remote-publish"
+      ]
+    ]
+  },
+  {
+    "id": "inj-remote-10min",
+    "type": "inject",
+    "z": "tab-remote",
+    "name": "Every 10 min",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "600",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "30",
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 130,
+    "y": 140,
+    "wires": [
+      [
+        "fn-remote-query"
+      ]
+    ]
+  },
+  {
+    "id": "fn-remote-query",
+    "type": "function",
+    "z": "tab-remote",
+    "name": "Build periodic SQL",
+    "func": "msg.topic = \"SELECT device_id, attr_name, attr_value, attr_str, ts FROM device_metric WHERE ts >= datetime('now', '-10 minutes') AND device_id IN (SELECT device_id FROM device_config WHERE device_type IN ('ac_controller', 'mcb')) ORDER BY device_id, attr_name, ts DESC\";\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 300,
+    "y": 140,
+    "wires": [
+      [
+        "sql-remote-latest"
+      ]
+    ]
+  },
+  {
+    "id": "sql-remote-latest",
+    "type": "sqlite",
+    "z": "tab-remote",
+    "mydb": "cfg-sqlite-db",
+    "sqlquery": "msg.topic",
+    "sql": "",
+    "name": "Query latest metrics",
+    "x": 480,
+    "y": 140,
+    "wires": [
+      [
+        "fn-remote-build-periodic"
+      ]
+    ]
+  },
+  {
+    "id": "fn-remote-build-periodic",
+    "type": "function",
+    "z": "tab-remote",
+    "name": "Build periodic msgs",
+    "func": "const rows = msg.payload || [];\nif (rows.length === 0) return null;\n\nconst configs = global.get('device_configs') || {};\n\nconst byDevice = {};\nfor (const r of rows) {\n    if (!byDevice[r.device_id]) byDevice[r.device_id] = [];\n    byDevice[r.device_id].push(r);\n}\n\nfor (const [deviceId, deviceRows] of Object.entries(byDevice)) {\n    const cfg = configs[deviceId] || {};\n    const deviceName = cfg.friendly_name || deviceId;\n    const location = cfg.location || '';\n    const type = cfg.type || 'unknown';\n    \n    const latest = {};\n    for (const r of deviceRows) {\n        if (!latest[r.attr_name] || r.ts > latest[r.attr_name].ts) {\n            latest[r.attr_name] = r;\n        }\n    }\n    \n    const baseTopic = 'smarteos/bluCafe/' + type + '/' + deviceId + '/';\n    const ts = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).replace(' ', 'T');\n    \n    function pub(attr, val, name, unit) {\n        if (val === undefined || val === null) return;\n        const payload = { ts: ts, value: val, name: name, device_name: deviceName, location: location };\n        if (unit) payload.unit = unit;\n        node.send({ topic: baseTopic + attr, payload: JSON.stringify(payload) });\n    }\n    \n    for (const [attr, r] of Object.entries(latest)) {\n        let val = r.attr_value;\n        if (val === null) val = r.attr_str;\n        if (val === null) continue;\n        \n        if (val === 'true') val = true;\n        if (val === 'false') val = false;\n        \n        let name = attr;\n        let unit = null;\n        \n        switch(attr) {\n            case 'power': name = 'Power Status'; break;\n            case 'temperature': name = 'Set Temperature'; unit = '°C'; break;\n            case 'fan_speed': name = 'Fan Speed'; break;\n            case 'ambient_temp': name = 'Room Temperature'; unit = '°C'; break;\n            case 'control': name = 'Relay Status'; break;\n            case 'temp': name = 'Device Temperature'; unit = '°C'; break;\n            case 'meas_0276': name = 'Current Power'; unit = 'W'; break;\n            case 'meas_0283': name = 'Current Energy'; unit = 'Wh'; break;\n            case 'meas_0272': name = 'Current Amperage'; unit = 'A'; break;\n            case 'meas_0273': name = 'High Voltage Cutoff'; unit = 'V'; break;\n            case 'meas_0274': name = 'Low Voltage Cutoff'; unit = 'V'; break;\n            case 'meas_0277': name = 'Max Power'; unit = 'W'; break;\n            case 'online': name = 'Online Status'; break;\n            case 'link_quality': name = 'Link Quality'; break;\n        }\n        \n        pub(attr, val, name, unit);\n    }\n}\nreturn null;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 680,
+    "y": 140,
+    "wires": [
+      [
+        "queue-remote-publish"
+      ]
+    ]
+  },
+  {
+    "id": "queue-remote-publish",
+    "type": "delay",
+    "z": "tab-remote",
+    "name": "Queue remote publish (20/s)",
+    "pauseType": "rate",
+    "timeout": "5",
+    "timeoutUnits": "seconds",
+    "rate": "20",
+    "nbRateUnits": "1",
+    "rateUnits": "second",
+    "randomFirst": "1",
+    "randomLast": "5",
+    "randomUnits": "seconds",
+    "drop": false,
+    "x": 880,
+    "y": 100,
+    "wires": [
+      [
+        "mqtt-remote-out"
+      ]
+    ]
+  },
+  {
+    "id": "mqtt-remote-out",
+    "type": "mqtt out",
+    "z": "tab-remote",
+    "name": "Publish to xsolar",
+    "topic": "",
+    "qos": "0",
+    "retain": "false",
+    "respTopic": "",
+    "contentType": "",
+    "userProps": "",
+    "correl": "",
+    "expiry": "",
+    "broker": "cfg-remote-broker",
+    "x": 1080,
+    "y": 100,
+    "wires": []
+  }
+]

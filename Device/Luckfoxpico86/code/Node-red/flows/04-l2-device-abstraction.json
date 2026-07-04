@@ -52,7 +52,8 @@
       [
         "lk-l2-to-l3",
         "lk-l2-to-l5",
-        "lk-l2-to-hmi"
+        "lk-l2-to-hmi",
+        "lk-l2-to-remote"
       ]
     ]
   },
@@ -87,6 +88,17 @@
     "mode": "link",
     "links": [
       "lk-hmi-feedback-in"
+    ],
+    "wires": []
+  },
+  {
+    "id": "lk-l2-to-remote",
+    "type": "link out",
+    "z": "tab-l2",
+    "name": "→ Remote bridge",
+    "mode": "link",
+    "links": [
+      "lk-remote-event-in"
     ],
     "wires": []
   }
