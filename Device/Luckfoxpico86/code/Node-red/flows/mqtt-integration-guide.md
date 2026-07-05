@@ -11,11 +11,11 @@
 
 ## 1. Tổng quan
 
-Hệ thống gửi dữ liệu qua **1 topic MQTT duy nhất**. Mỗi message chứa **snapshot toàn bộ trạng thái** của tất cả thiết bị tại site.
+Hệ thống gửi dữ liệu qua **1 topic MQTT duy nhất**.
 
 Cơ chế gửi:
-- **Event-driven:** Khi bất kỳ thiết bị nào thay đổi trạng thái -> gửi snapshot toàn bộ site ngay lập tức
-- **Periodic:** Gửi snapshot toàn bộ site mỗi **10 phút** (dù không có thay đổi)
+- **Event-driven:** Khi 1 thiết bị thay đổi trạng thái -> gửi snapshot **chỉ device đó** (1 phần tử trong `devices[]`)
+- **Periodic:** Gửi snapshot **toàn bộ site** mỗi **10 phút** (dù không có thay đổi)
 
 Timestamp theo múi giờ **Asia/Ho_Chi_Minh (GMT+7)**.
 
@@ -162,7 +162,9 @@ Bên xsolar chỉ cần **subscribe 1 topic này**. Mỗi message nhận đượ
 | **Event-driven** | Khi 1 thiết bị thay đổi trạng thái | Snapshot **toàn bộ** 3 devices |
 | **Periodic** | Mỗi 10 phút | Snapshot **toàn bộ** 3 devices |
 
-> **Lưu ý:** Dù chỉ 1 device thay đổi, hệ thống vẫn gửi snapshot toàn bộ site.
+> **Lưu ý:** 
+> - **Event-driven:** Chỉ gửi device vừa thay đổi (`devices[]` có 1 phần tử)
+> - **Periodic:** Gửi toàn bộ site (`devices[]` có tất cả device)
 
 ---
 
