@@ -1,9 +1,9 @@
 # Tài liệu Tích hợp MQTT — Smart Cafe Energy System
 
-> **Mục đích:** Hướng dẫn bên tích hợp (xsolar) nắm cấu trúc topic MQTT để hiển thị dữ liệu lên web app.
+> **Mục đích:** Hướng dẫn bên tích hợp (xsolar) nhận dữ liệu từ hệ thống Smart Cafe qua MQTT.
 > 
 > **Ngày cập nhật:** 04/07/2026  
-> **Phiên bản:** v1.0  
+> **Phiên bản:** v2.0  
 > **Hệ thống gửi dữ liệu:** Node-RED BMS tại quán (Luckfox Core1106)  
 > **Hệ thống nhận dữ liệu:** `mqtt.xsolar.energy:1883`
 
@@ -11,11 +11,13 @@
 
 ## 1. Tổng quan
 
-Hệ thống gửi dữ liệu theo 2 cơ chế:
-- **Event-driven:** Khi trạng thái thiết bị thay đổi (bật/tắt, nhiệt độ thay đổi...)
-- **Periodic:** Gửi toàn bộ snapshot mỗi **10 phút**
+Hệ thống gửi dữ liệu qua **1 topic MQTT duy nhất**. Mỗi message chứa **snapshot toàn bộ trạng thái** của tất cả thiết bị tại site.
 
-Tất cả message dùng **JSON payload**, timestamp theo múi giờ **Asia/Ho_Chi_Minh (GMT+7)**.
+Cơ chế gửi:
+- **Event-driven:** Khi bất kỳ thiết bị nào thay đổi trạng thái -> gửi snapshot toàn bộ site ngay lập tức
+- **Periodic:** Gửi snapshot toàn bộ site mỗi **10 phút** (dù không có thay đổi)
+
+Timestamp theo múi giờ **Asia/Ho_Chi_Minh (GMT+7)**.
 
 ---
 
@@ -28,148 +30,170 @@ Tất cả message dùng **JSON payload**, timestamp theo múi giờ **Asia/Ho_C
 | Protocol | MQTT v4 |
 | QoS | `0` |
 | Retain | `false` |
+| Topic subscribe | `smarteos/bluCafe` |
 | Auth | *(sẽ cung cấp sau)* |
 
-> **Lưu ý:** Hệ thống chỉ **PUBLISH** (gửi dữ liệu đi). Không subscribe nhận lệnh từ bên ngoài.
+> **Luu ý:** Hệ thống chỉ **PUBLISH** (gửi dữ liệu đi). Không subscribe nhận lệnh từ bên ngoài.
 
 ---
 
-## 3. Cấu trúc Topic
+## 3. Topic duy nhất
 
 ```
-smarteos/bluCafe/<device_type>/<device_id>/<attribute>
+smarteos/bluCafe
 ```
 
-| Phần | Ý nghĩa | Ví dụ |
-|------|---------|-------|
-| `smarteos/bluCafe` | Prefix cố định | — |
-| `<device_type>` | Loại thiết bị: `ac_controller` hoặc `mcb` | `ac_controller` |
-| `<device_id>` | ID Zigbee (hex) | `0xC5A9`, `0x336A`, `0x384C` |
-| `<attribute>` | Thuộc tính cụ thể | `temperature`, `current_power` |
+Bên xsolar chỉ cần **subscribe 1 topic này**. Mỗi message nhận được là 1 snapshot đầy đủ.
 
 ---
 
-## 4. Danh sách Thiết bị Hiện tại
-
-### 4.1 AC Controller — Khu vực C & D
-
-Cấu trúc giống nhau, chỉ khác `device_id`.
-
-| Topic pattern | Mô tả | Đơn vị | Ví dụ payload |
-|---------------|-------|--------|---------------|
-| `smarteos/bluCafe/ac_controller/<id>/power` | Trạng thái bật/tắt | — | `{"ts":"2026-07-04T10:30:00+07:00","value":true,"name":"Power Status","device_name":"AC Khu C","location":"zone_C"}` |
-| `smarteos/bluCafe/ac_controller/<id>/temperature` | Nhiệt độ cài đặt | °C | `{"value":24,"name":"Set Temperature","unit":"°C",...}` |
-| `smarteos/bluCafe/ac_controller/<id>/room_temp` | Nhiệt độ phòng (nếu có) | °C | `{"value":26.5,...}` |
-| `smarteos/bluCafe/ac_controller/<id>/ambient_temp` | Nhiệt độ phòng (fallback) | °C | `{"value":26.5,...}` |
-| `smarteos/bluCafe/ac_controller/<id>/online` | Trạng thái online | — | `{"value":true,...}` |
-| `smarteos/bluCafe/ac_controller/<id>/link_quality` | Chất lượng kết nối Zigbee | — | `{"value":107,...}` |
-
-**Device ID hiện tại:**
-- Khu vực C: `0xC5A9`
-- Khu vực D: `0x336A`
-
-### 4.2 MCB (Contactor) — Khu vực A (Zone A)
-
-| Topic | Mô tả | Đơn vị | Ví dụ payload |
-|-------|-------|--------|---------------|
-| `smarteos/bluCafe/mcb/0x384C/control` | Trạng thái relay bật/tắt | — | `{"value":true,"name":"Relay Status",...}` |
-| `smarteos/bluCafe/mcb/0x384C/temp` | Nhiệt độ thiết bị | °C | `{"value":29.7,"name":"Device Temperature","unit":"°C",...}` |
-| `smarteos/bluCafe/mcb/0x384C/meas_046E` | Nhiệt độ thiết bị (fallback) | °C | `{"value":13,...}` |
-| `smarteos/bluCafe/mcb/0x384C/current_power` | Công suất hiện tại | W | `{"value":800,"name":"Current Power","unit":"W",...}` |
-| `smarteos/bluCafe/mcb/0x384C/current_energy` | Năng lượng tiêu thụ | Wh | `{"value":303,"name":"Current Energy","unit":"Wh",...}` |
-| `smarteos/bluCafe/mcb/0x384C/current_ampe` | Dòng điện hiện tại | A | `{"value":63,"name":"Current Amperage","unit":"A",...}` |
-| `smarteos/bluCafe/mcb/0x384C/current_voltage` | Điện áp hiện tại | V | `{"value":220,"name":"Current Voltage","unit":"V",...}` |
-| `smarteos/bluCafe/mcb/0x384C/rated_current` | Dòng điện định mức | A | `{"value":63,"name":"Rated Current","unit":"A",...}` |
-| `smarteos/bluCafe/mcb/0x384C/high_voltage_cutoff` | Ngưỡng điện áp cao | V | `{"value":280,"name":"High Voltage Cutoff","unit":"V",...}` |
-| `smarteos/bluCafe/mcb/0x384C/low_voltage_cutoff` | Ngưỡng điện áp thấp | V | `{"value":165,"name":"Low Voltage Cutoff","unit":"V",...}` |
-| `smarteos/bluCafe/mcb/0x384C/max_power` | Công suất tối đa | W | `{"value":3500,"name":"Max Power","unit":"W",...}` |
-| `smarteos/bluCafe/mcb/0x384C/online` | Trạng thái online | — | `{"value":true,...}` |
-| `smarteos/bluCafe/mcb/0x384C/link_quality` | Chất lượng kết nối | — | `{"value":123,...}` |
-
----
-
-## 5. Cấu trúc Payload (JSON)
+## 4. Cấu trúc Payload (JSON)
 
 ```json
 {
   "ts": "2026-07-04T10:30:00+07:00",
-  "value": 24,
-  "name": "Set Temperature",
-  "unit": "°C",
-  "device_name": "AC Khu C",
-  "location": "zone_C"
+  "site": "bluCafe",
+  "devices": [
+    {
+      "id": "0xC5A9",
+      "type": "ac_controller",
+      "name": "AC Khu C",
+      "location": "zone_C",
+      "data": {
+        "power": true,
+        "temperature": 24,
+        "room_temp": 26.5,
+        "online": true,
+        "link_quality": 107
+      }
+    },
+    {
+      "id": "0x336A",
+      "type": "ac_controller",
+      "name": "AC Khu D",
+      "location": "zone_D",
+      "data": {
+        "power": false,
+        "temperature": 26,
+        "room_temp": 28.0,
+        "online": true,
+        "link_quality": 95
+      }
+    },
+    {
+      "id": "0x384C",
+      "type": "mcb",
+      "name": "MCB Tong zone A",
+      "location": "zone_A",
+      "data": {
+        "control": true,
+        "temp": 29.7,
+        "current_power": 800,
+        "current_energy": 303,
+        "current_ampe": 63,
+        "current_voltage": 220,
+        "high_voltage_cutoff": 280,
+        "low_voltage_cutoff": 165,
+        "max_power": 3500,
+        "online": true,
+        "link_quality": 123
+      }
+    }
+  ]
 }
 ```
 
-| Trường | Kiểu | Bắt buộc | Mô tả |
-|--------|------|----------|-------|
-| `ts` | string | ✅ | Timestamp ISO 8601, múi giờ GMT+7 (VD: `2026-07-04T10:30:00+07:00`) |
-| `value` | any | ✅ | Giá trị thuộc tính (bool, number, string) |
-| `name` | string | ✅ | Tên hiển thị của thuộc tính (tiếng Anh) |
-| `unit` | string | ❌ | Đơn vị đo (°C, W, Wh, A, V) — chỉ có khi áp dụng |
-| `device_name` | string | ✅ | Tên thân thiện của thiết bị |
-| `location` | string | ✅ | Vị trí lắp đặt (zone_C, zone_D, zone_A) |
+---
+
+### 4.1 Giải thích các trường
+
+| Trường (root) | Kiểu | Mô tả |
+|---------------|------|-------|
+| `ts` | string | Timestamp ISO 8601, múi giờ GMT+7 |
+| `site` | string | Tên site cố định: `"bluCafe"` |
+| `devices` | array | Danh sách tất cả thiết bị |
+
+| Trường (mỗi device) | Kiểu | Mô tả |
+|---------------------|------|-------|
+| `id` | string | ID Zigbee (VD: `0xC5A9`) |
+| `type` | string | Loại thiết bị: `ac_controller`, `mcb` |
+| `name` | string | Tên hiển thị |
+| `location` | string | Vị trí: `zone_C`, `zone_D`, `zone_A` |
+| `data` | object | **Chỉ chứa raw value**, key = tên thuộc tính |
 
 ---
 
-## 6. Tần suất Gửi Dữ liệu
+### 4.2 Danh sách thuộc tính theo loại thiết bị
 
-| Cơ chế | Kích hoạt | Tần suất tối đa |
-|--------|-----------|-----------------|
-| **Event-driven** | Khi trạng thái thiết bị thay đổi | 50 msg/s (rate limit) |
-| **Periodic** | Mỗi 10 phút (cố định) | Snapshot toàn bộ thiết bị |
+**AC Controller (`type: "ac_controller"`)**
 
-> **Lưu ý:** Cả 2 cơ chế đều đi qua queue rate-limit 20 msg/s trước khi publish. Không có message bị drop.
+| Key trong `data` | Ý nghĩa | Đơn vị | Kiểu |
+|------------------|---------|--------|------|
+| `power` | Trạng thái bật/tắt | — | bool |
+| `temperature` | Nhiệt độ cài đặt | °C | number |
+| `room_temp` | Nhiệt độ phòng | °C | number |
+| `ambient_temp` | Nhiệt độ phòng (fallback) | °C | number |
+| `online` | Trạng thái online | — | bool |
+| `link_quality` | Chất lượng kết nối Zigbee | — | number |
 
----
+**MCB (`type: "mcb"`)**
 
-## 7. Mẫu Topic cho Thiết bị Tương lai
-
-Khi thêm thiết bị mới (không cần sửa code), hệ thống tự động sinh topic theo mẫu:
-
-```
-smarteos/bluCafe/<device_type>/<device_id>/<attribute>
-```
-
-### Ví dụ thiết bị mới
-
-| Thiết bị mới | Topic mẫu |
-|--------------|-----------|
-| Cảm biến ánh sáng | `smarteos/bluCafe/sensor/<id>/lux` |
-| Công tắc Zigbee | `smarteos/bluCafe/switch/<id>/power` |
-| Đèn LED | `smarteos/bluCafe/light/<id>/brightness` |
-
-**Quy tắc tự động:**
-- `<device_type>`: lấy từ `device_config.device_type`
-- `<device_id>`: ID Zigbee (VD: `0x384C`)
-- `<attribute>`: key trong `device_config.extra.attrs` (VD: `temperature`, `power`, `lux`)
-
-Bên nhận chỉ cần **subscribe wildcard** để tự động nhận thiết bị mới:
-
-```
-smarteos/bluCafe/+/+/+
-```
+| Key trong `data` | Ý nghĩa | Đơn vị | Kiểu |
+|------------------|---------|--------|------|
+| `control` | Trạng thái relay | — | bool |
+| `temp` | Nhiệt độ thiết bị | °C | number |
+| `meas_046E` | Nhiệt độ thiết bị (fallback) | °C | number |
+| `current_power` | Công suất hiện tại | W | number |
+| `current_energy` | Năng lượng tiêu thụ | Wh | number |
+| `current_ampe` | Dòng điện hiện tại | A | number |
+| `current_voltage` | Điện áp hiện tại | V | number |
+| `high_voltage_cutoff` | Ngưỡng điện áp cao | V | number |
+| `low_voltage_cutoff` | Ngưỡng điện áp thấp | V | number |
+| `max_power` | Công suất tối đa | W | number |
+| `online` | Trạng thái online | — | bool |
+| `link_quality` | Chất lượng kết nối | — | number |
 
 ---
 
-## 8. Tóm tắt Số lượng Topic
+## 5. Tần suất Gửi Dữ liệu
 
-| Loại thiết bị | Số topic / device | Số device | Tổng topic |
-|---------------|-------------------|-----------|------------|
-| AC Controller | 6 | 2 (0xC5A9, 0x336A) | 12 |
-| MCB | 14 | 1 (0x384C) | 14 |
-| **Tổng cộng hiện tại** | — | **3** | **26 topic** |
+| Cơ chế | Kích hoạt | Nội dung |
+|--------|-----------|----------|
+| **Event-driven** | Khi 1 thiết bị thay đổi trạng thái | Snapshot **toàn bộ** 3 devices |
+| **Periodic** | Mỗi 10 phút | Snapshot **toàn bộ** 3 devices |
 
-> Số lượng có thể tăng khi thêm thiết bị mới (data-driven, không cần sửa code).
+> **Lưu ý:** Dù chỉ 1 device thay đổi, hệ thống vẫn gửi snapshot toàn bộ site.
 
 ---
 
-## 9. Liên hệ & Hỗ trợ
+## 6. Thiết bị hiện tại
+
+| Device ID | Loại | Tên | Vị trí |
+|-----------|------|-----|--------|
+| `0xC5A9` | AC Controller | AC Khu C | zone_C |
+| `0x336A` | AC Controller | AC Khu D | zone_D |
+| `0x384C` | MCB | MCB Tong zone A | zone_A |
+
+---
+
+## 7. Khi thêm thiết bị mới
+
+Hệ thống **data-driven**: thêm device mới không cần sửa code.
+
+- `devices[]` sẽ tự động có thêm phần tử mới
+- `type`, `id`, `name`, `location` lấy từ `device_config` trong DB
+- Các key trong `data{}` lấy từ `device_config.extra.attrs`
+
+Bên xsolar không cần thay đổi gì — chỉ cần parse `devices[]` và xử lý dynamic.
+
+---
+
+## 8. Liên hệ & Hỗ trợ
 
 | Vấn đề | Liên hệ |
 |--------|---------|
 | Cấu hình broker / auth | Bên phía Smart Cafe |
-| Thiếu dữ liệu / offline | Kiểm tra `*/online` topic |
+| Không nhận được dữ liệu | Kiểm tra `ts` trong payload có cập nhật không |
 | Thêm thiết bị mới | Bên phía Smart Cafe cập nhật `device_config` |
 
 ---
