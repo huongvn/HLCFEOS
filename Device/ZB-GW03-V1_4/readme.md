@@ -6,8 +6,14 @@
 
 - Dây jumper 
 
-- Máy tính cài đặt esptool
-
+- Máy tính cài đặt esptool v5.3.0
+```
+    sudo apt update
+    sudo apt install pipx
+    pipx ensurepath
+    pip install intelhex --break-system-packages
+    pipx install esptool
+```
 ## Connect the wires to your serial to USB adapter
 
 Make sure that your adapter uses 3.3V for the RX/TX pins that you will connect to the device. Some of these adapters allow you to switch between 3.3V and 5V using a switch or a jumper. Do not use an adapter that only provides 5V output. Reason for this, is that the ESP32 chip works at 3.3V. I have seen the chips accept 5V serial input (I did flash the lamp successfully like that), but I am not sure if they are actually 5V tolerant. Better safe than sorry in such case!
@@ -33,14 +39,21 @@ You can now connect the serial to USB adapter to your computer. Pay special atte
 1. Kết nối uart với **ZB-GW03 v1.4 **đến máy tính bằng usb-uart, flash firmware tasmota32-ZB-GW03-EN.factory.bin
 
 
-2. Xóa firmware cũ
+2. Cấp quyền cho cổng 
+ ```
+ ls /dev/ttyUSB* /dev/ttyACM*
+ sudo usermod -a -G dialout $USER
+ sudo systemctl stop brltty-udev.service
+ sudo systemctl mask brltty-udev.service
+ ```
 
-\`\`\` esptool --port /dev/ttyUSB0 erase\_flash\`\`\`
+3. Xóa firmware cũ
+ ```esptool --port /dev/ttyUSB0 erase-flash```
 
 
-3. Nạp firmware mới
+4. Nạp firmware mới
 
-\`\`\`esptool.py --port /dev/ttyUSB0 --baud 921600 write\_flash 0x0 tasmota32-ZB-GW03-EN.factory.bin\`\`\`
+```esptool --port /dev/ttyUSB0 --baud 921600 write-flash 0x0 tasmota32-ZB-GW03-EN.factory.bin```
 
 
 **Flash  firmware zigbee chip**
@@ -68,7 +81,24 @@ Restart ZB-GW03 để qua trình update diễn ra
 
 3. Khi khởi động xong , vào console để theo dõi log , để xác nhận đã flash thành công
 
+## Set IP tĩnh cho ETH
 
+Tasmota dùng lệnh riêng cho cài đặt Ethernet:
+Vào http://luckfox_ip/cs hoặc vào menu Console, gõ từng lệnh:
+
+```
+EthIPAddress 192.168.1.135
+```
+
+Thiết bị đã nhận địa chỉ IP mới
+Cắm trực tiếp thiết bị vào máy tính để cài đặt tiếp các mục phía dưới
+
+```
+EthGateway 192.168.1.1
+EthSubnetmask 255.255.255.0
+EthDNSServer1 8.8.8.8
+Restart 1
+```
 
 
 
