@@ -1,0 +1,6 @@
+[submodule "Device/Luckfoxpico86/code/Node-red"]
+	path = Device/Luckfoxpico86/code/Node-red
+	url = git@github.com:huongvn/HLCFEOS-Node-red.git
+[submodule "Device/Luckfoxpico86/code/lvgl_project"]
+	path = Device/Luckfoxpico86/code/lvgl_project
+	url = git@github.com:huongvn/HLCFEOS-lvgl_project.git
