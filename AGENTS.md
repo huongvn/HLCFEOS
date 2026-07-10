@@ -44,6 +44,42 @@ slides/
 └── 10-nodered-dashboard.md # Dashboard Node-RED: Quản lý qua web
 ```
 
+## Cấu trúc Git (multi-repo)
+Repo gốc `HLCFEOS` chứa 2 submodule:
+
+| Submodule path | Repo riêng |
+|----------------|------------|
+| `Device/Luckfoxpico86/code/lvgl_project/` | `huongvn/HLCFEOS-lvgl_project` |
+| `Device/Luckfoxpico86/code/Node-red/` | `huongvn/HLCFEOS-Node-red` |
+
+### Quy tắc Commit & Push (BẮT BUỘC)
+Submodule hoạt động độc lập với repo gốc. **Luôn push submodule trước, repo gốc sau.**
+
+1. **Trước khi commit/push repo gốc**, kiểm tra tất cả submodule:
+   ```
+   git submodule foreach --recursive 'git status -s'
+   ```
+   Nếu có thay đổi trong submodule nào, commit + push submodule đó trước.
+
+2. **Thứ tự push bắt buộc:**
+   ```bash
+   # Push từng submodule có thay đổi
+   git -C <submodule-path> add -A && git -C <submodule-path> commit -m "..." && git -C <submodule-path> push
+
+   # Về repo gốc, cập nhật con trỏ submodule
+   git add <submodule-path> && git commit -m "chore: update submodule" && git push
+   ```
+
+3. **Clone lần đầu** phải dùng:
+   ```
+   git clone --recurse-submodules git@github.com:huongvn/HLCFEOS.git
+   ```
+
+4. **Sau mỗi `git pull`** ở repo gốc, chạy:
+   ```
+   git submodule update --init --recursive
+   ```
+
 ## Quy ước làm việc
 - Mỗi slide là 1 file `.md` độc lập, đặt trong thư mục `slides/`.
 - Viết bằng tiếng Việt.
