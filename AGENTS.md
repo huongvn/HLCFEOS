@@ -80,6 +80,10 @@ Submodule hoạt động độc lập với repo gốc. **Luôn push submodule t
    git submodule update --init --recursive
    ```
 
+## Build lvgl_project
+- **Luôn dùng `build.sh`**: `bash Device/Luckfoxpico86/code/lvgl_project/build.sh`
+- Trước khi build, đảm bảo LVGL submodule đã init: `git submodule update --init --recursive` trong thư mục lvgl_project
+
 ## Quy ước làm việc
 - Mỗi slide là 1 file `.md` độc lập, đặt trong thư mục `slides/`.
 - Viết bằng tiếng Việt.

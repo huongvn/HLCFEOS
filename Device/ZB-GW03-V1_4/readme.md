@@ -73,14 +73,6 @@ Restart ZB-GW03 để qua trình update diễn ra
 4. Khi khởi động xong , vào console để theo dõi log , để xác nhận đã flash thành công
 
 
-## Update  firmware ESP32
-
-1. Go to **Firmware Upgrade** and next to “Upgrade by file upload” use the *Choose File* button and select Zigbee module firmware you downloaded ( tasmota32-zigbeebridge.bin )
-
-2. Click on **Start upgrade**, be patient and wait for a few minutes until flashing is complete.
-
-3. Khi khởi động xong , vào console để theo dõi log , để xác nhận đã flash thành công
-
 ## Set IP tĩnh cho ETH
 
 Tasmota dùng lệnh riêng cho cài đặt Ethernet:
@@ -94,11 +86,25 @@ Thiết bị đã nhận địa chỉ IP mới
 Cắm trực tiếp thiết bị vào máy tính để cài đặt tiếp các mục phía dưới
 
 ```
+Wifi 0
+Backlog Wifi 0; Rule2 on system#boot do Wifi 0 endon; Rule2 1
 EthGateway 192.168.1.1
 EthSubnetmask 255.255.255.0
-EthDNSServer1 8.8.8.8
+EthDNSServer 8.8.8.8
 Restart 1
 ```
+
+## Set MQTT BROKER
+Vào Configuration
+
+Configure MQTT
+
+Host : 192.168.1.124
+User : admin
+Pass : public
+
+Nhấn Save
+
 
 
 
