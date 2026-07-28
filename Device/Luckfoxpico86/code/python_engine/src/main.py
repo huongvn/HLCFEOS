@@ -106,6 +106,13 @@ class BMSEngine:
             name="Push to xsolar"
         )
         
+        # Watch for devices.yaml changes (every 5 seconds)
+        self.scheduler.add_periodic_task(
+            5,
+            self.device_manager.check_reload,
+            name="Watch devices.yaml"
+        )
+        
         # Setup OTA update check (every hour)
         ota_config = self.config.get('ota', {})
         if ota_config.get('enabled', False):

@@ -24,6 +24,7 @@ class DeviceManager:
         self.devices: Dict[str, Dict] = {}
         self.site_name: str = ""
         self.max_devices: int = 0
+        self._mtime: float = 0.0
         self.load_devices()
     
     def load_devices(self):
@@ -35,12 +36,13 @@ class DeviceManager:
             self.site_name = data.get('site', 'bluCafe')
             self.max_devices = data.get('max_devices', 12)
             
+            new_devices = {}
             for device in data.get('devices', []):
                 if not device.get('enabled', True):
                     continue
                 
                 zigbee_addr = device['zigbee_addr']
-                self.devices[zigbee_addr] = {
+                new_devices[zigbee_addr] = {
                     'device_id': device['device_id'],
                     'zigbee_addr': zigbee_addr,
                     'nr_type': device['nr_type'],
@@ -56,11 +58,31 @@ class DeviceManager:
                     }
                 }
             
+            self.devices = new_devices
+            self._mtime = self.devices_file.stat().st_mtime
             logger.info(f"Loaded {len(self.devices)} devices from {self.devices_file}")
             
         except Exception as e:
             logger.error(f"Failed to load devices from {self.devices_file}: {e}")
             raise
+    
+    def check_reload(self):
+        """
+        Check if devices.yaml has changed and reload if so.
+        Called periodically by scheduler.
+        """
+        try:
+            if not self.devices_file.exists():
+                return
+            
+            current_mtime = self.devices_file.stat().st_mtime
+            if current_mtime > self._mtime:
+                logger.info(f"Devices file changed, reloading...")
+                old_count = len(self.devices)
+                self.load_devices()
+                logger.info(f"Reloaded devices: {old_count} -> {len(self.devices)} devices")
+        except Exception as e:
+            logger.error(f"Failed to check devices file: {e}")
     
     def _parse_attributes(self, attrs: list) -> Dict[str, Dict]:
         """
