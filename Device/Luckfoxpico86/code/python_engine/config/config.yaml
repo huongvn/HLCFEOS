@@ -1,0 +1,30 @@
+# BMS Engine Configuration
+
+# Local MQTT broker (for device communication)
+mqtt:
+  broker: "localhost"
+  port: 1883
+  client_id: "bms-engine"
+
+# Remote MQTT broker (for xsolar communication)
+xsolar:
+  broker: "mqtt.xsolar.energy"
+  port: 1883
+  topic_prefix: "smarteos/bluCafe"
+  push_interval: 600  # seconds (10 minutes)
+  site: "bluCafe"
+
+# SQLite database
+database:
+  path: "/data/bms/bms.db"
+
+# Device definitions file
+devices_file: "/home/pico/HLCFEOS/Device/Luckfoxpico86/code/lvgl_project/devices.yaml"
+
+# Automation rules file
+rules_file: "config/rules.yaml"
+
+# Logging
+logging:
+  level: "INFO"
+  file: "/var/log/bms-engine.log"
