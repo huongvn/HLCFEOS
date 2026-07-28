@@ -16,25 +16,64 @@ ntpq -p
 
 Python BMS Engine thay thế Node-RED, sử dụng ít tài nguyên hơn (~30MB RAM so với ~100MB RAM).
 
-### 2.1. Clone repository
+### 2.1. Copy Python BMS Engine vào Luckfox
+
+Có 3 cách để copy thư mục `python_engine` vào Luckfox:
+
+#### Cách 1: Qua USB
 
 ```bash
-cd /home/pico
-git clone --recurse-submodules git@github.com:huongvn/HLCFEOS.git
-cd HLCFEOS/Device/Luckfoxpico86/code/python_engine
+# Trên máy tính: Copy thư mục python_engine vào USB
+# Trên Luckfox: Mount USB và copy
+sudo mkdir -p /mnt/usb
+sudo mount /dev/sda1 /mnt/usb  # Điều chỉnh theo tên thiết bị USB thực tế
+sudo cp -r /mnt/usb/python_engine /home/pico/
+sudo umount /mnt/usb
 ```
 
-### 2.2. Cài đặt dependencies
+#### Cách 2: Qua SSH/SCP
 
 ```bash
+# Trên máy tính (từ thư mục chứa python_engine):
+scp -r python_engine pico@192.168.1.124:/home/pico/
+
+# Hoặc từ thư mục HLCFEOS:
+scp -r Device/Luckfoxpico86/code/python_engine pico@192.168.1.124:/home/pico/
+```
+
+#### Cách 3: Qua SFTP
+
+```bash
+# Trên máy tính:
+sftp pico@192.168.1.124
+# Sau khi kết nối:
+put -r python_engine /home/pico/
+exit
+```
+
+Hoặc dùng FileZilla/WinSCP để kéo thả thư mục `python_engine` vào `/home/pico/`
+
+### 2.2. Copy devices.yaml
+
+```bash
+# Copy devices.yaml từ lvgl_project
+cp /home/pico/lvgl_project/devices.yaml /home/pico/python_engine/
+```
+
+Hoặc nếu đã có lvgl_project:
+
+```bash
+cd /home/pico/python_engine
+ln -s ../lvgl_project/devices.yaml devices.yaml
+```
+
+### 2.3. Cài đặt dependencies
+
+```bash
+cd /home/pico/python_engine
+
 # Cài đặt Python dependencies
 pip3 install -r requirements.txt
-```
-
-### 2.3. Tạo symlink đến devices.yaml
-
-```bash
-ln -s ../lvgl_project/devices.yaml devices.yaml
 ```
 
 ### 2.4. Cấu hình
@@ -46,7 +85,7 @@ nano config/config.yaml
 ```
 
 Đảm bảo các đường dẫn đúng:
-- `devices_file`: Đường dẫn đến `devices.yaml`
+- `devices_file`: `/home/pico/python_engine/devices.yaml`
 - `database.path`: Đường dẫn đến SQLite database
 - `ota.ota_url`: URL của OTA server
 
@@ -163,7 +202,7 @@ mosquitto_pub -h localhost -p 1883 -t "bms/ac/0/power/set" -m "ON"
 | Aspect | Node-RED (cũ) | Python BMS Engine (mới) |
 |--------|---------------|-------------------------|
 | RAM usage | ~100MB | ~30MB |
-| Deploy | Import flow qua UI | `git pull && systemctl restart` |
+| Deploy | Import flow qua UI | Copy qua USB/SSH/SFTP + `./deploy.sh` |
 | Debug | Debug tab trong UI | `journalctl -f` |
 | Version control | JSON files | Python files |
 | Maintenance | UI-based | Code-based |
