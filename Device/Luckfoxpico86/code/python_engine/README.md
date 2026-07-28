@@ -8,9 +8,14 @@ Python-based BMS engine thay thế Node-RED, sử dụng `devices.yaml` làm sou
 - ✅ SQLite database cho state storage
 - ✅ Rule engine với triggers, conditions, actions
 - ✅ Scheduler cho periodic tasks
-- ✅ Push data lên xsolar mỗi 10 phút
+- ✅ HMI Bridge - giao tiếp với LVGL app qua NanoMQ
+- ✅ Xsolar Bridge - giao tiếp với xsolar cloud
+  - Periodic push device states mỗi 10 phút
+  - Event-driven push khi state thay đổi
+  - Remote control từ xsolar (điều khiển AC từ cloud)
 - ✅ Hỗ trợ composite attributes (MCB dp6 decode)
 - ✅ Auto-reconnect MQTT
+- ✅ Scene control (Open/Close Store)
 
 ## Cấu trúc project
 
@@ -25,12 +30,38 @@ python_engine/
 │   ├── state_manager.py     # SQLite state management
 │   ├── device_manager.py    # Load devices from devices.yaml
 │   ├── rule_engine.py       # Rule evaluation
-│   └── scheduler.py         # Time-based scheduling
+│   ├── scheduler.py         # Time-based scheduling
+│   ├── hmi_bridge.py        # Giao tiếp với LVGL app
+│   └── xsolar_bridge.py     # Giao tiếp với xsolar cloud
 ├── devices.yaml             # Source of truth (symlink từ lvgl_project)
 ├── requirements.txt         # Python dependencies
 ├── deploy.sh                # Deployment script
 └── bms-engine.service       # Systemd service
 ```
+
+## Kiến trúc
+
+Hệ thống sử dụng **NanoMQ làm MQTT bus nội bộ** tại `localhost:1883`:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    NanoMQ (localhost:1883)                   │
+│                    MQTT Bus Nội Bộ                           │
+└─────────────────────────────────────────────────────────────┘
+         │              │              │              │
+    ┌────┴────┐   ┌─────┴─────┐  ┌────┴────┐  ┌─────┴─────┐
+    │  LVGL   │   │  Tasmota  │  │ Python  │  │  xsolar   │
+    │  App    │   │  Gateway  │  │   BMS   │  │  Bridge   │
+    │ (UI)    │   │ (Zigbee)  │  │ Engine  │  │ (Cloud)   │
+    └─────────┘   └───────────┘  └─────────┘  └───────────┘
+```
+
+Tất cả giao tiếp đều đi qua NanoMQ:
+- LVGL ↔ BMS Engine: `bms/ac/+/set`, `bms/ac/+`
+- Tasmota ↔ BMS Engine: `tele/+/SENSOR`, `cmnd/+/ZbSend`
+- xsolar ↔ BMS Engine: `smarteos/bluCafe/+` (external broker)
+
+Xem chi tiết: [ARCHITECTURE.md](ARCHITECTURE.md)
 
 ## Cài đặt
 
@@ -138,6 +169,107 @@ rules:
         payload: "ON"
 ```
 
+## MQTT Topics
+
+### LVGL ↔ BMS Engine (qua NanoMQ)
+
+| Topic | Direction | Mô tả |
+|-------|-----------|-------|
+| `bms/ac/{idx}/power/set` | LVGL → BMS | Bật/tắt AC |
+| `bms/ac/{idx}/temperature/set` | LVGL → BMS | Đặt nhiệt độ AC |
+| `bms/ac/{idx}/fan/set` | LVGL → BMS | Đặt tốc độ quạt AC |
+| `bms/ac/{idx}/power` | BMS → LVGL | Trạng thái AC |
+| `bms/ac/{idx}/temperature` | BMS → LVGL | Nhiệt độ cài đặt |
+| `bms/ac/{idx}/room_temp` | BMS → LVGL | Nhiệt độ phòng |
+| `bms/ac/{idx}/fan` | BMS → LVGL | Tốc độ quạt |
+| `bms/sign/{idx}/power/set` | LVGL → BMS | Bật/tắt Sign |
+| `bms/sign/{idx}/power` | BMS → LVGL | Trạng thái Sign |
+| `bms/scene/master` | LVGL → BMS | Scene control |
+
+### Tasmota ↔ BMS Engine (qua NanoMQ)
+
+| Topic | Direction | Mô tả |
+|-------|-----------|-------|
+| `tele/tasmota_6DCAA8/SENSOR` | Tasmota → BMS | Zigbee sensor data |
+| `tele/tasmota_6DCAA8/LWT` | Tasmota → BMS | Online/Offline status |
+| `cmnd/tasmota_6DCAA8/ZbSend` | BMS → Tasmota | Zigbee commands |
+
+### xsolar ↔ BMS Engine
+
+| Topic | Direction | Broker | Mô tả |
+|-------|-----------|--------|-------|
+| `smarteos/bluCafe/{device_id}` | BMS → xsolar | mqtt.xsolar.energy | Device states |
+| `smarteos/bluCafe/{device_id}/set` | xsolar → BMS | mqtt.xsolar.energy | Remote commands |
+
+## HMI Bridge
+
+HMI Bridge giao tiếp với LVGL app qua NanoMQ:
+
+### Nhận lệnh từ LVGL
+
+```bash
+# Bật AC Zone A
+mosquitto_pub -h localhost -p 1883 -t "bms/ac/0/power/set" -m "ON"
+
+# Đặt nhiệt độ 24°C
+mosquitto_pub -h localhost -p 1883 -t "bms/ac/0/temperature/set" -m "24"
+
+# Đặt tốc độ quạt High (3)
+mosquitto_pub -h localhost -p 1883 -t "bms/ac/0/fan/set" -m "3"
+
+# Bật Sign
+mosquitto_pub -h localhost -p 1883 -t "bms/sign/0/power/set" -m "ON"
+
+# Scene Open Store
+mosquitto_pub -h localhost -p 1883 -t "bms/scene/master" -m "ON"
+```
+
+### Xem feedback
+
+```bash
+# Subscribe tất cả feedback
+mosquitto_sub -h localhost -p 1883 -t "bms/#" -v
+
+# Chỉ xem AC feedback
+mosquitto_sub -h localhost -p 1883 -t "bms/ac/#" -v
+```
+
+Xem chi tiết: [src/HMI_BRIDGE.md](src/HMI_BRIDGE.md)
+
+## Xsolar Bridge
+
+Xsolar Bridge giao tiếp với xsolar cloud:
+
+### Periodic push (mỗi 10 phút)
+
+Tự động push tất cả device states lên xsolar mỗi 10 phút.
+
+### Event-driven push
+
+Push ngay khi device state thay đổi (rate limit: 5 giây/device).
+
+### Remote control từ xsolar
+
+xsolar có thể điều khiển AC từ xa:
+
+```bash
+# Từ xsolar broker
+mosquitto_pub -h mqtt.xsolar.energy -p 1883 \
+  -t "smarteos/bluCafe/0xC5A9/set" \
+  -m '{"power":"ON","temperature":24,"fan":2}'
+```
+
+Payload format:
+```json
+{
+  "power": "ON",
+  "temperature": 24,
+  "fan": 2
+}
+```
+
+Tất cả fields là optional, chỉ gửi field cần điều khiển.
+
 ## So sánh với Node-RED
 
 | Aspect | Node-RED | Python BMS Engine |
@@ -147,6 +279,10 @@ rules:
 | Debug | Debug tab | `journalctl -f` |
 | Version control | JSON files | Python files |
 | Maintenance | UI-based | Code-based |
+| HMI Bridge | Flow 08-hmi-bridge.json | hmi_bridge.py |
+| Xsolar Bridge | Flow 10-remote-bridge.json | xsolar_bridge.py |
+| Rule Engine | Flow-based | Code-based với YAML config |
+| Performance | Medium | High |
 
 ## Troubleshooting
 
@@ -178,6 +314,42 @@ sqlite3 /data/bms/bms.db ".tables"
 sqlite3 /data/bms/bms.db "SELECT COUNT(*) FROM device_metric;"
 ```
 
+### HMI Bridge không hoạt động
+
+```bash
+# Kiểm tra LVGL có publish không
+mosquitto_sub -h localhost -p 1883 -t "bms/#" -v
+
+# Kiểm tra BMS Engine có nhận không
+sudo journalctl -u bms-engine -f | grep "HMI Bridge"
+
+# Kiểm tra BMS Engine có gửi ZbSend không
+mosquitto_sub -h localhost -p 1883 -t "cmnd/+/ZbSend" -v
+```
+
+### Xsolar Bridge không hoạt động
+
+```bash
+# Kiểm tra kết nối xsolar broker
+mosquitto_pub -h mqtt.xsolar.energy -p 1883 -t "test" -m "hello"
+
+# Kiểm tra logs
+sudo journalctl -u bms-engine -f | grep "Xsolar Bridge"
+
+# Test remote command
+mosquitto_sub -h mqtt.xsolar.energy -p 1883 -t "smarteos/bluCafe/#" -v
+```
+
+### Device không được tìm thấy
+
+```bash
+# Kiểm tra devices.yaml có device không
+cat /home/pico/HLCFEOS/Device/Luckfoxpico86/code/lvgl_project/devices.yaml
+
+# Restart để reload devices.yaml
+sudo systemctl restart bms-engine
+```
+
 ## Development
 
 ### Chạy manual (không qua systemd)
@@ -198,6 +370,49 @@ sudo systemctl restart bms-engine
 ### Thêm device mới
 
 Chỉnh sửa `devices.yaml` trong `lvgl_project` và restart service.
+
+### Testing
+
+#### Test HMI Bridge
+
+```bash
+# Bật AC Zone A
+mosquitto_pub -h localhost -p 1883 -t "bms/ac/0/power/set" -m "ON"
+
+# Xem feedback
+mosquitto_sub -h localhost -p 1883 -t "bms/ac/0/power" -v
+```
+
+#### Test Xsolar Bridge
+
+```bash
+# Xem data push lên xsolar
+mosquitto_sub -h mqtt.xsolar.energy -p 1883 -t "smarteos/bluCafe/#" -v
+
+# Test remote command từ xsolar
+mosquitto_pub -h mqtt.xsolar.energy -p 1883 \
+  -t "smarteos/bluCafe/0xC5A9/set" \
+  -m '{"power":"ON","temperature":24}'
+```
+
+#### Xem tất cả logs
+
+```bash
+# Systemd journal
+sudo journalctl -u bms-engine -f
+
+# Filter theo module
+sudo journalctl -u bms-engine -f | grep "HMI Bridge"
+sudo journalctl -u bms-engine -f | grep "Xsolar Bridge"
+sudo journalctl -u bms-engine -f | grep "Rule Engine"
+```
+
+## Documentation
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) - Kiến trúc hệ thống chi tiết
+- [src/HMI_BRIDGE.md](src/HMI_BRIDGE.md) - HMI Bridge documentation
+- [HMI_BRIDGE_INTEGRATION.md](HMI_BRIDGE_INTEGRATION.md) - HMI Bridge integration guide
+- [PYTHON_BMS_ENGINE_PLAN.md](PYTHON_BMS_ENGINE_PLAN.md) - Kế hoạch phát triển
 
 ## License
 
