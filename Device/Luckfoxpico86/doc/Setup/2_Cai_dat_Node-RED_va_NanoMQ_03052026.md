@@ -1,4 +1,4 @@
-# HƯỚNG DẪN CÀI ĐẶT & CẤU HÌNH NODE-RED + NANOMQ (LUCKFOX PICO)
+# HƯỚNG DẪN CÀI ĐẶT & CẤU HÌNH PYTHON BMS ENGINE + NANOMQ (LUCKFOX PICO)
 
 ## 1. Cập nhật hệ thống và cài ntp
 
@@ -12,21 +12,68 @@ sudo systemctl status ntp
 ntpq -p
 ```
 
-## 2. Cài đặt Node-RED
+## 2. Cài đặt Python BMS Engine
 
-Sử dụng script cài đặt tự động cho các dòng máy Linux ARM:
+Python BMS Engine thay thế Node-RED, sử dụng ít tài nguyên hơn (~30MB RAM so với ~100MB RAM).
+
+### 2.1. Clone repository
 
 ```bash
-# Chạy lệnh cài đặt (mất khoảng 5-10 phút)
-sudo su
-bash <(curl -sL https://raw.githubusercontent.com/node-red/linux-installers/master/deb/update-nodejs-and-nodered)
-
-# Thiết lập tự khởi động cùng board
-sudo systemctl enable nodered.service
-sudo systemctl start nodered.service
+cd /home/pico
+git clone --recurse-submodules git@github.com:huongvn/HLCFEOS.git
+cd HLCFEOS/Device/Luckfoxpico86/code/python_engine
 ```
 
-- **Truy cập UI:** http://172.32.0.70:1880/
+### 2.2. Cài đặt dependencies
+
+```bash
+# Cài đặt Python dependencies
+pip3 install -r requirements.txt
+```
+
+### 2.3. Tạo symlink đến devices.yaml
+
+```bash
+ln -s ../lvgl_project/devices.yaml devices.yaml
+```
+
+### 2.4. Cấu hình
+
+Chỉnh sửa file cấu hình:
+
+```bash
+nano config/config.yaml
+```
+
+Đảm bảo các đường dẫn đúng:
+- `devices_file`: Đường dẫn đến `devices.yaml`
+- `database.path`: Đường dẫn đến SQLite database
+- `ota.ota_url`: URL của OTA server
+
+### 2.5. Deploy service
+
+```bash
+sudo ./deploy.sh
+```
+
+Script sẽ:
+- Cài đặt Python dependencies
+- Tạo log file tại `/var/log/bms-engine.log`
+- Cài đặt systemd service `bms-engine.service`
+- Khởi động service
+
+### 2.6. Kiểm tra service
+
+```bash
+# Kiểm tra trạng thái
+sudo systemctl status bms-engine
+
+# Xem logs
+sudo journalctl -u bms-engine -f
+
+# Hoặc xem log file
+sudo tail -f /var/log/bms-engine.log
+```
 
 ## 3. Cài đặt NanoMQ (MQTT Broker)
 
@@ -83,20 +130,54 @@ sudo systemctl restart nanomq
 
 Đây là các lệnh quan trọng để bạn quản lý hệ thống sau này:
 
+### NanoMQ
+
 - **Kiểm tra trạng thái:** `sudo systemctl status nanomq`
 - **Theo dõi log trực tiếp:** `sudo journalctl -u nanomq -f`
 - **Kiểm tra phiên bản:** `nanomq --version`
 - **Kiểm tra cổng 1883 (MQTT):** `netstat -tln | grep 1883`
 
-## 5. Kết nối từ Node-RED
+### Python BMS Engine
 
-Trong giao diện Node-RED, bạn sử dụng node **mqtt in** hoặc **mqtt out** với cấu hình sau:
+- **Kiểm tra trạng thái:** `sudo systemctl status bms-engine`
+- **Theo dõi log trực tiếp:** `sudo journalctl -u bms-engine -f`
+- **Xem log file:** `sudo tail -f /var/log/bms-engine.log`
+- **Restart service:** `sudo systemctl restart bms-engine`
+- **Stop service:** `sudo systemctl stop bms-engine`
 
-- **Server:** 127.0.0.1
-- **Port:** 1883
-- **Topic:** luckfox/data (hoặc tùy ý)
+## 5. Kiểm tra kết nối MQTT
+
+```bash
+# Subscribe tất cả topics để xem messages
+mosquitto_sub -h localhost -p 1883 -t "#" -v
+
+# Subscribe chỉ topics từ Tasmota gateway
+mosquitto_sub -h localhost -p 1883 -t "tele/tasmota_6DCAA8/#" -v
+
+# Test publish command
+mosquitto_pub -h localhost -p 1883 -t "bms/ac/0/power/set" -m "ON"
+```
+
+## 6. So sánh với Node-RED (cũ)
+
+| Aspect | Node-RED (cũ) | Python BMS Engine (mới) |
+|--------|---------------|-------------------------|
+| RAM usage | ~100MB | ~30MB |
+| Deploy | Import flow qua UI | `git pull && systemctl restart` |
+| Debug | Debug tab trong UI | `journalctl -f` |
+| Version control | JSON files | Python files |
+| Maintenance | UI-based | Code-based |
+| Performance | Medium | High |
 
 ### Lưu ý cho Luckfox Pico:
 
-- Nếu bạn dùng bản **Static Binary** (.tar.gz), hãy đảm bảo đã cấp quyền chạy bằng lệnh: `sudo chmod +x /usr/local/bin/nanomq`.
+- Nếu bạn dùng bản **Static Binary** (.tar.gz) cho NanoMQ, hãy đảm bảo đã cấp quyền chạy bằng lệnh: `sudo chmod +x /usr/local/bin/nanomq`.
 - Luôn dùng sudo khi can thiệp vào các file trong thư mục /etc/ hoặc /usr/.
+- Python BMS Engine tự động kết nối đến NanoMQ tại `localhost:1883`.
+
+## 7. Tài liệu tham khảo
+
+Xem thêm tài liệu chi tiết tại:
+- [python_engine/README.md](../../code/python_engine/README.md) - Hướng dẫn sử dụng Python BMS Engine
+- [python_engine/PlanAndDoc/ARCHITECTURE.md](../../code/python_engine/PlanAndDoc/ARCHITECTURE.md) - Kiến trúc hệ thống
+- [python_engine/PlanAndDoc/OTA_PLAN.md](../../code/python_engine/PlanAndDoc/OTA_PLAN.md) - Kế hoạch OTA update
