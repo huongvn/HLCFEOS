@@ -61,7 +61,7 @@ Tất cả giao tiếp đều đi qua NanoMQ:
 - Tasmota ↔ BMS Engine: `tele/+/SENSOR`, `cmnd/+/ZbSend`
 - xsolar ↔ BMS Engine: `smarteos/bluCafe/+` (external broker)
 
-Xem chi tiết: [ARCHITECTURE.md](ARCHITECTURE.md)
+Xem chi tiết: [PlanAndDoc/ARCHITECTURE.md](PlanAndDoc/ARCHITECTURE.md)
 
 ## Cài đặt
 
@@ -409,10 +409,14 @@ sudo journalctl -u bms-engine -f | grep "Rule Engine"
 
 ## Documentation
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) - Kiến trúc hệ thống chi tiết
+Tất cả tài liệu được đặt trong thư mục `PlanAndDoc/`:
+
+- [PlanAndDoc/ARCHITECTURE.md](PlanAndDoc/ARCHITECTURE.md) - Kiến trúc hệ thống chi tiết
+- [PlanAndDoc/OTA_PLAN.md](PlanAndDoc/OTA_PLAN.md) - Kế hoạch OTA update
+- [PlanAndDoc/OTA_IMPLEMENTATION.md](PlanAndDoc/OTA_IMPLEMENTATION.md) - OTA implementation guide
+- [PlanAndDoc/PYTHON_BMS_ENGINE_PLAN.md](PlanAndDoc/PYTHON_BMS_ENGINE_PLAN.md) - Kế hoạch phát triển ban đầu
+- [PlanAndDoc/HMI_BRIDGE_INTEGRATION.md](PlanAndDoc/HMI_BRIDGE_INTEGRATION.md) - HMI Bridge integration guide
 - [src/HMI_BRIDGE.md](src/HMI_BRIDGE.md) - HMI Bridge documentation
-- [HMI_BRIDGE_INTEGRATION.md](HMI_BRIDGE_INTEGRATION.md) - HMI Bridge integration guide
-- [PYTHON_BMS_ENGINE_PLAN.md](PYTHON_BMS_ENGINE_PLAN.md) - Kế hoạch phát triển
 
 ## License
 
