@@ -18,6 +18,7 @@ from rule_engine import RuleEngine
 from scheduler import Scheduler
 from hmi_bridge import HMIBridge
 from xsolar_bridge import XsolarBridge
+from ota import OTAUpdater
 
 # Configure logging
 logging.basicConfig(
@@ -92,6 +93,9 @@ class BMSEngine:
             self.device_manager
         )
         
+        # OTA Updater - cập nhật phần mềm từ xa
+        self.ota_updater = OTAUpdater(self.config.get('ota', {}))
+        
         # Setup MQTT message handler
         self.mqtt_local.set_message_handler(self._handle_mqtt_message)
         
@@ -101,6 +105,17 @@ class BMSEngine:
             self.xsolar_bridge.push_all_states,
             name="Push to xsolar"
         )
+        
+        # Setup OTA update check (every hour)
+        ota_config = self.config.get('ota', {})
+        if ota_config.get('enabled', False):
+            check_interval = ota_config.get('check_interval', 3600)  # Default: 1 hour
+            self.scheduler.add_periodic_task(
+                check_interval,
+                self._check_ota_updates,
+                name="Check OTA updates"
+            )
+            logger.info(f"OTA update check enabled (every {check_interval}s)")
         
         logger.info("BMS Engine initialized successfully")
     
@@ -150,6 +165,38 @@ class BMSEngine:
         logger.info(f"Received signal {signum}, shutting down...")
         self.stop()
         sys.exit(0)
+    
+    def _check_ota_updates(self):
+        """Check for OTA updates and perform if available"""
+        try:
+            logger.info("Checking for OTA updates...")
+            
+            # Check for updates
+            update_available, new_version = self.ota_updater.check_update()
+            
+            if not update_available:
+                logger.info("No OTA update available")
+                return
+            
+            logger.info(f"OTA update available: {new_version}")
+            
+            # Check if auto-update is enabled
+            ota_config = self.config.get('ota', {})
+            if not ota_config.get('auto_update', False):
+                logger.info("Auto-update disabled, skipping update")
+                return
+            
+            # Perform update
+            logger.info("Starting OTA update process...")
+            success = self.ota_updater.perform_update()
+            
+            if success:
+                logger.info("OTA update completed successfully")
+            else:
+                logger.error("OTA update failed")
+                
+        except Exception as e:
+            logger.error(f"OTA update check failed: {e}")
     
     def _handle_mqtt_message(self, topic: str, payload: Any):
         """

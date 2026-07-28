@@ -24,6 +24,16 @@ devices_file: "/home/pico/HLCFEOS/Device/Luckfoxpico86/code/lvgl_project/devices
 # Automation rules file
 rules_file: "config/rules.yaml"
 
+# OTA Update Configuration
+ota:
+  enabled: true
+  ota_url: "http://192.168.1.171/ota/bms/check.json"
+  install_dir: "/home/pico/bms-engine"
+  temp_dir: "/tmp/bms_ota"
+  backup_dir: "/home/pico/bms_backup"
+  check_interval: 3600  # seconds (1 hour)
+  auto_update: false  # Set to true for automatic updates
+
 # Logging
 logging:
   level: "INFO"
