@@ -113,6 +113,13 @@ class BMSEngine:
             name="Push to xsolar"
         )
         
+        # Periodically read Metering cluster (0x0702) energy values
+        self.scheduler.add_periodic_task(
+            30,  # every 30 seconds
+            self._read_energy_values,
+            name="Read energy"
+        )
+        
         # Watch for devices.yaml changes (every 5 seconds)
         self.scheduler.add_periodic_task(
             5,
@@ -237,6 +244,20 @@ class BMSEngine:
         if isinstance(payload, dict):
             self.rule_engine.process_message(topic, payload)
     
+    def _read_energy_values(self):
+        """Periodically read Metering cluster (0x0702) energy attributes from power meters"""
+        import json
+        power_devices = self.device_manager.get_device_by_type('power_meter')
+        for device in power_devices:
+            zigbee_addr = device['zigbee_addr']
+            gateway = device['gateway']
+            # Read CurrentSummationDelivered (attr 0x0000)
+            read_cmd = {"Device": zigbee_addr, "Cluster": 1794, "Endpoint": 1, "Read": 0}
+            self.mqtt_local.publish(f"cmnd/{gateway}/ZbSend", json.dumps(read_cmd), qos=1)
+            # Read CurrentSummationReceived (attr 0x0001)
+            read_cmd2 = {"Device": zigbee_addr, "Cluster": 1794, "Endpoint": 1, "Read": 1}
+            self.mqtt_local.publish(f"cmnd/{gateway}/ZbSend", json.dumps(read_cmd2), qos=1)
+
     def _process_sensor_from_queue(self, topic: str, payload: Any):
         """Wrapper called by queue worker thread"""
         self._process_zigbee_message(topic, payload)
@@ -343,7 +364,12 @@ class BMSEngine:
         if attr_type == 'bool':
             value = bool(raw_value)
         elif attr_type == 'number':
-            value = float(raw_value)
+            # Handle hex strings from Tasmota (e.g., "0x000000005163")
+            raw_str = str(raw_value)
+            if raw_str.startswith('0x') or raw_str.startswith('0X'):
+                value = float(int(raw_str, 16))
+            else:
+                value = float(raw_value)
             # Apply formula if present (before scale)
             formula = attr_config.get('formula')
             if formula == 'zcl_illuminance':
