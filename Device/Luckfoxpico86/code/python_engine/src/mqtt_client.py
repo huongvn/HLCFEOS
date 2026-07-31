@@ -13,7 +13,8 @@ logger = logging.getLogger(__name__)
 class MQTTClient:
     """MQTT client for subscribing and publishing messages"""
     
-    def __init__(self, broker: str, port: int, client_id: str):
+    def __init__(self, broker: str, port: int, client_id: str,
+                 username: str = None, password: str = None):
         """
         Initialize MQTT client
         
@@ -21,6 +22,8 @@ class MQTTClient:
             broker: MQTT broker hostname or IP
             port: MQTT broker port
             client_id: MQTT client ID
+            username: MQTT username (optional)
+            password: MQTT password (optional)
         """
         self.broker = broker
         self.port = port
@@ -32,7 +35,12 @@ class MQTTClient:
         self.message_handler: Optional[Callable] = None
         self.connected = False
         
-        logger.info(f"MQTT client initialized: {broker}:{port}, client_id={client_id}")
+        # Set credentials if provided
+        if username and password:
+            self.client.username_pw_set(username, password)
+            logger.info(f"MQTT client initialized: {broker}:{port}, client_id={client_id}, auth=yes")
+        else:
+            logger.info(f"MQTT client initialized: {broker}:{port}, client_id={client_id}")
     
     def connect(self):
         """Connect to MQTT broker"""

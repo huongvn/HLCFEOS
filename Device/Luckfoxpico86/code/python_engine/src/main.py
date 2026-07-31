@@ -67,7 +67,9 @@ class BMSEngine:
         self.mqtt_xsolar = MQTTClient(
             self.config['xsolar']['broker'],
             self.config['xsolar']['port'],
-            f"{self.config['mqtt']['client_id']}_xsolar"
+            f"{self.config['mqtt']['client_id']}_xsolar",
+            self.config['xsolar'].get('user'),
+            self.config['xsolar'].get('pass')
         )
         
         # Rule engine

@@ -10,6 +10,8 @@ mqtt:
 xsolar:
   broker: "mqtt.xsolar.energy"
   port: 1883
+  user: ""
+  pass: ""
   topic_prefix: "smarteos/bluCafe"
   push_interval: 600  # seconds (10 minutes)
   site: "bluCafe"
