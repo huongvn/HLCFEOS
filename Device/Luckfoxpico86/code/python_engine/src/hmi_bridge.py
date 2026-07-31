@@ -301,6 +301,9 @@ class HMIBridge:
         """
         Publish feedback về LVGL khi device state thay đổi
         
+        Chỉ publish attributes có giá trị THAY ĐỔI so với lần trước.
+        Tránh spam MQTT khi thiết bị report cùng giá trị liên tục.
+        
         Args:
             device_addr: Zigbee address của device
             state: State dictionary mới
@@ -309,6 +312,17 @@ class HMIBridge:
         if not device:
             return
         
+        # Track changes - skip if nothing changed
+        prev = self._last_states.get(device_addr, {})
+        changed = {}
+        for k, v in state.items():
+            if prev.get(k) != v:
+                changed[k] = v
+        if not changed:
+            return  # No changes, skip entirely
+        
+        self._last_states[device_addr] = state.copy()
+        
         device_type = device['nr_type']
         
         # Lấy index từ metadata
@@ -316,25 +330,25 @@ class HMIBridge:
             idx = device['metadata'].get('ac_index')
             if idx is None:
                 return
-            self._publish_ac_feedback(idx, state)
+            self._publish_ac_feedback(idx, changed if changed else state)
         
         elif device_type == 'mcb':
             idx = device['metadata'].get('sign_index')
             if idx is None:
                 return
-            self._publish_sign_feedback(idx, state)
+            self._publish_sign_feedback(idx, changed if changed else state)
         
         elif device_type == 'power_meter':
             idx = device['metadata'].get('power_index')
             if idx is None:
                 return
-            self._publish_power_feedback(idx, state)
+            self._publish_power_feedback(idx, changed if changed else state)
         
         elif device_type == 'light_sensor':
             idx = device['metadata'].get('light_sensor_index')
             if idx is None:
                 return
-            self._publish_light_feedback(idx, state)
+            self._publish_light_feedback(idx, changed if changed else state)
     
     def _publish_ac_feedback(self, idx: int, state: Dict):
         """
