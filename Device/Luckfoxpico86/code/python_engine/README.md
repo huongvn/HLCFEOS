@@ -33,7 +33,7 @@ python_engine/
 │   ├── scheduler.py         # Time-based scheduling
 │   ├── hmi_bridge.py        # Giao tiếp với LVGL app
 │   └── xsolar_bridge.py     # Giao tiếp với xsolar cloud
-├── devices.yaml             # Source of truth (symlink từ lvgl_project)
+├── devices.yaml             # Source of truth (symlink → /home/pico/devices.yaml)
 ├── requirements.txt         # Python dependencies
 ├── deploy.sh                # Deployment script
 └── bms-engine.service       # Systemd service
@@ -68,14 +68,17 @@ Xem chi tiết: [PlanAndDoc/ARCHITECTURE.md](PlanAndDoc/ARCHITECTURE.md)
 ### 1. Clone hoặc copy project
 
 ```bash
-cd /home/pico/HLCFEOS/Device/Luckfoxpico86/code/python_engine
+cd /home/pico/python_engine
 ```
 
 ### 2. Tạo symlink đến devices.yaml
 
 ```bash
-ln -s ../lvgl_project/devices.yaml devices.yaml
+cd /home/pico/python_engine
+ln -s ../devices.yaml devices.yaml
 ```
+
+File `devices.yaml` nằm tại `/home/pico/devices.yaml`, dùng chung cho cả LVGL app và Python engine.
 
 ### 3. Chỉnh sửa config
 
@@ -139,9 +142,9 @@ xsolar:
   push_interval: 600  # 10 minutes
 
 database:
-  path: "/data/bms/bms.db"
+  path: "data/bms.db"
 
-devices_file: "/home/pico/HLCFEOS/Device/Luckfoxpico86/code/lvgl_project/devices.yaml"
+devices_file: "/home/pico/python_engine/devices.yaml"
 rules_file: "config/rules.yaml"
 ```
 
@@ -175,15 +178,10 @@ rules:
 
 | Topic | Direction | Mô tả |
 |-------|-----------|-------|
-| `bms/ac/{idx}/power/set` | LVGL → BMS | Bật/tắt AC |
-| `bms/ac/{idx}/temperature/set` | LVGL → BMS | Đặt nhiệt độ AC |
-| `bms/ac/{idx}/fan/set` | LVGL → BMS | Đặt tốc độ quạt AC |
-| `bms/ac/{idx}/power` | BMS → LVGL | Trạng thái AC |
-| `bms/ac/{idx}/temperature` | BMS → LVGL | Nhiệt độ cài đặt |
-| `bms/ac/{idx}/room_temp` | BMS → LVGL | Nhiệt độ phòng |
-| `bms/ac/{idx}/fan` | BMS → LVGL | Tốc độ quạt |
-| `bms/sign/{idx}/power/set` | LVGL → BMS | Bật/tắt Sign |
-| `bms/sign/{idx}/power` | BMS → LVGL | Trạng thái Sign |
+| `bms/ac/{idx}/{attr_id}/set` | LVGL → BMS | Điều khiển AC (attr_id từ YAML: "0101"=Power, "0202"=Temp, "0405"=Fan) |
+| `bms/ac/{idx}/{attr_id}` | BMS → LVGL | Feedback AC |
+| `bms/sign/{idx}/{attr_id}/set` | LVGL → BMS | Điều khiển Sign |
+| `bms/sign/{idx}/{attr_id}` | BMS → LVGL | Feedback Sign |
 | `bms/scene/master` | LVGL → BMS | Scene control |
 
 ### Tasmota ↔ BMS Engine (qua NanoMQ)
@@ -208,17 +206,17 @@ HMI Bridge giao tiếp với LVGL app qua NanoMQ:
 ### Nhận lệnh từ LVGL
 
 ```bash
-# Bật AC Zone A
-mosquitto_pub -h localhost -p 1883 -t "bms/ac/0/power/set" -m "ON"
+# Bật AC Zone A (attr_id "0101" = Power)
+mosquitto_pub -h localhost -p 1883 -t "bms/ac/0/0101/set" -m "ON"
 
-# Đặt nhiệt độ 24°C
-mosquitto_pub -h localhost -p 1883 -t "bms/ac/0/temperature/set" -m "24"
+# Đặt nhiệt độ 24°C (attr_id "0202" = Temperature)
+mosquitto_pub -h localhost -p 1883 -t "bms/ac/0/0202/set" -m "24"
 
-# Đặt tốc độ quạt High (3)
-mosquitto_pub -h localhost -p 1883 -t "bms/ac/0/fan/set" -m "3"
+# Đặt tốc độ quạt High=3 (attr_id "0405" = Fan Speed)
+mosquitto_pub -h localhost -p 1883 -t "bms/ac/0/0405/set" -m "3"
 
-# Bật Sign
-mosquitto_pub -h localhost -p 1883 -t "bms/sign/0/power/set" -m "ON"
+# Bật Sign (attr_id "0110" = Control)
+mosquitto_pub -h localhost -p 1883 -t "bms/sign/0/0110/set" -m "ON"
 
 # Scene Open Store
 mosquitto_pub -h localhost -p 1883 -t "bms/scene/master" -m "ON"
@@ -310,8 +308,8 @@ mosquitto_pub -h localhost -p 1883 -t "test" -m "hello"
 
 ```bash
 # Kiểm tra database
-sqlite3 /data/bms/bms.db ".tables"
-sqlite3 /data/bms/bms.db "SELECT COUNT(*) FROM device_metric;"
+sqlite3 data/bms.db ".tables"
+sqlite3 data/bms.db "SELECT COUNT(*) FROM device_metric;"
 ```
 
 ### HMI Bridge không hoạt động
@@ -344,7 +342,7 @@ mosquitto_sub -h mqtt.xsolar.energy -p 1883 -t "smarteos/bluCafe/#" -v
 
 ```bash
 # Kiểm tra devices.yaml có device không
-cat /home/pico/HLCFEOS/Device/Luckfoxpico86/code/lvgl_project/devices.yaml
+cat /home/pico/devices.yaml
 
 # Restart để reload devices.yaml
 sudo systemctl restart bms-engine
@@ -355,7 +353,7 @@ sudo systemctl restart bms-engine
 ### Chạy manual (không qua systemd)
 
 ```bash
-cd /home/pico/HLCFEOS/Device/Luckfoxpico86/code/python_engine
+cd /home/pico/python_engine
 python3 src/main.py
 ```
 
@@ -369,7 +367,7 @@ sudo systemctl restart bms-engine
 
 ### Thêm device mới
 
-Chỉnh sửa `devices.yaml` trong `lvgl_project` và restart service.
+Chỉnh sửa `/home/pico/devices.yaml` và restart service.
 
 ### Testing
 
@@ -377,10 +375,10 @@ Chỉnh sửa `devices.yaml` trong `lvgl_project` và restart service.
 
 ```bash
 # Bật AC Zone A
-mosquitto_pub -h localhost -p 1883 -t "bms/ac/0/power/set" -m "ON"
+mosquitto_pub -h localhost -p 1883 -t "bms/ac/0/0101/set" -m "ON"
 
 # Xem feedback
-mosquitto_sub -h localhost -p 1883 -t "bms/ac/0/power" -v
+mosquitto_sub -h localhost -p 1883 -t "bms/ac/0/0101" -v
 ```
 
 #### Test Xsolar Bridge

@@ -16,10 +16,10 @@ xsolar:
 
 # SQLite database
 database:
-  path: "/data/bms/bms.db"
+  path: "data/bms.db"
 
-# Device definitions file
-devices_file: "/home/pico/HLCFEOS/Device/Luckfoxpico86/code/lvgl_project/devices.yaml"
+# Device definitions file (symlink -> /home/pico/devices.yaml)
+devices_file: "devices.yaml"
 
 # Automation rules file
 rules_file: "config/rules.yaml"

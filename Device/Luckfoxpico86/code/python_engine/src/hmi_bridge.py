@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class HMIBridge:
     """Bridge giữa LVGL app và Zigbee devices thông qua MQTT"""
     
-    def __init__(self, mqtt_client, state_manager, device_manager):
+    def __init__(self, mqtt_client, state_manager, device_manager, queue_manager=None):
         """
         Khởi tạo HMI Bridge
         
@@ -27,10 +27,12 @@ class HMIBridge:
             mqtt_client: MQTT client instance
             state_manager: State manager instance
             device_manager: Device manager instance
+            queue_manager: QueueManager instance (optional, for queued ZbSend)
         """
         self.mqtt_client = mqtt_client
         self.state_manager = state_manager
         self.device_manager = device_manager
+        self.queue_mgr = queue_manager
         
         # Cache để track state changes
         self._last_states: Dict[str, Dict] = {}
@@ -47,14 +49,17 @@ class HMIBridge:
         self.mqtt_client.subscribe("bms/ac/+/+/set", qos=1)
         
         # Subscribe Sign/MCB control commands
-        # Format: bms/sign/{idx}/power/set
-        # Ví dụ: bms/sign/0/power/set
-        self.mqtt_client.subscribe("bms/sign/+/power/set", qos=1)
+        # Format: bms/sign/{idx}/{attr_id}/set
+        # Ví dụ: bms/sign/0/0110/set
+        self.mqtt_client.subscribe("bms/sign/+/+/set", qos=1)
         
         # Subscribe Scene control
         # Format: bms/scene/master
         # Payload: "ON" (Open Store) hoặc "OFF" (Close Store)
         self.mqtt_client.subscribe("bms/scene/master", qos=1)
+        
+        # Subscribe Tasmota telemetry (use # to catch all, tele/# has issues with paho v1)
+        self.mqtt_client.subscribe("#", qos=0)
         
         logger.info("HMI Bridge started - subscribed to control topics")
     
@@ -76,10 +81,11 @@ class HMIBridge:
                 attr = parts[3]
                 self._handle_ac_command(idx, attr, payload)
             
-            # Handle Sign commands: bms/sign/{idx}/power/set
-            elif len(parts) == 5 and parts[0] == 'bms' and parts[1] == 'sign' and parts[3] == 'power' and parts[4] == 'set':
+            # Handle Sign commands: bms/sign/{idx}/{attr_id}/set
+            elif len(parts) == 5 and parts[0] == 'bms' and parts[1] == 'sign' and parts[4] == 'set':
                 idx = int(parts[2])
-                self._handle_sign_command(idx, payload)
+                attr = parts[3]
+                self._handle_sign_command(idx, attr, payload)
             
             # Handle Scene commands: bms/scene/master
             elif len(parts) == 3 and parts[0] == 'bms' and parts[1] == 'scene' and parts[2] == 'master':
@@ -92,12 +98,13 @@ class HMIBridge:
         """
         Xử lý lệnh điều khiển AC
         
+        Format: bms/ac/{idx}/{attr_id}/set  (attr_id = YAML id field)
+        
         Args:
-            idx: AC index (0, 1, 2, ...)
-            attr: Attribute name (power, temperature, fan)
+            idx: AC index
+            attr: Attribute id (e.g., "0101", "0202", "0405")
             payload: Command payload
         """
-        # Tìm device theo index
         device = self._get_device_by_index('ac_controller', idx)
         if not device:
             logger.warning(f"AC device not found for index {idx}")
@@ -107,64 +114,55 @@ class HMIBridge:
         gateway = device['gateway']
         attributes = device['attributes']
         
-        # Build ZbSend command
-        writes = {}
-        
-        if attr == 'power':
-            # Tìm attribute ID cho power
-            power_attr_id = self._find_attr_id_by_label(attributes, 'Power')
-            if power_attr_id:
-                value = 1 if payload.upper() == 'ON' else 0
-                writes[f"EF00/{power_attr_id}"] = value
-            else:
-                logger.warning(f"Power attribute not found for device {zigbee_addr}")
-                return
-        
-        elif attr == 'temperature':
-            # Tìm attribute ID cho temperature
-            temp_attr_id = self._find_attr_id_by_label(attributes, 'Temperature')
-            if temp_attr_id:
-                value = int(payload)
-                writes[f"EF00/{temp_attr_id}"] = value
-            else:
-                logger.warning(f"Temperature attribute not found for device {zigbee_addr}")
-                return
-        
-        elif attr == 'fan':
-            # Tìm attribute ID cho fan speed
-            fan_attr_id = self._find_attr_id_by_label(attributes, 'Fan Speed')
-            if fan_attr_id:
-                value = int(payload)
-                writes[f"EF00/{fan_attr_id}"] = value
-            else:
-                logger.warning(f"Fan Speed attribute not found for device {zigbee_addr}")
-                return
-        
-        else:
-            logger.warning(f"Unknown AC attribute: {attr}")
+        attr_config = attributes.get(attr)
+        if not attr_config:
+            logger.warning(f"Unknown AC attribute id: {attr}")
             return
         
-        # Publish ZbSend command
-        if writes:
+        attr_type = attr_config.get('type', 'number')
+        
+        if attr_type == 'bool':
+            value = 1 if str(payload).upper() == 'ON' else 0
+        else:
+            value = int(payload)
+        
+        # Queue ZbSend via QueueManager (không mất lệnh)
+        if self.queue_mgr:
+            self.queue_mgr.send_zbsend(gateway, zigbee_addr, {f"EF00/{attr}": value}, endpoint=1)
+        else:
+            # Fallback: publish directly
             zb_send_payload = {
                 "Device": zigbee_addr,
-                "Write": writes
+                "Write": {f"EF00/{attr}": value},
+                "Endpoint": 1
             }
-            
             topic = f"cmnd/{gateway}/ZbSend"
             self.mqtt_client.publish(topic, json.dumps(zb_send_payload), qos=1)
-            
-            logger.info(f"AC command sent: {zigbee_addr} {attr}={payload}")
+        logger.info(f"AC command: {zigbee_addr} {attr}={payload}")
+        
+        # Immediately publish feedback to LVGL (optimistic update)
+        label = attr_config.get('label', attr)
+        if attr_type == 'bool':
+            feedback_payload = "ON" if value == 1 else "OFF"
+        else:
+            feedback_payload = str(value)
+        feedback_topic = f"bms/ac/{idx}/{attr}"
+        self.mqtt_client.publish(feedback_topic, feedback_payload, qos=1)
+        logger.info(f"AC feedback: {idx} {attr}={feedback_payload}")
+
+
     
-    def _handle_sign_command(self, idx: int, payload: Any):
+    def _handle_sign_command(self, idx: int, attr: str, payload: Any):
         """
         Xử lý lệnh điều khiển Sign/MCB
         
+        Format: bms/sign/{idx}/{attr_id}/set  (attr_id = YAML id field)
+        
         Args:
-            idx: Sign index (0, 1, 2, ...)
+            idx: Sign index
+            attr: Attribute id (e.g., "0110")
             payload: Command payload ("ON" hoặc "OFF")
         """
-        # Tìm device theo index
         device = self._get_device_by_index('mcb', idx)
         if not device:
             logger.warning(f"MCB device not found for index {idx}")
@@ -174,28 +172,35 @@ class HMIBridge:
         gateway = device['gateway']
         attributes = device['attributes']
         
-        # Tìm attribute ID cho control
-        control_attr_id = self._find_attr_id_by_label(attributes, 'Control')
-        if not control_attr_id:
-            logger.warning(f"Control attribute not found for device {zigbee_addr}")
+        attr_config = attributes.get(attr)
+        if not attr_config:
+            logger.warning(f"Unknown Sign attribute id: {attr}")
             return
         
-        # Build ZbSend command
-        value = 1 if payload.upper() == 'ON' else 0
-        writes = {
-            f"EF00/{control_attr_id}": value
-        }
+        attr_type = attr_config.get('type', 'number')
         
-        zb_send_payload = {
-            "Device": zigbee_addr,
-            "Write": writes,
-            "Endpoint": 1  # MCB cần Endpoint
-        }
+        if attr_type == 'bool':
+            value = 1 if str(payload).upper() == 'ON' else 0
+        else:
+            value = int(payload)
         
-        topic = f"cmnd/{gateway}/ZbSend"
-        self.mqtt_client.publish(topic, json.dumps(zb_send_payload), qos=1)
+        # Queue ZbSend
+        if self.queue_mgr:
+            self.queue_mgr.send_zbsend(gateway, zigbee_addr, {f"EF00/{attr}": value}, endpoint=1)
+        else:
+            topic = f"cmnd/{gateway}/ZbSend"
+            zb_send_payload = {"Device": zigbee_addr, "Write": {f"EF00/{attr}": value}, "Endpoint": 1}
+            self.mqtt_client.publish(topic, json.dumps(zb_send_payload), qos=1)
+        logger.info(f"Sign command: {zigbee_addr} {attr}={payload}")
         
-        logger.info(f"Sign command sent: {zigbee_addr} power={payload}")
+        # Immediately publish feedback to LVGL (optimistic update)
+        if attr_type == 'bool':
+            feedback_payload = "ON" if value == 1 else "OFF"
+        else:
+            feedback_payload = str(value)
+        feedback_topic = f"bms/sign/{idx}/{attr}"
+        self.mqtt_client.publish(feedback_topic, feedback_payload, qos=1)
+        logger.info(f"Sign feedback: {idx} {attr}={feedback_payload}")
     
     def _handle_scene_command(self, payload: Any):
         """
@@ -315,57 +320,134 @@ class HMIBridge:
             if idx is None:
                 return
             self._publish_sign_feedback(idx, state)
+        
+        elif device_type == 'power_meter':
+            idx = device['metadata'].get('power_index')
+            if idx is None:
+                return
+            self._publish_power_feedback(idx, state)
+        
+        elif device_type == 'light_sensor':
+            idx = device['metadata'].get('light_sensor_index')
+            if idx is None:
+                return
+            self._publish_light_feedback(idx, state)
     
     def _publish_ac_feedback(self, idx: int, state: Dict):
         """
         Publish AC feedback về LVGL
         
+        Topic format: bms/ac/{idx}/{attr_id}
+        attr_id from YAML (e.g., "0101"=Power, "0202"=Temperature, "0203"=Room Temp, "0405"=Fan Speed)
+        
         Args:
             idx: AC index
-            state: State dictionary
+            state: State dictionary (keys are labels, e.g., "Room Temp")
         """
-        # Publish từng attribute
-        for attr_name, value in state.items():
-            # Map attribute name to LVGL topic
-            if attr_name == 'Power':
-                topic = f"bms/ac/{idx}/power"
+        device = self._get_device_by_index('ac_controller', idx)
+        if not device:
+            return
+        
+        attributes = device.get('attributes', {})
+        for attr_id, attr_config in attributes.items():
+            label = attr_config.get('label', '')
+            if label not in state:
+                continue
+            
+            value = state[label]
+            topic = f"bms/ac/{idx}/{attr_id}"
+            
+            if attr_config.get('type') == 'bool':
                 payload = "ON" if value else "OFF"
-                self.mqtt_client.publish(topic, payload, qos=1)
-            
-            elif attr_name == 'Temperature':
-                topic = f"bms/ac/{idx}/temperature"
+            else:
                 payload = str(value)
-                self.mqtt_client.publish(topic, payload, qos=1)
             
-            elif attr_name == 'Room Temp':
-                topic = f"bms/ac/{idx}/room_temp"
-                payload = str(value)
-                self.mqtt_client.publish(topic, payload, qos=1)
-            
-            elif attr_name == 'Fan Speed':
-                topic = f"bms/ac/{idx}/fan"
-                payload = str(value)
-                self.mqtt_client.publish(topic, payload, qos=1)
+            self.mqtt_client.publish(topic, payload, qos=1)
+            logger.debug(f"HMI AC[{idx}] → {topic} = {payload}")
     
     def _publish_sign_feedback(self, idx: int, state: Dict):
         """
         Publish Sign/MCB feedback về LVGL
         
+        Topic format: bms/sign/{idx}/{attr_id}
+        attr_id from YAML (e.g., "0110"=Control, "0201"=Energy)
+        
         Args:
             idx: Sign index
             state: State dictionary
         """
-        # Publish control state
-        if 'Control' in state:
-            topic = f"bms/sign/{idx}/power"
-            payload = "ON" if state['Control'] else "OFF"
-            self.mqtt_client.publish(topic, payload, qos=1)
+        device = self._get_device_by_index('mcb', idx)
+        if not device:
+            return
         
-        # Publish other attributes if needed
-        for attr_name, value in state.items():
-            if attr_name != 'Control':
-                # Có thể publish thêm các attributes khác
-                pass
+        attributes = device.get('attributes', {})
+        for attr_id, attr_config in attributes.items():
+            label = attr_config.get('label', '')
+            if label not in state:
+                continue
+            
+            value = state[label]
+            topic = f"bms/sign/{idx}/{attr_id}"
+            
+            if attr_config.get('type') == 'bool':
+                payload = "ON" if value else "OFF"
+            else:
+                payload = str(value)
+            
+            self.mqtt_client.publish(topic, payload, qos=1)
+            logger.debug(f"HMI Sign[{idx}] → {topic} = {payload}")
+    
+    def _publish_power_feedback(self, idx: int, state: Dict):
+        """
+        Publish Power Meter feedback về LVGL
+        
+        Topic format: bms/power/{idx}/{attr_id}
+        
+        Args:
+            idx: Power index
+            state: State dictionary
+        """
+        device = self._get_device_by_index('power_meter', idx)
+        if not device:
+            return
+        
+        attributes = device.get('attributes', {})
+        for attr_id, attr_config in attributes.items():
+            label = attr_config.get('label', '')
+            if label not in state:
+                continue
+            
+            value = state[label]
+            topic = f"bms/power/{idx}/{attr_id}"
+            payload = str(value)
+            self.mqtt_client.publish(topic, payload, qos=1)
+            logger.info(f"HMI Power[{idx}] → {topic} = {payload}")
+    
+    def _publish_light_feedback(self, idx: int, state: Dict):
+        """
+        Publish Light Sensor feedback về LVGL
+        
+        Topic format: bms/light/{idx}/{attr_id}
+        
+        Args:
+            idx: Light sensor index
+            state: State dictionary
+        """
+        device = self._get_device_by_index('light_sensor', idx)
+        if not device:
+            return
+        
+        attributes = device.get('attributes', {})
+        for attr_id, attr_config in attributes.items():
+            label = attr_config.get('label', '')
+            if label not in state:
+                continue
+            
+            value = state[label]
+            topic = f"bms/light/{idx}/{attr_id}"
+            payload = str(value)
+            self.mqtt_client.publish(topic, payload, qos=1)
+            logger.info(f"HMI Light[{idx}] → {topic} = {payload}")
     
     def _get_device_by_index(self, device_type: str, idx: int) -> Optional[Dict]:
         """
@@ -389,6 +471,14 @@ class HMIBridge:
             
             elif device_type == 'mcb':
                 if metadata.get('sign_index') == idx:
+                    return device
+            
+            elif device_type == 'power_meter':
+                if metadata.get('power_index') == idx:
+                    return device
+            
+            elif device_type == 'light_sensor':
+                if metadata.get('light_sensor_index') == idx:
                     return device
         
         return None

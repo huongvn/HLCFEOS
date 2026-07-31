@@ -25,7 +25,7 @@ class MQTTClient:
         self.broker = broker
         self.port = port
         self.client_id = client_id
-        self.client = mqtt.Client(client_id=client_id)
+        self.client = mqtt.Client(client_id=client_id, protocol=mqtt.MQTTv311, clean_session=True)
         self.client.on_connect = self._on_connect
         self.client.on_message = self._on_message
         self.client.on_disconnect = self._on_disconnect
@@ -91,8 +91,8 @@ class MQTTClient:
         if rc == 0:
             self.connected = True
             logger.info(f"Connected to MQTT broker successfully")
-            # Subscribe to all topics
-            self.client.subscribe("#", qos=1)
+            self.client.subscribe("#", qos=0)
+            logger.info(f"Subscribed to topic: # (QoS 0)")
         else:
             logger.error(f"Failed to connect to MQTT broker, return code {rc}")
     

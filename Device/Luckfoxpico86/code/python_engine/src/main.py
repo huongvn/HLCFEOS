@@ -19,6 +19,7 @@ from scheduler import Scheduler
 from hmi_bridge import HMIBridge
 from xsolar_bridge import XsolarBridge
 from ota import OTAUpdater
+from queue_manager import QueueManager
 
 # Configure logging
 logging.basicConfig(
@@ -26,7 +27,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler('/var/log/bms-engine.log', mode='a')
+        logging.FileHandler('/home/pico/python_engine/bms-engine.log', mode='a')
     ]
 )
 
@@ -54,10 +55,12 @@ class BMSEngine:
         self.state_manager = StateManager(self.config['database']['path'])
         
         # Local MQTT client (for device communication)
+        import random, string
+        _rs = ''.join(random.choices(string.ascii_lowercase, k=4))
         self.mqtt_local = MQTTClient(
             self.config['mqtt']['broker'],
             self.config['mqtt']['port'],
-            self.config['mqtt']['client_id']
+            f"{self.config['mqtt']['client_id']}-{_rs}"
         )
         
         # Remote MQTT client (for xsolar communication)
@@ -78,11 +81,15 @@ class BMSEngine:
         # Scheduler
         self.scheduler = Scheduler()
         
+        # Queue Manager - hàng đợi gửi/nhận cho từng gateway
+        self.queue_mgr = QueueManager(self.mqtt_local)
+        
         # HMI Bridge - giao tiếp với LVGL app
         self.hmi_bridge = HMIBridge(
             self.mqtt_local,
             self.state_manager,
-            self.device_manager
+            self.device_manager,
+            self.queue_mgr
         )
         
         # Xsolar Bridge - giao tiếp với xsolar cloud
@@ -135,6 +142,10 @@ class BMSEngine:
         
         # Connect to xsolar MQTT broker
         self.mqtt_xsolar.connect()
+        
+        # Start Queue Manager (in + out workers)
+        self.queue_mgr.set_process_callback(self._process_sensor_from_queue)
+        self.queue_mgr.start()
         
         # Start HMI Bridge
         self.hmi_bridge.start()
@@ -218,13 +229,21 @@ class BMSEngine:
             self.hmi_bridge.handle_message(topic, payload)
             return
         
-        # Parse Tasmota ZbReceived format
+        # Parse Tasmota ZbReceived format - queue for async processing
         if topic.startswith('tele/') and '/SENSOR' in topic:
-            self._process_zigbee_message(topic, payload)
+            self.queue_mgr.enqueue_sensor(topic, payload)
         
-        # Evaluate rules
-        self.rule_engine.process_message(topic, payload)
+        # Evaluate rules (only for dict payloads to avoid blocking paho thread)
+        if isinstance(payload, dict):
+            self.rule_engine.process_message(topic, payload)
     
+    def _process_sensor_from_queue(self, topic: str, payload: Any):
+        """Wrapper called by queue worker thread"""
+        self._process_zigbee_message(topic, payload)
+        # Evaluate rules (only for dict payloads)
+        if isinstance(payload, dict):
+            self.rule_engine.process_message(topic, payload)
+
     def _process_zigbee_message(self, topic: str, payload: Dict):
         """
         Process Zigbee message from Tasmota
@@ -233,7 +252,8 @@ class BMSEngine:
             topic: MQTT topic
             payload: MQTT payload (should contain ZbReceived)
         """
-        zb_received = payload.get('ZbReceived', {})
+        payload_dict = json.loads(payload) if isinstance(payload, str) else payload
+        zb_received = payload_dict.get('ZbReceived', {})
         
         for device_addr, device_data in zb_received.items():
             device = self.device_manager.get_device(device_addr)
@@ -243,10 +263,18 @@ class BMSEngine:
             
             # Normalize and store attributes
             for attr_id, attr_config in device['attributes'].items():
+                raw_value = None
+                # Try direct match first (ZCL native: RMSVoltage, Illuminance)
                 if attr_id in device_data:
+                    raw_value = device_data[attr_id]
+                # Try EF00/ prefix (Tuya devices: EF00/0101, EF00/0202)
+                elif f"EF00/{attr_id}" in device_data:
+                    raw_value = device_data[f"EF00/{attr_id}"]
+                
+                if raw_value is not None:
                     try:
                         value = self._normalize_attribute_value(
-                            attr_id, device_data[attr_id], attr_config
+                            attr_id, raw_value, attr_config
                         )
                         
                         # Handle composite attributes (like MCB dp6)
