@@ -276,6 +276,8 @@ class BMSEngine:
         now = time.time()
         for device_addr, device in self.device_manager.get_all_devices().items():
             last_seen = self._device_last_seen.get(device_addr, 0)
+            if last_seen == 0:
+                continue  # never seen, skip
             dtype = device['nr_type']
             timeout = self._offline_timeout_map.get(dtype, self._device_offline_timeout)
             if now - last_seen > timeout:
