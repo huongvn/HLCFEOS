@@ -168,18 +168,17 @@ class StateManager:
                 conn = sqlite3.connect(self.db_path)
                 cursor = conn.cursor()
                 
-                # Get latest value for each attribute (optimized with GROUP BY)
+                # Get latest value for each attribute (ROW_NUMBER window function)
                 cursor.execute('''
-                    SELECT m.attr_name, m.attr_value, m.attr_str, m.attr_type
-                    FROM device_metric m
-                    INNER JOIN (
-                        SELECT attr_name, MAX(ts) AS max_ts
+                    SELECT attr_name, attr_value, attr_str, attr_type
+                    FROM (
+                        SELECT attr_name, attr_value, attr_str, attr_type,
+                               ROW_NUMBER() OVER (PARTITION BY attr_name ORDER BY ts DESC) AS rn
                         FROM device_metric
                         WHERE device_id = ?
-                        GROUP BY attr_name
-                    ) latest ON m.attr_name = latest.attr_name AND m.ts = latest.max_ts
-                    WHERE m.device_id = ?
-                ''', (device_id, device_id))
+                    )
+                    WHERE rn = 1
+                ''', (device_id,))
                 
                 state = {}
                 for row in cursor.fetchall():
