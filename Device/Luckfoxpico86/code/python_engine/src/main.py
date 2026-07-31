@@ -373,6 +373,9 @@ class BMSEngine:
                 logger.debug(f"Unknown device: {device_addr}")
                 continue
             
+            # Collect metrics for batch insert
+            batch_metrics = []
+            
             # Normalize and store attributes
             for attr_id, attr_config in device['attributes'].items():
                 raw_value = None
@@ -391,31 +394,27 @@ class BMSEngine:
                         
                         # Handle composite attributes (like MCB dp6)
                         if isinstance(value, dict):
-                            # Store each decoded attribute separately
                             for decoded_id, decoded_value in value.items():
                                 decoded_config = self._get_decoded_attr_config(
                                     attr_config, decoded_id
                                 )
                                 if decoded_config:
-                                    self.state_manager.update_metric(
-                                        device_addr, 
-                                        decoded_config['label'], 
-                                        decoded_value, 
-                                        decoded_config['type'],
-                                        device['nr_type'],
-                                        attr_id
-                                    )
+                                    batch_metrics.append((
+                                        device_addr, decoded_config['label'],
+                                        decoded_value, decoded_config['type'],
+                                        device['nr_type'], attr_id
+                                    ))
                         else:
-                            self.state_manager.update_metric(
-                                device_addr, 
-                                attr_config['label'], 
-                                value, 
-                                attr_config['type'],
-                                device['nr_type'],
-                                attr_id
-                            )
+                            batch_metrics.append((
+                                device_addr, attr_config['label'],
+                                value, attr_config['type'],
+                                device['nr_type'], attr_id
+                            ))
                     except Exception as e:
                         logger.error(f"Failed to normalize attribute {attr_id} for {device_addr}: {e}")
+            
+            # Batch insert all metrics in one transaction
+            self.state_manager.batch_update_metrics(batch_metrics)
             
             # Log event
             self.state_manager.log_event(

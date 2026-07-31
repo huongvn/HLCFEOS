@@ -112,6 +112,48 @@ class StateManager:
             except Exception as e:
                 logger.error(f"Failed to log event for {device_id}: {e}")
     
+    def batch_update_metrics(self, metrics: list):
+        """
+        Batch update multiple device metrics in a single transaction.
+        Much faster than calling update_metric() repeatedly.
+        
+        Args:
+            metrics: List of tuples (device_id, attr_name, value, attr_type, device_type, raw_attr_id)
+        """
+        if not metrics:
+            return
+        with self.lock:
+            try:
+                conn = sqlite3.connect(self.db_path)
+                cursor = conn.cursor()
+                ts = datetime.now().isoformat()
+                
+                cursor.execute('BEGIN TRANSACTION')
+                for (device_id, attr_name, value, attr_type, device_type, raw_attr_id) in metrics:
+                    if attr_type == 'number':
+                        cursor.execute(
+                            '''INSERT INTO device_metric 
+                               (ts, device_id, device_type, attr_name, attr_value, attr_type, raw_attr_id) 
+                               VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                            (ts, device_id, device_type, attr_name, float(value), attr_type, raw_attr_id)
+                        )
+                    else:
+                        cursor.execute(
+                            '''INSERT INTO device_metric 
+                               (ts, device_id, device_type, attr_name, attr_str, attr_type, raw_attr_id) 
+                               VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                            (ts, device_id, device_type, attr_name, str(value), attr_type, raw_attr_id)
+                        )
+                cursor.execute('COMMIT')
+                conn.close()
+                logger.debug(f"Batch inserted {len(metrics)} metrics")
+            except Exception as e:
+                logger.error(f"Failed batch update: {e}")
+                try:
+                    cursor.execute('ROLLBACK')
+                    conn.close()
+                except: pass
+    
     def update_metric(self, device_id: str, attr_name: str, value: Any, 
                       attr_type: str, device_type: str = None, raw_attr_id: str = None):
         """
