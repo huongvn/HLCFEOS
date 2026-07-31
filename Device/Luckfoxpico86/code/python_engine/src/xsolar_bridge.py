@@ -75,7 +75,10 @@ class XsolarBridge:
     
     def _handle_remote_command(self, device_id: str, payload: Any):
         """
-        Xử lý lệnh điều khiển từ xsolar
+        Xử lý lệnh điều khiển từ xsolar (cho mọi loại device)
+        
+        Payload format: {"Power": "ON", "Temperature": 24, "Fan Speed": 2}
+        Key là label trong devices.yaml (vd: "Power", "Control")
         
         Args:
             device_id: Zigbee address (VD: "0xC5A9")
@@ -97,43 +100,41 @@ class XsolarBridge:
             logger.warning(f"Remote command: device not found: {device_id}")
             return
         
-        if device['nr_type'] != 'ac_controller':
-            logger.warning(f"Remote command: only AC supported, got {device['nr_type']}")
-            return
-        
         gateway = device['gateway']
         attributes = device['attributes']
         
-        # Build ZbSend writes
+        # Build ZbSend writes by matching payload keys to device attributes by label
         writes = {}
+        for attr_id, attr_config in attributes.items():
+            label = attr_config.get('label', '')
+            if label in cmd:
+                raw_val = cmd[label]
+                attr_type = attr_config.get('type', 'number')
+                if attr_type == 'bool':
+                    value = 1 if str(raw_val).upper() in ('ON', 'TRUE', '1') else 0
+                else:
+                    value = int(float(raw_val))
+                writes[f"EF00/{attr_id}"] = value
         
-        # Power
-        if 'power' in cmd:
-            power_attr_id = self._find_attr_id_by_label(attributes, 'Power')
-            if power_attr_id:
-                value = 1 if cmd['power'] in ('ON', True, 1) else 0
-                writes[f"EF00/{power_attr_id}"] = value
-        
-        # Temperature
-        if 'temperature' in cmd:
-            temp_attr_id = self._find_attr_id_by_label(attributes, 'Temperature')
-            if temp_attr_id:
-                writes[f"EF00/{temp_attr_id}"] = int(cmd['temperature'])
-        
-        # Fan speed
-        if 'fan' in cmd:
-            fan_attr_id = self._find_attr_id_by_label(attributes, 'Fan Speed')
-            if fan_attr_id:
-                writes[f"EF00/{fan_attr_id}"] = int(cmd['fan'])
+        # Also check decode sub-items for sign board
+        for attr_id, attr_config in attributes.items():
+            if attr_config.get('decode'):
+                for rule in attr_config['decode']:
+                    label = rule.get('label', '')
+                    if label in cmd:
+                        raw_val = cmd[label]
+                        value = int(float(raw_val))
+                        writes[f"EF00/{attr_id}"] = value  # write to composite parent
         
         if not writes:
-            logger.warning(f"Remote command: no valid commands for {device_id}")
+            logger.warning(f"Remote command: no matching attributes for {device_id}")
             return
         
         # Publish ZbSend về local broker
         zb_send_payload = {
             "Device": device_id,
-            "Write": writes
+            "Write": writes,
+            "Endpoint": 1
         }
         
         topic = f"cmnd/{gateway}/ZbSend"
@@ -148,7 +149,7 @@ class XsolarBridge:
             device['group']
         )
         
-        logger.info(f"Remote command from xsolar: {device_id} -> {cmd}")
+        logger.info(f"Remote command from xsolar: {device_id} {device['name']} -> {cmd}")
     
     def push_device_state(self, device_addr: str):
         """
