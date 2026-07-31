@@ -168,21 +168,17 @@ class StateManager:
                 conn = sqlite3.connect(self.db_path)
                 cursor = conn.cursor()
                 
-                # Get latest value for each attribute (ROW_NUMBER window function)
+                # Get latest value for each attribute (bare GROUP BY + MAX)
                 cursor.execute('''
-                    SELECT attr_name, attr_value, attr_str, attr_type
-                    FROM (
-                        SELECT attr_name, attr_value, attr_str, attr_type,
-                               ROW_NUMBER() OVER (PARTITION BY attr_name ORDER BY ts DESC) AS rn
-                        FROM device_metric
-                        WHERE device_id = ?
-                    )
-                    WHERE rn = 1
+                    SELECT attr_name, attr_value, attr_str, attr_type, MAX(ts)
+                    FROM device_metric
+                    WHERE device_id = ?
+                    GROUP BY attr_name
                 ''', (device_id,))
                 
                 state = {}
                 for row in cursor.fetchall():
-                    attr_name, attr_value, attr_str, attr_type = row
+                    attr_name, attr_value, attr_str, attr_type, _ = row
                     if attr_type == 'number':
                         state[attr_name] = attr_value
                     else:
