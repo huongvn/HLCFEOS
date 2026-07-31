@@ -358,7 +358,8 @@ class HMIBridge:
             topic = f"bms/ac/{idx}/{attr_id}"
             
             if attr_config.get('type') == 'bool':
-                payload = "ON" if value else "OFF"
+                val_bool = value in (1, '1', True, 'True', 'true', 'ON', 'on')
+                payload = "ON" if val_bool else "OFF"
             else:
                 payload = str(value)
             
@@ -390,7 +391,8 @@ class HMIBridge:
             topic = f"bms/sign/{idx}/{attr_id}"
             
             if attr_config.get('type') == 'bool':
-                payload = "ON" if value else "OFF"
+                val_bool = value in (1, '1', True, 'True', 'true', 'ON', 'on')
+                payload = "ON" if val_bool else "OFF"
             else:
                 payload = str(value)
             

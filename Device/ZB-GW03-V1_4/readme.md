@@ -79,7 +79,8 @@ Tasmota dùng lệnh riêng cho cài đặt Ethernet:
 Vào http://luckfox_ip/cs hoặc vào menu Console, gõ từng lệnh:
 
 ```
-EthIPAddress 192.168.1.135
+EthIPAddress 192.168.1.135 192.168.1.1 255.255.255.0 8.8.8.8
+Restart 1
 ```
 
 Thiết bị đã nhận địa chỉ IP mới
@@ -88,10 +89,35 @@ Cắm trực tiếp thiết bị vào máy tính để cài đặt tiếp các m
 ```
 Wifi 0
 Backlog Wifi 0; Rule2 on system#boot do Wifi 0 endon; Rule2 1
-EthGateway 192.168.1.1
-EthSubnetmask 255.255.255.0
-EthDNSServer 8.8.8.8
 Restart 1
+```
+Tắt Tính năng Quick Power Cycle
+```
+SetOption65 1
+```
+Tắt Bảo vệ Boot Loop
+```
+SetOption36 0
+
+```
+Chống kẹt phím
+```
+SetOption1 1
+```
+## Tóm tắt
+
+Tắt tự reset do điện chập chờn (QPC): SetOption65 1 (Có từ bản 8.2+)
+
+Tắt tự reset do Boot Loop: SetOption36 0 (Có từ bản 8.4+)
+
+Tắt tự reset bằng nút bấm 40s: SetOption1 1
+
+Lệnh Reset chủ động: Reset 1 hoặc Reset 2
+
+Nếu bạn muốn xóa sạch hoàn toàn cả danh sách thiết bị Zigbee đã add vào Gateway trên bản 12.5.0, hãy chạy thêm lệnh này trong Console trước khi reset:
+Plaintext
+```
+ZbZap
 ```
 
 ## Set MQTT BROKER
