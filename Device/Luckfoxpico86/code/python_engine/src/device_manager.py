@@ -101,6 +101,7 @@ class DeviceManager:
                 'label': attr.get('label', ''),
                 'type': attr.get('type', 'number'),
                 'scale': attr.get('scale'),
+                'formula': attr.get('formula'),
                 'unit': attr.get('unit'),
                 'display': attr.get('display', False),
                 'xsolar': attr.get('xsolar', False),

@@ -344,6 +344,14 @@ class BMSEngine:
             value = bool(raw_value)
         elif attr_type == 'number':
             value = float(raw_value)
+            # Apply formula if present (before scale)
+            formula = attr_config.get('formula')
+            if formula == 'zcl_illuminance':
+                # lux = 10^((raw - 1) / 10000), round to 1 decimal
+                if value > 0 and value != 0xFFFF:
+                    value = round(pow(10, (value - 1) / 10000), 1)
+                else:
+                    value = 0.0
             # Apply scale if present
             if attr_config.get('scale'):
                 value = value * attr_config['scale']
