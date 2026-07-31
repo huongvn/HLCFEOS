@@ -238,6 +238,11 @@ class BMSEngine:
             self.hmi_bridge.handle_message(topic, payload)
             return
         
+        # Handle Tasmota LWT (online/offline status)
+        if '/LWT' in topic and isinstance(payload, str):
+            is_online = payload.upper() == 'ONLINE'
+            self._handle_gateway_lwt(topic, is_online)
+        
         # Parse Tasmota ZbReceived format - queue for async processing
         if topic.startswith('tele/') and '/SENSOR' in topic:
             self.queue_mgr.enqueue_sensor(topic, payload)
@@ -260,6 +265,37 @@ class BMSEngine:
             read_cmd2 = {"Device": zigbee_addr, "Cluster": 1794, "Endpoint": 1, "Read": 1}
             self.mqtt_local.publish(f"cmnd/{gateway}/ZbSend", json.dumps(read_cmd2), qos=1)
 
+    def _handle_gateway_lwt(self, topic: str, is_online: bool):
+        """Handle Tasmota gateway LWT - publish online status for all devices"""
+        # Extract gateway name from topic: tele/tasmota_6DCAA8/LWT
+        parts = topic.split('/')
+        if len(parts) < 2:
+            return
+        gateway = parts[1]  # tasmota_6DCAA8
+        status = "ON" if is_online else "OFF"
+        
+        for device_addr, device in self.device_manager.get_all_devices().items():
+            if device.get('gateway') == gateway:
+                dtype = device['nr_type']
+                if dtype == 'ac_controller':
+                    idx = device['metadata'].get('ac_index')
+                    if idx is not None:
+                        self.mqtt_local.publish(f"bms/ac/{idx}/online", status, qos=1)
+                elif dtype == 'mcb':
+                    idx = device['metadata'].get('sign_index')
+                    if idx is not None:
+                        self.mqtt_local.publish(f"bms/sign/{idx}/online", status, qos=1)
+                elif dtype == 'power_meter':
+                    idx = device['metadata'].get('power_index')
+                    if idx is not None:
+                        self.mqtt_local.publish(f"bms/power/{idx}/online", status, qos=1)
+                elif dtype == 'light_sensor':
+                    idx = device['metadata'].get('light_sensor_index')
+                    if idx is not None:
+                        self.mqtt_local.publish(f"bms/light/{idx}/online", status, qos=1)
+        
+        logger.info(f"Gateway {gateway} {'ONLINE' if is_online else 'OFFLINE'}")
+    
     def _process_sensor_from_queue(self, topic: str, payload: Any):
         """Wrapper called by queue worker thread"""
         self._process_zigbee_message(topic, payload)
