@@ -61,6 +61,9 @@ class HMIBridge:
         # Subscribe Tasmota telemetry (use # to catch all, tele/# has issues with paho v1)
         self.mqtt_client.subscribe("#", qos=0)
         
+        # Subscribe Tasmota telemetry (explicit - # alone doesnt work with paho v1)
+        self.mqtt_client.subscribe("tele/#", qos=0)
+        
         logger.info("HMI Bridge started - subscribed to control topics")
     
     def handle_message(self, topic: str, payload: Any):
