@@ -20,6 +20,9 @@ xsolar:
 database:
   path: "data/bms.db"
 
+# Device offline detection
+offline_timeout: 120  # seconds before marking device as offline
+
 # Device definitions file (symlink -> /home/pico/devices.yaml)
 devices_file: "devices.yaml"
 

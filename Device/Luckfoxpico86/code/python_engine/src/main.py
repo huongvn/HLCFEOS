@@ -9,6 +9,7 @@ import sys
 import json
 from pathlib import Path
 from datetime import datetime
+import time
 from typing import Any, Dict, Optional
 
 from mqtt_client import MQTTClient
@@ -105,6 +106,10 @@ class BMSEngine:
         # OTA Updater - cập nhật phần mềm từ xa
         self.ota_updater = OTAUpdater(self.config.get('ota', {}))
         
+        # Track last_seen per device for offline detection
+        self._device_last_seen: Dict[str, float] = {}
+        self._device_offline_timeout = int(self.config.get('offline_timeout', 120))
+        
         # Setup MQTT message handler
         self.mqtt_local.set_message_handler(self._handle_mqtt_message)
         
@@ -120,6 +125,13 @@ class BMSEngine:
             30,  # every 30 seconds
             self._read_energy_values,
             name="Read energy"
+        )
+        
+        # Check device timeout (offline detection)
+        self.scheduler.add_periodic_task(
+            60,  # every 60 seconds
+            self._check_device_timeouts,
+            name="Check offline devices"
         )
         
         # Watch for devices.yaml changes (every 5 seconds)
@@ -251,6 +263,34 @@ class BMSEngine:
         if isinstance(payload, dict):
             self.rule_engine.process_message(topic, payload)
     
+    def _check_device_timeouts(self):
+        """Check for devices that haven't reported in a while -> mark offline"""
+        now = time.time()
+        for device_addr, device in self.device_manager.get_all_devices().items():
+            last_seen = self._device_last_seen.get(device_addr, 0)
+            if now - last_seen > self._device_offline_timeout:
+                # Device hasn't reported recently -> publish offline
+                dtype = device['nr_type']
+                status = "OFF"
+                if dtype == 'ac_controller':
+                    idx = device['metadata'].get('ac_index')
+                    if idx is not None:
+                        self.mqtt_local.publish(f"bms/ac/{idx}/online", status, qos=1)
+                elif dtype == 'mcb':
+                    idx = device['metadata'].get('sign_index')
+                    if idx is not None:
+                        self.mqtt_local.publish(f"bms/sign/{idx}/online", status, qos=1)
+                elif dtype == 'power_meter':
+                    idx = device['metadata'].get('power_index')
+                    if idx is not None:
+                        self.mqtt_local.publish(f"bms/power/{idx}/online", status, qos=1)
+                elif dtype == 'light_sensor':
+                    idx = device['metadata'].get('light_sensor_index')
+                    if idx is not None:
+                        self.mqtt_local.publish(f"bms/light/{idx}/online", status, qos=1)
+                
+                logger.warning(f"Device {device_addr} ({device['name']}) OFFLINE - last seen {now - last_seen:.0f}s ago")
+    
     def _read_energy_values(self):
         """Periodically read Metering cluster (0x0702) energy attributes from power meters"""
         import json
@@ -315,6 +355,7 @@ class BMSEngine:
         zb_received = payload_dict.get('ZbReceived', {})
         
         for device_addr, device_data in zb_received.items():
+            self._device_last_seen[device_addr] = time.time()
             device = self.device_manager.get_device(device_addr)
             if not device:
                 logger.debug(f"Unknown device: {device_addr}")
