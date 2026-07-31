@@ -109,20 +109,20 @@ class XsolarBridge:
         
         # Power
         if 'power' in cmd:
-            power_attr_id = self._find_attr_id_by_xsolar_key(attributes, 'power')
+            power_attr_id = self._find_attr_id_by_label(attributes, 'Power')
             if power_attr_id:
                 value = 1 if cmd['power'] in ('ON', True, 1) else 0
                 writes[f"EF00/{power_attr_id}"] = value
         
         # Temperature
         if 'temperature' in cmd:
-            temp_attr_id = self._find_attr_id_by_xsolar_key(attributes, 'temperature')
+            temp_attr_id = self._find_attr_id_by_label(attributes, 'Temperature')
             if temp_attr_id:
                 writes[f"EF00/{temp_attr_id}"] = int(cmd['temperature'])
         
         # Fan speed
         if 'fan' in cmd:
-            fan_attr_id = self._find_attr_id_by_xsolar_key(attributes, 'fan')
+            fan_attr_id = self._find_attr_id_by_label(attributes, 'Fan Speed')
             if fan_attr_id:
                 writes[f"EF00/{fan_attr_id}"] = int(cmd['fan'])
         
@@ -236,14 +236,14 @@ class XsolarBridge:
         """
         Build xsolar data dict từ device state
         
-        Chỉ lấy attributes có xsolar: true, dùng xsolar_key làm key name.
+        Chỉ lấy attributes có xsolar: true, dùng label làm key name.
         
         Args:
             device: Device dictionary từ device_manager
             state: State dictionary từ state_manager
             
         Returns:
-            Dictionary với xsolar_key -> value
+            Dictionary với label -> value
         """
         xsolar_data = {}
         
@@ -255,27 +255,24 @@ class XsolarBridge:
             if attr_config.get('decode'):
                 for rule in attr_config['decode']:
                     if rule.get('xsolar', False) and rule['id'] in state:
-                        xsolar_data[rule['xsolar_key']] = state[rule['id']]
+                        xsolar_data[rule.get('label', rule['id'])] = state[rule['id']]
             elif attr_config['label'] in state:
-                xsolar_key = attr_config.get('xsolar_key')
-                if xsolar_key:
-                    xsolar_data[xsolar_key] = state[attr_config['label']]
+                xsolar_data[attr_config['label']] = state[attr_config['label']]
         
         return xsolar_data
     
-    def _find_attr_id_by_xsolar_key(self, attributes: Dict, xsolar_key: str) -> Optional[str]:
+    def _find_attr_id_by_label(self, attributes: Dict, label: str) -> Optional[str]:
         """
-        Tìm attribute ID theo xsolar_key
+        Tìm attribute ID theo label
         
         Args:
             attributes: Attributes dictionary từ device
-            xsolar_key: xsolar key name (power, temperature, fan)
+            label: Label name (e.g., "Power", "Temperature", "Fan Speed")
             
         Returns:
             Attribute ID hoặc None
         """
         for attr_id, attr_config in attributes.items():
-            if attr_config.get('xsolar_key') == xsolar_key:
+            if attr_config.get('label') == label:
                 return attr_id
-        
         return None
