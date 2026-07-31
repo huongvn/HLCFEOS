@@ -109,6 +109,14 @@ class BMSEngine:
         # Track last_seen per device for offline detection
         self._device_last_seen: Dict[str, float] = {}
         self._device_offline_timeout = int(self.config.get('offline_timeout', 120))
+        # Per-type defaults (override global timeout)
+        self._offline_timeout_map = {
+            'power_meter':   self._device_offline_timeout,  # reports ~30s
+            'ac_controller': max(self._device_offline_timeout, 600),  # on-change
+            'mcb':           max(self._device_offline_timeout, 300),  # on-change
+            'light_sensor':  max(self._device_offline_timeout, 1800), # can be 10+ min
+            'switch':        max(self._device_offline_timeout, 600),
+        }
         
         # Setup MQTT message handler
         self.mqtt_local.set_message_handler(self._handle_mqtt_message)
@@ -268,7 +276,9 @@ class BMSEngine:
         now = time.time()
         for device_addr, device in self.device_manager.get_all_devices().items():
             last_seen = self._device_last_seen.get(device_addr, 0)
-            if now - last_seen > self._device_offline_timeout:
+            dtype = device['nr_type']
+            timeout = self._offline_timeout_map.get(dtype, self._device_offline_timeout)
+            if now - last_seen > timeout:
                 # Device hasn't reported recently -> publish offline
                 dtype = device['nr_type']
                 status = "OFF"
