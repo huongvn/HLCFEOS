@@ -344,6 +344,12 @@ class BMSEngine:
                 self.hmi_bridge.publish_feedback(device_addr, current_state)
             except Exception as e:
                 logger.error(f"Failed to publish HMI feedback for {device_addr}: {e}")
+            
+            # Event-driven push to xsolar (rate-limited)
+            try:
+                self.xsolar_bridge.push_device_state(device_addr)
+            except Exception as e:
+                logger.error(f"Failed to push {device_addr} to xsolar: {e}")
     
     def _normalize_attribute_value(self, attr_id: str, raw_value: Any, attr_config: Dict) -> Any:
         """
