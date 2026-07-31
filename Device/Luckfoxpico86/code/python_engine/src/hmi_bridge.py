@@ -356,6 +356,8 @@ class HMIBridge:
             label = attr_config.get('label', '')
             if label not in state:
                 continue
+            if not attr_config.get('display'):
+                continue
             
             value = state[label]
             topic = f"bms/ac/{idx}/{attr_id}"
@@ -389,6 +391,8 @@ class HMIBridge:
             label = attr_config.get('label', '')
             if label not in state:
                 continue
+            if not attr_config.get('display'):
+                continue
             
             value = state[label]
             topic = f"bms/sign/{idx}/{attr_id}"
@@ -421,6 +425,8 @@ class HMIBridge:
             label = attr_config.get('label', '')
             if label not in state:
                 continue
+            if not attr_config.get('display'):
+                continue
             
             value = state[label]
             topic = f"bms/power/{idx}/{attr_id}"
@@ -446,6 +452,8 @@ class HMIBridge:
         for attr_id, attr_config in attributes.items():
             label = attr_config.get('label', '')
             if label not in state:
+                continue
+            if not attr_config.get('display'):
                 continue
             
             value = state[label]
