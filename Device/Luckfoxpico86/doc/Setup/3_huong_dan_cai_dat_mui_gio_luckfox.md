@@ -65,83 +65,65 @@ sudo ln -sf /usr/share/zoneinfo/Asia/Ho_Chi_Minh /etc/localtime
 echo "Asia/Ho_Chi_Minh" | sudo tee /etc/timezone
 ```
 
+Kiem tra lại:
+
+```bash
+ls -la /etc/localtime
+```
+
+Hiện như dưới là thành công 
+
+```
+lrwxrwxrwx 1 root root 36 Aug  1 16:48 /etc/localtime -> /usr/share/zoneinfo/Asia/Ho_Chi_Minh
+```
+
+
 **Luu y:** Tren LuckFox Pico, `/etc/localtime` mac dinh tro ve `/usr/share/zoneinfo/Asia/Shanghai`. Can sua ca hai file de cai dat ben vung qua reboot.
 
 ## 4. Dong Bo Thoi Gian Qua NTP
 
-### 4.1. Van de voi timedatectl set-ntp
-
-LuckFox Pico khong ho tro NTP truc tiep qua timedatectl:
-
-```bash
-sudo timedatectl set-ntp true
+1.Cài đặt chrony:Cập nhật danh sách gói và cài đặt chrony:
+```
+sudo apt update
+sudo apt install chrony -y
+```
+2.Bật và kiểm tra dịch vụ:Kích hoạt service để chrony tự động chạy mỗi khi khởi động:
+```
+sudo systemctl enable --now chrony
+```
+Kiểm tra trạng thái đồng bộ thời gian:
+```
+chronyc tracking
 ```
 
+kết quả mogn đợi 
 ```
-Failed to set ntp: NTP not supported
+Reference ID    : 2DFCFABD (45.252.250.189)
+Stratum         : 4
+Ref time (UTC)  : Sat Aug 01 15:08:43 2026
+System time     : 0.000158123 seconds slow of NTP time
+Last offset     : -0.000583984 seconds
+RMS offset      : 0.000583984 seconds
+Frequency       : 42.321 ppm slow
+Residual freq   : -17.691 ppm
+Skew            : 1000000.000 ppm
+Root delay      : 0.064349540 seconds
+Root dispersion : 43.661857605 seconds
+Update interval : 57.1 seconds
+Leap status     : Normal
 ```
 
-### 4.2. Su dung ntpdate voi flag -u
-
-Dung ntpdate voi flag -u de tranh xung dot voi tien trinh ntpd dang chay nen:
-
-```bash
-sudo ntpdate -u pool.ntp.org
-```
-
-Ket qua dong bo thanh cong:
-
-```
-19 Mar 16:07:30 ntpdate[3802]: adjust time server 103.72.56.71 offset +0.009649 sec
-```
-
-**Luu y:** Loi 'NTP socket is in use' xay ra khi ntpd dang chiem port 123. Dung flag -u (unprivileged port) de bypass, hoac dung ntpd truoc: `sudo systemctl stop ntpd`
 
 ## 5. Luu Thoi Gian Vao RTC
 
 Sau khi dong bo NTP, luu vao dong ho phan cung (RTC) de giu gio dung khi reboot:
 
-```bash
+```
 sudo hwclock -w
 ```
 
 ## 6. Xac Nhan Ket Qua
-
-Ket qua sau khi hoan tat cai dat:
-
 ```
-Local time: Thu 2026-03-19 15:10:10 +07
-Universal time: Thu 2026-03-19 08:10:10 UTC
-RTC time: Thu 2026-03-19 08:10:11
-Time zone: Asia/Ho_Chi_Minh (+07, +0700)
-System clock synchronized: yes
-NTP service: n/a
-RTC in local TZ: no
-```
-
-- [OK] Time zone: Asia/Ho_Chi_Minh (+07, +0700) – Mui gio da dung
-- [OK] System clock synchronized: yes – Dong ho da duoc dong bo
-- [OK] Local time hien thi +07 thay vi CST
-
-## 7. Tom Tat Toan Bo Lenh
-
-Thuc hien theo thu tu cac buoc sau:
-
-```bash
-# Buoc 1: Doi mui gio
-sudo timedatectl set-timezone Asia/Ho_Chi_Minh
-
-# Buoc 2: Sua symlink va /etc/timezone (phong reset)
-sudo ln -sf /usr/share/zoneinfo/Asia/Ho_Chi_Minh /etc/localtime
-echo "Asia/Ho_Chi_Minh" | sudo tee /etc/timezone
-
-# Buoc 3: Dong bo thoi gian NTP
-sudo ntpdate -u pool.ntp.org
-
-# Buoc 4: Luu vao RTC
-sudo hwclock -w
-
-# Buoc 5: Kiem tra
 date && timedatectl
 ```
 
@@ -150,11 +132,4 @@ date && timedatectl
 | **Quoc gia / Khu vuc** | **Timezone ID** | **UTC Offset** |
 | --- | --- | --- |
 | **Viet Nam [Dang dung]** | Asia/Ho_Chi_Minh | +07:00 |
-| Thai Lan | Asia/Bangkok | +07:00 |
-| Trung Quoc | Asia/Shanghai | +08:00 |
-| Nhat Ban | Asia/Tokyo | +09:00 |
-| Han Quoc | Asia/Seoul | +09:00 |
-| Singapore | Asia/Singapore | +08:00 |
-| UTC | Etc/UTC | +00:00 |
 
-*Tai lieu duoc tao tu phien lam viec thuc te tren thiet bi LuckFox Pico – 19/3/2026*
