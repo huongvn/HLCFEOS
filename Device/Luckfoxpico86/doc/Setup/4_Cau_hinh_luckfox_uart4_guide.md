@@ -66,7 +66,13 @@ Kiểm tra nội dung file cấu hình:
 ```bash
 cat /etc/luckfox.cfg
 ```
-
+Kết quả mong đợi
+```
+SPI0_M0_CS_ENABLE=1
+SPI0_M0_MODE=1
+TS_ENABLE=1
+UART4_M0_STATUS=1
+```
 ## Tự Động Enable Khi Khởi Động
 
 Lệnh `luckfox-config load` đã được gọi sẵn trong `/etc/rc.local` của Luckfox Pico Ultra W. Không cần thêm gì:
@@ -83,6 +89,9 @@ sudo reboot
 # Sau khi SSH lại:
 ls /dev/ttyS*
 ```
+Kết quả mong đợi: 
+
+`/dev/ttyS4` sẵn sàng sử dụng.
 
 ## Xử Lý Lỗi Thường Gặp
 
