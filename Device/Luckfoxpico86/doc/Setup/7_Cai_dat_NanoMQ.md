@@ -50,6 +50,20 @@ WantedBy=multi-user.target
 sudo systemctl daemon-reload
 sudo systemctl enable nanomq
 sudo systemctl restart nanomq
+sudo systemctl status nanomq
+```
+
+kết quả mong đợi 
+```
+pico@luckfox:~$ sudo systemctl status nanomq
+● nanomq.service
+     Loaded: loaded (/etc/systemd/system/nanomq.service; enabled; vendor preset: enabled)
+     Active: active (running) since Sun 2026-08-02 00:36:21 +07; 18s ago
+   Main PID: 4018 (nanomq)
+        CPU: 30ms
+     CGroup: /system.slice/nanomq.service
+             └─4018 /usr/local/bin/nanomq start
+
 ```
 
 ## 4. Các lệnh kiểm tra & Theo dõi (Log)
@@ -62,15 +76,7 @@ sudo systemctl restart nanomq
 - **Theo dõi log trực tiếp:** `sudo journalctl -u nanomq -f`
 - **Kiểm tra phiên bản:** `nanomq --version`
 - **Kiểm tra cổng 1883 (MQTT):** `netstat -tln | grep 1883`
-
-### Python BMS Engine
-
-- **Kiểm tra trạng thái:** `sudo systemctl status bms-engine`
-- **Theo dõi log trực tiếp:** `sudo journalctl -u bms-engine -f`
-- **Xem log file:** `sudo tail -f /var/log/bms-engine.log`
-- **Restart service:** `sudo systemctl restart bms-engine`
-- **Stop service:** `sudo systemctl stop bms-engine`
-
+- 
 ## 5. Kiểm tra kết nối MQTT
 
 ```bash
@@ -83,17 +89,6 @@ mosquitto_sub -h localhost -p 1883 -t "tele/tasmota_6DCAA8/#" -v
 # Test publish command
 mosquitto_pub -h localhost -p 1883 -t "bms/ac/0/power/set" -m "ON"
 ```
-
-## 6. So sánh với Node-RED (cũ)
-
-| Aspect | Node-RED (cũ) | Python BMS Engine (mới) |
-|--------|---------------|-------------------------|
-| RAM usage | ~100MB | ~30MB |
-| Deploy | Import flow qua UI | Copy qua USB/SSH/SFTP + `./deploy.sh` |
-| Debug | Debug tab trong UI | `journalctl -f` |
-| Version control | JSON files | Python files |
-| Maintenance | UI-based | Code-based |
-| Performance | Medium | High |
 
 ### Lưu ý cho Luckfox Pico:
 
