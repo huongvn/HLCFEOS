@@ -114,27 +114,10 @@ Topic: smarteos/bluCafe/0x51DF
     "Voltage A": 224.35,
     "Current A": 2.35,
     "Active Power A": 425,
-    "Reactive Power A": -118,
-    "Apparent Power A": 529,
     "PF A": 0.8,
-    "Voltage B": 221.07,
-    "Current B": 2.47,
-    "Active Power B": 462,
-    "Reactive Power B": -114,
-    "Apparent Power B": 547,
-    "PF B": 0.84,
-    "Voltage C": 221.87,
-    "Current C": 2.27,
-    "Active Power C": 403,
-    "Reactive Power C": -99,
-    "Apparent Power C": 504,
-    "PF C": 0.79,
     "Total Power": 1291,
-    "Total Reactive": -332,
-    "Total Apparent": 1582,
     "Frequency": 50.01,
-    "Total Energy": 209.4,
-    "Energy Received": 0.27
+    "Total Energy": 209.4
   }
 }
 ```
