@@ -1,0 +1,6 @@
+# BMS Engine - Rust
+/target/
+/data/
+**/*.rs.bk
+*.tar.gz
+ota/
