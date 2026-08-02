@@ -35,6 +35,10 @@ struct MqttConfig {
     broker: String,
     port: u16,
     client_id: String,
+    #[serde(default)]
+    user: String,
+    #[serde(default)]
+    pass: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -55,6 +59,21 @@ struct XsolarConfig {
 
 fn default_topic_prefix() -> String {
     "smarteos/bluCafe".to_string()
+}
+
+/// Read credentials from env var (priority), else fall back to config value.
+/// Empty string is returned as None (no auth sent to the broker).
+fn cred_from_env(env_name: &str, config_val: &str) -> Option<String> {
+    std::env::var(env_name)
+        .ok()
+        .filter(|v| !v.is_empty())
+        .or_else(|| {
+            if config_val.is_empty() {
+                None
+            } else {
+                Some(config_val.to_string())
+            }
+        })
 }
 fn default_push_interval() -> u64 {
     600
@@ -254,33 +273,32 @@ async fn main() -> anyhow::Result<()> {
         .collect();
     let local_client_id = format!("{}-{}", config.mqtt.client_id, random_suffix);
 
+    // Credentials from env vars take priority (keeps secrets out of the
+    // tracked config.yaml). Fall back to config values (usually empty).
+    let local_user = cred_from_env("BMS_MQTT_USER", &config.mqtt.user);
+    let local_pass = cred_from_env("BMS_MQTT_PASS", &config.mqtt.pass);
+
     let (mqtt_local, mut local_rx) = MqttClient::new(
         &config.mqtt.broker,
         config.mqtt.port,
         &local_client_id,
-        None,
-        None,
+        local_user.as_deref(),
+        local_pass.as_deref(),
     );
     let mqtt_local = Arc::new(mqtt_local);
 
-    let xsolar_user = if config.xsolar.user.is_empty() {
-        None
-    } else {
-        Some(config.xsolar.user.as_str())
-    };
-    let xsolar_pass = if config.xsolar.pass.is_empty() {
-        None
-    } else {
-        Some(config.xsolar.pass.as_str())
-    };
-    let xsolar_client_id = format!("{}_xsolar", config.mqtt.client_id);
+    let xsolar_user = cred_from_env("BMS_XSOLAR_USER", &config.xsolar.user);
+    let xsolar_pass = cred_from_env("BMS_XSOLAR_PASS", &config.xsolar.pass);
+    // Unique client_id to avoid session-takeover conflicts with other instances
+    // sharing the same base id on the xsolar broker.
+    let xsolar_client_id = format!("{}_xsolar_{}", config.mqtt.client_id, random_suffix);
 
     let (mqtt_xsolar, mut xsolar_rx) = MqttClient::new(
         &config.xsolar.broker,
         config.xsolar.port,
         &xsolar_client_id,
-        xsolar_user,
-        xsolar_pass,
+        xsolar_user.as_deref(),
+        xsolar_pass.as_deref(),
     );
     let mqtt_xsolar = Arc::new(mqtt_xsolar);
 

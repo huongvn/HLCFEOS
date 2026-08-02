@@ -16,6 +16,7 @@ StandardError=journal
 SyslogIdentifier=bms-engine
 
 Environment=RUST_LOG=info
+EnvironmentFile=-/home/pico/bms-engine/.env
 
 NoNewPrivileges=true
 PrivateTmp=true

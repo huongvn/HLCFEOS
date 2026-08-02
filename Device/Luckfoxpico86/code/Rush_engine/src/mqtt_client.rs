@@ -49,8 +49,9 @@ impl MqttClient {
 
         let conn = connected.clone();
         let tx = message_tx.clone();
+        let cid = client_id.to_string();
         tokio::spawn(async move {
-            run_event_loop(eventloop, conn, tx).await;
+            run_event_loop(eventloop, cid, conn, tx).await;
         });
 
         (
@@ -100,6 +101,7 @@ impl MqttClient {
 
 async fn run_event_loop(
     mut eventloop: rumqttc::EventLoop,
+    client_id: String,
     connected: Arc<std::sync::atomic::AtomicBool>,
     message_tx: mpsc::UnboundedSender<MqttMessage>,
 ) {
@@ -107,7 +109,7 @@ async fn run_event_loop(
         match eventloop.poll().await {
             Ok(Event::Incoming(Packet::ConnAck(_))) => {
                 connected.store(true, std::sync::atomic::Ordering::Relaxed);
-                info!("Connected to MQTT broker successfully");
+                info!("[{}] Connected to MQTT broker successfully", client_id);
             }
             Ok(Event::Incoming(Packet::Publish(publish))) => {
                 let topic = publish.topic.clone();
@@ -127,11 +129,11 @@ async fn run_event_loop(
             Ok(Event::Outgoing(_)) => {}
             Ok(Event::Incoming(Packet::Disconnect)) => {
                 connected.store(false, std::sync::atomic::Ordering::Relaxed);
-                warn!("Disconnected from MQTT broker");
+                warn!("[{}] Disconnected from MQTT broker", client_id);
             }
             Err(e) => {
                 connected.store(false, std::sync::atomic::Ordering::Relaxed);
-                error!("MQTT event loop error: {}", e);
+                error!("[{}] MQTT event loop error: {}", client_id, e);
                 tokio::time::sleep(Duration::from_secs(5)).await;
             }
             _ => {}

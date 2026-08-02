@@ -13,11 +13,15 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Build if binary doesn't exist
-BINARY="target/release/bms-engine"
+ARM_TARGET="armv7-unknown-linux-musleabihf"
+BINARY="target/$ARM_TARGET/release/bms-engine"
 if [ ! -f "$BINARY" ]; then
     echo "Binary not found, building..."
-    if command -v cargo &>/dev/null; then
-        cargo build --release
+    if command -v cargo-zigbuild &>/dev/null; then
+        cargo zigbuild --release --target "$ARM_TARGET"
+    elif command -v cargo &>/dev/null; then
+        echo "Error: cargo-zigbuild not found. Install with: cargo install cargo-zigbuild"
+        exit 1
     else
         echo "Error: Rust/cargo not found"
         exit 1

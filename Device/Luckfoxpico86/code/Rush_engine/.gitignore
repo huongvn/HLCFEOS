@@ -4,3 +4,8 @@
 **/*.rs.bk
 *.tar.gz
 ota/
+
+# Credentials (keep secrets out of git)
+.env
+secrets.env
+*.env

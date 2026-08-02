@@ -1,6 +1,6 @@
 #!/bin/bash
 # BMS Engine (Rust) Build Script
-# Cross-compile for Luckfox ARM 32-bit
+# Cross-compile for Luckfox ARM 32-bit (musl static)
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -16,46 +16,50 @@ if ! command -v cargo &>/dev/null; then
     exit 1
 fi
 
-# Add ARM target if not present
-ARM_TARGET="armv7-unknown-linux-gnueabihf"
+# Add ARM musl target if not present
+ARM_TARGET="armv7-unknown-linux-musleabihf"
 if ! rustup target list --installed | grep -q "$ARM_TARGET"; then
     echo "Adding ARM target: $ARM_TARGET"
     rustup target add "$ARM_TARGET"
 fi
 
-# Install cross-compiler if needed
-if ! command -v arm-linux-gnueabihf-gcc &>/dev/null; then
-    echo "WARNING: arm-linux-gnueabihf-gcc not found."
-    echo "Install with: sudo apt install gcc-arm-linux-gnueabihf"
-    echo "Or use cargo-cross: cargo install cross"
-    echo ""
-    echo "Falling back to native build..."
-    TARGET=""
-else
-    TARGET="$ARM_TARGET"
+# Check zig (musl cross-linker)
+if ! command -v zig &>/dev/null; then
+    echo "Error: zig not found."
+    echo "Install: download from https://ziglang.org/download and add to PATH"
+    echo "  e.g.  curl -L -o /tmp/zig.tar.xz https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz"
+    echo "        mkdir -p ~/zig && tar xJf /tmp/zig.tar.xz -C ~/zig --strip-components=1"
+    echo "        export PATH=\"\$HOME/zig:\$PATH\""
+    exit 1
+fi
+
+# Check cargo-zigbuild
+if ! command -v cargo-zigbuild &>/dev/null; then
+    echo "Error: cargo-zigbuild not found."
+    echo "Install with: cargo install cargo-zigbuild"
+    exit 1
 fi
 
 echo ""
-echo "Building for target: ${TARGET:-native}"
+echo "Building for target: $ARM_TARGET (musl static)"
 
 if [ "$RELEASE" = "release" ]; then
     echo "Mode: release (optimized)"
-    if [ -n "$TARGET" ]; then
-        cargo build --release --target "$TARGET"
-        BINARY="target/$TARGET/release/bms-engine"
-    else
-        cargo build --release
-        BINARY="target/release/bms-engine"
-    fi
+    cargo zigbuild --release --target "$ARM_TARGET"
+    BINARY="target/$ARM_TARGET/release/bms-engine"
 else
     echo "Mode: debug"
-    if [ -n "$TARGET" ]; then
-        cargo build --target "$TARGET"
-        BINARY="target/$TARGET/debug/bms-engine"
-    else
-        cargo build
-        BINARY="target/debug/bms-engine"
-    fi
+    cargo zigbuild --target "$ARM_TARGET"
+    BINARY="target/$ARM_TARGET/debug/bms-engine"
+fi
+
+# Verify statically linked (must NOT require glibc of the dev machine)
+echo ""
+echo "=== Verify (must be statically linked) ==="
+if file "$BINARY" | grep -q "statically linked"; then
+    echo "OK: statically linked"
+else
+    echo "WARNING: binary is dynamically linked - may fail on board due to glibc version"
 fi
 
 echo ""
