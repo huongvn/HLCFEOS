@@ -61,6 +61,12 @@ file target/armv7-unknown-linux-musleabihf/release/bms-engine
 
 ### 2.2. Copy lên Luckfox
 
+> Dừng service trước khi thay binary (nếu đang chạy), nếu không sẽ lỗi `Text file busy`:
+
+```bash
+ssh pico@<IP_LUCKFOX> 'echo <pass> | sudo -S systemctl stop bms-engine'
+```
+
 ```bash
 cd Device/Luckfoxpico86/code/Rush_engine
 BIN=target/armv7-unknown-linux-musleabihf/release/bms-engine
@@ -75,23 +81,34 @@ mkdir -p /home/pico/bms-engine/config /home/pico/bms-engine/data
 chmod +x /home/pico/bms-engine/bms-engine
 ```
 
-Copy config + rules + version (từ máy dev):
+Copy config + rules + version (từ máy dev) — các file này đi thẳng vào thư mục `config/`:
 
 ```bash
 cd Device/Luckfoxpico86/code/Rush_engine
-scp config/config.yaml config/rules.yaml VERSION pico@<IP_LUCKFOX>:/home/pico/bms-engine/
-ssh pico@<IP_LUCKFOX> 'cp /home/pico/bms-engine/config.yaml /home/pico/bms-engine/config/config.yaml; cp /home/pico/bms-engine/rules.yaml /home/pico/bms-engine/config/rules.yaml'
+scp config/config.yaml config/rules.yaml pico@<IP_LUCKFOX>:/home/pico/bms-engine/config/
+scp VERSION pico@<IP_LUCKFOX>:/home/pico/bms-engine/
+```
+
+Sau khi copy xong, chạy lại service:
+
+```bash
+ssh pico@<IP_LUCKFOX>
+sudo systemctl start bms-engine
 ```
 
 ### 2.3. Copy devices.yaml
 
+`devices.yaml` nằm ngoài thư mục engine; engine dùng **symlink** trỏ về file đó:
+
 ```bash
-# Trên board: devices.yaml nằm ngoài, dùng symlink
+# Nguồn trên board từ nơi sync (VD bản LVGL): copy thành file thật
 cp /home/pico/lvgl_project/devices.yaml /home/pico/devices.yaml
 
-# Symlink vào thư mục app
-ln -s /home/pico/devices.yaml /home/pico/bms-engine/devices.yaml
+# Symlink trong thư mục engine trỏ về file thật
+ln -sf /home/pico/devices.yaml /home/pico/bms-engine/devices.yaml
 ```
+
+> `/home/pico/devices.yaml` là **file thật** (Engine `DeviceManager` hot-reload theo `mtime` mỗi 5s); `/home/pico/bms-engine/devices.yaml` chỉ là **symlink** trỏ tới nó — khi sửa đổi hãy sửa file thật ở `/home/pico/devices.yaml`, không cần restart engine.
 
 ---
 
@@ -117,6 +134,8 @@ Các mục quan trọng:
 | `database.path` | `data/bms.db` | Đường dẫn tương đối so với WorkingDirectory |
 | `devices_file` | `devices.yaml` | Symlink → `/home/pico/devices.yaml` |
 | `rules_file` | `config/rules.yaml` | |
+| `http.enabled` | `true` | Bật REST API cho App LVGL |
+| `http.host` / `http.port` | `127.0.0.1` / `8080` | App LVGL gọi REST + SSE (thay vì MQTT cục bộ) |
 | `ota.ota_url` | `http://<OTA-SERVER>/ota/bms/check.json` | Đổi IP cho đúng OTA server |
 | `ota.enabled` | `true` | |
 
@@ -154,7 +173,7 @@ Log mong đợi (thấy 2 kết nối MQTT thành công):
 
 ```
 [INFO bms_engine] Initializing BMS Engine...
-[INFO bms_engine::device_manager] Loaded 6 devices from "devices.yaml"
+[INFO bms_engine::device_manager] Loaded 7 devices from "devices.yaml"
 [INFO bms_engine::mqtt_client] MQTT client initialized: localhost:1883, client_id=bms-engine-xxxx
 [INFO bms_engine::mqtt_client] MQTT client initialized: mqtt.xsolar.energy:1883, client_id=bms-engine_xsolar_xxxx, auth=yes
 [INFO bms_engine::mqtt_client] [bms-engine-xxxx] Connected to MQTT broker successfully
@@ -264,6 +283,6 @@ Kết quả mong đợi:
 ## 7. Tài liệu liên quan
 
 - [Cài đặt NanoMQ](7_Cai_dat_NanoMQ.md)
-- [Cài đặt Python BMS Engine](8_Cai_app_python.md)
 - [Cài đặt OTA server](10_ota_server_setup.md)
+- Kiến trúc & API hiện tại: `Device/Luckfoxpico86/code/doc/architecture.md` + `code/doc/api_redesign.md`
 - Nguồn code: `Device/Luckfoxpico86/code/Rush_engine/`

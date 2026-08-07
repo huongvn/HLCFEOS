@@ -1,5 +1,10 @@
 # Plan: Redesign API Design (App LVGL ↔ Rush Engine)
 
+> **Trạng thái**: Thiết kế này **đã triển khai** (REST + SSE hiện dùng). Xem
+> [architecture.md](architecture.md) làm tài liệu mô tả code hiện tại; file này
+> giữ làm lịch sử thiết kế + quy ước slot/card. Phần 2.f đã được điều chỉnh cho
+> khớp hành vi thực tế khi thiết bị offline.
+
 ## 1. Mục tiêu
 Thay thế cơ chế giao tiếp dựa trên cấu trúc Topic MQTT (ví dụ: `bms/ac/0/0101/set`) bằng một bộ REST API hướng đối tượng (Object-Oriented API) tường minh hơn.
 
@@ -129,26 +134,31 @@ Do phần cứng mất thời gian thực thi (hoặc phản hồi trễ), Engin
 > **Bối cảnh**: Nút toggle có độ trễ thực thi phần cứng → nếu UI thụ động chờ dữ liệu từ GET/SSE mà thiết bị chưa kịp đổi, nút sẽ bị "nháy/gạt ngược lại".
 
 ```
-[User Click] ────► 1. Đổi UI sang trạng thái mới NGAY LẬP TỨC (optimistic)
-                   2. Lock control (Disabled / Loading)
-                   3. Sinh 'command_id' = "cmd_fe_<random>"
-                   4. Bật đếm ngược Timeout 5s (phía App)
-                   5. POST /api/v1/devices/{id}/actions
-                                │
-   ┌────────────────────────────┴────────────────────────────┐
-   │                                                         │
-[202 + SSE ack khớp "cmd_fe_<random>"]             [HTTP lỗi / Timeout quá 5s]
-   │                                                         │
-   ▼                                                         ▼
-- Unlock control                                      - Unlock control
-- Giữ nguyên trạng thái ON                             - ROLLBACK gạt nút về trạng thái cũ
-                                                       - Hiện thông báo lỗi (toast)
+[User Click] ──► 1. Đổi UI sang trạng thái mới NGAY (optimistic)
+                  2. Lock control (Disabled / Loading)
+                  3. Sinh 'command_id' = "cmd_fe_<random>"
+                  4. Bật đếm ngược Timeout 5s (phía App)
+                  5. POST /api/v1/devices/{id}/actions
+                          │
+          ┌───────────────┴───────────────┐
+          │                               │
+[202 + SSE ack khớp command_id]  [HTTP lỗi / Timeout 5s]
+          │                               │
+          ▼                               ▼
+- Unlock; giữ trạng thái mới      - Unlock control
+  (phần cứng đã đổi)               - ONLINE  → ROLLBACK về trạng thái cũ
+                                   - OFFLINE → GIỮ trạng thái đã chọn
+                                   - Hiện banner "chua duoc xac nhan"
+```
+> **Điều chỉnh thực tế (2026-08-07)**: Khi thiết bị offline, UI **giữ nguyên trạng thái người dùng chọn** (không rollback) cho cả toggle lẫn set-attribute, kèm banner *"chua duoc xac nhan"*. Chỉ khi device **online** mới rollback về trạng thái cũ sau timeout. Bởi lệnh tới thiết bị offline vẫn được gateway phát (Endpoint:1) và sẽ đồng bộ khi thiết bị quay lại.
+```
+> **Điều chỉnh thực tế (2026-08-07)**: Khi thiết bị offline, UI **giữ nguyên trạng thái người dùng chọn** (không rollback) cho cả toggle lẫn set-attribute, kèm banner *"chua duoc xac nhan"*. Chỉ khi device **online** mới rollback về trạng thái cũ sau timeout. Bởi lệnh tới thiết bị offline vẫn được gateway phát (Endpoint:1) và sẽ đồng bộ khi thiết bị quay lại.
 ```
 
 1. **Optimistic UI**: Khi user bấm, gạt nút ngay lập tức (không chờ server).
 2. **Lock**: Vô hiệu hóa control đang Pending → chống user spam / đa luồng ghi.
 3. **`command_id`**: Sinh GUID/UUID duy nhất cho mỗi lần bấm; giữ để khớp với SSE ack.
-4. **Timeout 5s**: Nếu hết thời gian chưa nhận ack → rollback + báo lỗi.
+4. **Timeout 5s**: Hết thời gian chưa nhận ack → nếu **online** rollback về trạng thái cũ + báo lỗi; nếu **offline** giữ trạng thái đã chọn + banner "chua duoc xac nhan".
 5. **Ignore Stale GET/SSE**: Trong lúc control đang Pending, nếu `GET /state` hoặc SSE trả về giá trị CŨ (thiết bị chưa kịp đổi), Frontend **bắt buộc BỎ QUA** — không ghi đè lên UI cho tới khi ack hoặc timeout. Chỉ chấp nhận bản tin có `ack_command_id` khớp.
 
 ---

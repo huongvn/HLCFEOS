@@ -108,8 +108,11 @@ App  ──POST /api/v1/devices/sign_0/actions {command_id, action:TURN_ON}─�
                                                                            │
 Engine: 1) idempotency: nếu command_id đang pending → 202 không tái gửi    │
         2) hmi_bridge.execute_action() → tìm bool control attr             │
-        3) queue_mgr gửi cmnd/{gateway}/ZbSend {"Device":addr,"Write":{...}}│
-        4) command_tracker.register(pending) → 202 PENDING                 │
+        3) queue_mgr gửi cmnd/{gateway}/ZbSend                              │
+           {"Device":addr,"Endpoint":1,"Write":{...}}                       │
+           (* Endpoint:1 bắt buộc — thiếu nó, Tasmota khi device offline   │
+              trả {"ZbSend":"Missing endpoint"} và KHÔNG phát sóng)         │
+        4) command_tracker.register(pending) → 202 PENDING                  │
                                                                            ▼
                                                           Gateway → thiết bị Zigbee
                                                                            │
@@ -120,7 +123,10 @@ Engine: SSE data: {"event":"ATTR_UPDATED","device_id":"sign_0",
                     "attr":"0110","value":"ON","ack_command_id":"cmd_..."}
                                                                            │
 App:  http_client_poll() → bms_handle_api_event() → ack → unlock device    │
-       + update UI. Hết 5s chưa ack → bms_rollback() hoàn trả trạng thái   │
+        + update UI. Hết 5s chưa ack:                                       │
+           • device ONLINE  → bms_rollback() hoàn trả trạng thái cũ         │
+           • device OFFLINE → giữ trạng thái người dùng đã chọn              │
+             (không rollback về 0/OFF) + banner "chua duoc xac nhan"        │
 ```
 - Mỗi device chỉ **1 lệnh pending** tại một thời điểm (`by_device` map); lệnh mới thay thế lệnh cũ.
 - `TURN_ON`/`TURN_OFF`/`TOGGLE`/`SET_ATTRIBUTE` do `hmi_bridge.execute_action()` xử lý.
@@ -197,7 +203,7 @@ Engine phục vụ tại `http://127.0.0.1:8080` (cấu hình trong `config.yaml
 - **Idempotent**: cùng `command_id` gửi lại → 202 PENDING, không tái gửi lệnh.
 
 ### d. SSE — `GET /api/v1/events`
-- Đầu stream: replay `bus.snapshot()` (giá trị gần nhất, sắp xếp theo topic).
+- Đầu stream: replay `bus.snapshot()` (giá trị gần nhất, sắp xếp theo topic) **+ thêm `online` snapshot cho từng device** để chấm xanh/đỏ đúng ngay khi App mở.
 - Giữ kết nối: `data: ping` mỗi **15s**.
 - Event cập nhật attr:
 ```json
@@ -245,7 +251,10 @@ data: {"event":"ATTR_UPDATED","device_id":"sign_0","attr":"online","value":true,
 ### d. Điều khiển (`bms_set_onoff`)
 - Nút **BẬT/TẮT** (`onoff_btns`) dùng chung cho card AC/Sign/Switch (cả Overview lẫn tab expanded) — mỗi nút gửi lệnh xác định `TURN_ON`/`TURN_OFF` thay vì toggle.
 - Trước khi gửi: kiểm tra `bms_device_locked()` → tạo pending slot (CMD_TOGGLE, lưu `prev_bool_val`) → `bms_issue_action()` → gửi POST actions.
-- `bms_process_pending()` chạy mỗi 250ms: hết deadline **5s** chưa ack → `bms_rollback()` hoàn trả giá trị cũ + rebuild.
+- `bms_process_pending()` chạy mỗi 250ms: hết deadline **5s** chưa ack:
+  - **device ONLINE** → `bms_rollback()` hoàn trả giá trị cũ + rebuild.
+  - **device OFFLINE** (chấm đỏ) → **giữ trạng thái người dùng đã chọn** cho cả `CMD_TOGGLE` (ON/OFF) lẫn `CMD_SET_ATTR` (nhiệt độ +/−, fan, mode) — không rollback — và hiện banner đỏ *"chua duoc xac nhan"* (~3.5s). Thiết bị sẽ đồng bộ về giá trị thật khi report trở lại.
+- Nút nhiệt độ `+`/`−`, fan, mode (`SET_ATTRIBUTE`) qua `bms_publish()` → HTTP; engine resolve attr theo **ID (`0202`) hoặc label (`Temperature`)** — cả hai đều chấp nhận.
 
 ### e. Màn hình
 | Screen | Nội dung |
@@ -285,9 +294,8 @@ Device/Luckfoxpico86/code/
 │   │   └── rules.yaml      # Rule engine (mqtt/time triggers)
 │   └── build.sh / deploy.sh
 └── doc/
-    ├── architecture.md     # (tài liệu này)
-    ├── api_redesign.md     # Thiết kế REST API (đã triển khai)
-    └── canopi_mqtt_engine_kien_truc_review.md
+    ├── architecture.md     # (tài liệu này) — kiến trúc & API hiện tại
+    └── api_redesign.md     # Lịch sử thiết kế REST API (đã triển khai)
 ```
 
 ---
@@ -329,4 +337,8 @@ cd Device/Luckfoxpico86/code/Rush_engine
   - Parse catalog đặt đúng anchor `"display_attrs"` + parse type từ `"id"` (trước đây Sign bị render bằng template AC).
   - Nút điều khiển bool → rebuild immediate (`bms_rebuild_active_screen`) thay vì `throttled_rebuild` (tránh treo state khi poll dày).
   - Các card AC/Switch đổi sang nút BẬT/TẮT (style Sign) — bỏ toggle `lv_switch` ở Overview lẫn tab expanded.
+  - Các card AC/Switch đổi sang nút BẬT/TẮT (style Sign) — bỏ toggle `lv_switch` ở Overview lẫn tab expanded.
   - Light Sensor card cần attr `overview:true` trong devices.yaml để hiển thị giá trị ở Overview.
+  - Engine `ZbSend` thêm `Endpoint:1` (bỏ comment cũ "đừng thêm Endpoint") — vì thiếu nó, Tasmota trả `Missing endpoint` và không phát sóng tới thiết bị offline (đèn LED gateway không chớp).
+  - `SET_ATTRIBUTE` resolve theo cả `attr_id` (VD `0202`) lẫn label (`Temperature`) — trước chỉ label nên nút `+`/`−` trên AC báo "không tìm thấy thuộc tính".
+  - Control khi thiết bị offline: giữ trạng thái đã chọn (không rollback) + banner *"chua duoc xac nhan"* — áp cho cả toggle lẫn set-attribute.
