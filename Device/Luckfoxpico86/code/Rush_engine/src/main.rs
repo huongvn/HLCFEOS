@@ -391,7 +391,9 @@ async fn main() -> anyhow::Result<()> {
             ticker.tick().await;
             while running.load(std::sync::atomic::Ordering::Relaxed) {
                 ticker.tick().await;
-                rule_engine.lock().await.process_time_tick();
+                let mut rule_engine = rule_engine.lock().await;
+                rule_engine.check_reload();
+                rule_engine.process_time_tick();
             }
         });
     }

@@ -62,10 +62,11 @@ struct RulesFile {
 
 pub struct RuleEngine {
     rules: Vec<Rule>,
-    #[allow(dead_code)]
     rules_file: String,
     action_tx: Option<mpsc::UnboundedSender<RuleAction>>,
     last_fired_date: std::collections::HashMap<String, String>,
+    /// mtime (secs) of the rules file at last successful load, for hot-reload.
+    rules_mtime: u64,
 }
 
 impl RuleEngine {
@@ -75,6 +76,7 @@ impl RuleEngine {
             rules_file: rules_file.to_string(),
             action_tx: None,
             last_fired_date: std::collections::HashMap::new(),
+            rules_mtime: 0,
         };
         engine.load_rules();
         engine
@@ -103,6 +105,7 @@ impl RuleEngine {
             Ok(content) => match serde_yaml::from_str::<RulesFile>(&content) {
                 Ok(data) => {
                     self.rules = data.rules;
+                    self.rules_mtime = self.file_mtime();
                     info!("Loaded {} rules from {}", self.rules.len(), self.rules_file);
                 }
                 Err(e) => {
@@ -114,6 +117,31 @@ impl RuleEngine {
                 error!("Failed to load rules from {}: {}", self.rules_file, e);
                 self.rules = Vec::new();
             }
+        }
+    }
+
+    /// Timestamp (secs) of the rules file at last successful load.
+    fn file_mtime(&self) -> u64 {
+        std::fs::metadata(&self.rules_file)
+            .ok()
+            .and_then(|m| m.modified().ok())
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs())
+            .unwrap_or(0)
+    }
+
+    /// Hot-reload: reload rules.yaml when the file has changed since last load.
+    /// Called periodically (e.g. every 5s tick) before evaluating time rules.
+    pub fn check_reload(&mut self) {
+        if !std::path::Path::new(&self.rules_file).exists() {
+            return;
+        }
+        let current = self.file_mtime();
+        if current > self.rules_mtime {
+            info!("Rules file changed, hot-reloading...");
+            let old_count = self.rules.len();
+            self.load_rules();
+            info!("Hot-reloaded rules: {} -> {} rules", old_count, self.rules.len());
         }
     }
 
