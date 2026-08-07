@@ -17,6 +17,8 @@ pub struct XsolarBridge {
     device_manager: SharedDeviceManager,
     last_push: Mutex<HashMap<String, f64>>,
     min_push_interval: f64,
+    topic_prefix: String,
+    site: String,
     /// In-memory cache of the last known state per device (zigbee addr ->
     /// label -> value). Written by the ingest fan-out, read by both the
     /// real-time push and the periodic 10-min snapshot push. Never reads DB.
@@ -29,6 +31,8 @@ impl XsolarBridge {
         mqtt_xsolar: Arc<MqttClient>,
         state_manager: Arc<Mutex<StateManager>>,
         device_manager: SharedDeviceManager,
+        topic_prefix: String,
+        site: String,
     ) -> Self {
         Self {
             mqtt_local,
@@ -37,25 +41,22 @@ impl XsolarBridge {
             device_manager,
             last_push: Mutex::new(HashMap::new()),
             min_push_interval: 5.0,
+            topic_prefix,
+            site,
             cache: DashMap::new(),
         }
     }
 
     pub async fn start(&self) {
-        self.mqtt_xsolar
-            .subscribe("smarteos/bluCafe/+/set", QoS::AtLeastOnce)
-            .await;
-        info!("Xsolar Bridge started - subscribed to smarteos/bluCafe/+/set");
+        let sub_topic = format!("{}/+/set", self.topic_prefix);
+        self.mqtt_xsolar.subscribe(&sub_topic, QoS::AtLeastOnce).await;
+        info!("Xsolar Bridge started - subscribed to {}", sub_topic);
     }
 
     pub async fn handle_xsolar_message(&self, topic: &str, payload: &Value) {
         let parts: Vec<&str> = topic.split('/').collect();
 
-        if parts.len() == 4
-            && parts[0] == "smarteos"
-            && parts[1] == "bluCafe"
-            && parts[3] == "set"
-        {
+        if parts.len() == 4 && topic.starts_with(&self.topic_prefix) && parts[3] == "set" {
             let device_id = parts[2];
             self.handle_remote_command(device_id, payload).await;
         }
@@ -205,7 +206,7 @@ impl XsolarBridge {
 
         let payload = serde_json::json!({
             "ts": format!("{}+07:00", chrono::Local::now().format("%Y-%m-%dT%H:%M:%S")),
-            "site": "bluCafe",
+            "site": self.site,
             "id": device_addr,
             "type": device.nr_type,
             "name": device.name,
@@ -213,7 +214,7 @@ impl XsolarBridge {
             "data": xsolar_data,
         });
 
-        let topic = format!("smarteos/bluCafe/{}", device_addr);
+        let topic = format!("{}/{}", self.topic_prefix, device_addr);
         self.mqtt_xsolar
             .publish_json(&topic, &payload, QoS::AtMostOnce, false)
             .await;
@@ -255,7 +256,7 @@ impl XsolarBridge {
 
             let payload = serde_json::json!({
                 "ts": format!("{}+07:00", chrono::Local::now().format("%Y-%m-%dT%H:%M:%S")),
-                "site": "bluCafe",
+                "site": self.site,
                 "id": device_addr,
                 "type": device.nr_type,
                 "name": device.name,
@@ -263,7 +264,7 @@ impl XsolarBridge {
                 "data": xsolar_data,
             });
 
-            let topic = format!("smarteos/bluCafe/{}", device_addr);
+            let topic = format!("{}/{}", self.topic_prefix, device_addr);
             let _ = self
                 .mqtt_xsolar
                 .publish_json(&topic, &payload, QoS::AtMostOnce, false)

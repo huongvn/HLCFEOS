@@ -344,6 +344,8 @@ async fn main() -> anyhow::Result<()> {
         mqtt_xsolar.clone(),
         state_manager.clone(),
         device_manager.clone(),
+        config.xsolar.topic_prefix.clone(),
+        config.xsolar.site.clone(),
     ));
 
     // Tracks in-flight control commands so an optimistic UI update is only
