@@ -1,5 +1,5 @@
 use glob::Pattern;
-use log::{debug, error, info};
+use log::{error, info};
 use serde::Deserialize;
 use serde_json::Value;
 use std::fs;
@@ -19,6 +19,7 @@ pub struct RuleCondition {
     #[serde(rename = "type")]
     pub condition_type: String,
     pub topic: Option<String>,
+    pub value_path: Option<String>,
     pub equals: Option<String>,
     pub above: Option<f64>,
     pub below: Option<f64>,
@@ -156,7 +157,7 @@ impl RuleEngine {
                 continue;
             }
 
-            let conditions_met = rule.conditions.iter().all(|condition| self.evaluate_condition(condition));
+            let conditions_met = rule.conditions.iter().all(|condition| self.evaluate_condition(condition, Some((topic, payload))));
             if !conditions_met {
                 continue;
             }
@@ -212,7 +213,7 @@ impl RuleEngine {
                 continue;
             }
 
-            let conditions_met = rule.conditions.iter().all(|condition| self.evaluate_condition(condition));
+            let conditions_met = rule.conditions.iter().all(|condition| self.evaluate_condition(condition, None));
             if !conditions_met {
                 continue;
             }
@@ -222,10 +223,10 @@ impl RuleEngine {
         }
     }
 
-    pub fn evaluate_condition(&self, condition: &RuleCondition) -> bool {
+    pub fn evaluate_condition(&self, condition: &RuleCondition, context: Option<(&str, &Value)>) -> bool {
         match condition.condition_type.as_str() {
-            "state" => self.check_state_condition(condition),
-            "numeric_state" => self.check_numeric_state_condition(condition),
+            "state" => self.check_state_condition(condition, context),
+            "numeric_state" => self.check_numeric_state_condition(condition, context),
             "time" => self.check_time_condition(condition),
             _ => false,
         }
@@ -236,22 +237,70 @@ impl RuleEngine {
         Pattern::new(&pattern).map(|p| p.matches(topic)).unwrap_or(false)
     }
 
-    fn check_state_condition(&self, condition: &RuleCondition) -> bool {
-        let topic = condition.topic.as_deref().unwrap_or("");
-        debug!(
-            "State condition check: {} == {:?}",
-            topic, condition.equals
-        );
-        true // Placeholder
+    /// Extract a nested value from a JSON payload using a dotted path,
+    /// e.g. "ZbReceived.0x8BA4.Illuminance". Returns None if not found.
+    fn extract_value<'a>(&self, payload: &'a Value, path: &str) -> Option<&'a Value> {
+        let mut current = payload;
+        for part in path.split('.') {
+            match current {
+                Value::Object(map) => match map.get(part) {
+                    Some(v) => current = v,
+                    None => return None,
+                },
+                _ => return None,
+            }
+        }
+        Some(current)
     }
 
-    fn check_numeric_state_condition(&self, condition: &RuleCondition) -> bool {
-        let topic = condition.topic.as_deref().unwrap_or("");
-        debug!(
-            "Numeric state condition check: {} above={:?} below={:?}",
-            topic, condition.above, condition.below
-        );
-        true // Placeholder
+    fn check_state_condition(&self, condition: &RuleCondition, context: Option<(&str, &Value)>) -> bool {
+        let Some((_, payload)) = context else {
+            return false;
+        };
+        let value = match (&condition.value_path, payload) {
+            (Some(path), payload) => self.extract_value(payload, path),
+            (None, Value::Object(_)) => None,
+            (None, other) => Some(other),
+        };
+        match (value, &condition.equals) {
+            (Some(Value::String(s)), Some(expected)) => s == expected,
+            (Some(Value::Bool(b)), Some(expected)) => b.to_string() == *expected,
+            (Some(Value::Number(n)), Some(expected)) => n.to_string() == *expected,
+            _ => false,
+        }
+    }
+
+    fn check_numeric_state_condition(&self, condition: &RuleCondition, context: Option<(&str, &Value)>) -> bool {
+        let Some((_, payload)) = context else {
+            return false;
+        };
+        let value = match (&condition.value_path, payload) {
+            (Some(path), payload) => self.extract_value(payload, path),
+            (None, Value::Object(_)) => return false,
+            (None, other) => Some(other),
+        };
+        let Some(raw) = value else {
+            return false;
+        };
+        let num = match raw {
+            Value::Number(n) => n.as_f64(),
+            Value::String(s) => s.parse::<f64>().ok(),
+            _ => None,
+        };
+        let Some(num) = num else {
+            return false;
+        };
+        if let Some(above) = condition.above {
+            if num <= above {
+                return false;
+            }
+        }
+        if let Some(below) = condition.below {
+            if num >= below {
+                return false;
+            }
+        }
+        true
     }
 
     fn check_time_condition(&self, condition: &RuleCondition) -> bool {
