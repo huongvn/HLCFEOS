@@ -1,3 +1,4 @@
+use dashmap::DashMap;
 use log::{debug, info, warn};
 use rumqttc::QoS;
 use serde_json::Value;
@@ -16,6 +17,10 @@ pub struct XsolarBridge {
     device_manager: SharedDeviceManager,
     last_push: Mutex<HashMap<String, f64>>,
     min_push_interval: f64,
+    /// In-memory cache of the last known state per device (zigbee addr ->
+    /// label -> value). Written by the ingest fan-out, read by both the
+    /// real-time push and the periodic 10-min snapshot push. Never reads DB.
+    cache: DashMap<String, HashMap<String, Value>>,
 }
 
 impl XsolarBridge {
@@ -32,6 +37,7 @@ impl XsolarBridge {
             device_manager,
             last_push: Mutex::new(HashMap::new()),
             min_push_interval: 5.0,
+            cache: DashMap::new(),
         }
     }
 
@@ -144,6 +150,33 @@ impl XsolarBridge {
         );
     }
 
+    /// Write-only cache update from the ingest fan-out (no network, no backpressure).
+    pub fn update_cache(&self, device_addr: &str, updates: &HashMap<String, Value>) {
+        let mut entry = self.cache.entry(device_addr.to_string()).or_default();
+        for (k, v) in updates {
+            entry.insert(k.clone(), v.clone());
+        }
+    }
+
+    /// Seed the cache from SQLite once at engine startup so devices that have
+    /// not yet reported after a restart still appear in the periodic push
+    /// (review §4). Uses the fixed window-function query via get_latest_state().
+    pub async fn seed_from_db(&self) {
+        let addrs: Vec<String> = {
+            let dm = self.device_manager.read().await;
+            dm.get_all_devices().keys().cloned().collect()
+        };
+        let sm = self.state_manager.lock().await;
+        for addr in addrs {
+            let state = sm.get_latest_state(&addr);
+            if !state.is_empty() {
+                self.update_cache(&addr, &state);
+            }
+        }
+        info!("Xsolar Bridge: seeded cache for {} devices", self.cache.len());
+    }
+
+    /// Real-time on-change push, throttled per device. Reads the in-memory cache.
     pub async fn push_device_state(&self, device_addr: &str) {
         let dm = self.device_manager.read().await;
         let device = match dm.get_device(device_addr) {
@@ -160,8 +193,7 @@ impl XsolarBridge {
             }
         }
 
-        let sm = self.state_manager.lock().await;
-        let state = sm.get_latest_state(device_addr);
+        let state = self.cache.get(device_addr).map(|r| r.clone()).unwrap_or_default();
         if state.is_empty() {
             return;
         }
@@ -198,13 +230,18 @@ impl XsolarBridge {
         );
     }
 
+    /// Periodic full-snapshot push (default every 10 min). Reads the in-memory
+    /// cache, one publish per device — no DB reads on the hot path.
     pub async fn push_all_states(&self) {
         info!("Periodic push: pushing all device states to xsolar...");
-        let dm = self.device_manager.read().await;
-        let sm = self.state_manager.lock().await;
+        let devices: Vec<crate::device_manager::Device> = {
+            let dm = self.device_manager.read().await;
+            dm.get_all_devices().values().cloned().collect()
+        };
 
-        for (device_addr, device) in dm.get_all_devices() {
-            let state = sm.get_latest_state(device_addr);
+        for device in &devices {
+            let device_addr = &device.zigbee_addr;
+            let state = self.cache.get(device_addr).map(|r| r.clone()).unwrap_or_default();
             if state.is_empty() {
                 debug!("No state for {}, skipping", device_addr);
                 continue;

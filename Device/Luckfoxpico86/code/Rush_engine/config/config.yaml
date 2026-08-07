@@ -34,6 +34,13 @@ devices_file: "devices.yaml"
 # Automation rules file
 rules_file: "config/rules.yaml"
 
+# HTTP API for the LVGL Smart Panel (HMI)
+# The panel no longer uses local MQTT for bms/#; it talks to this API instead.
+http:
+  enabled: true
+  host: "127.0.0.1"
+  port: 8080
+
 # OTA Update Configuration
 ota:
   enabled: true

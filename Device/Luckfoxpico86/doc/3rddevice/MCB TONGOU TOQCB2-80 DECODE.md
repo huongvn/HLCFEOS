@@ -73,3 +73,25 @@ byte[5:8] = Power    (đơn vị W)
 Dòng này (`00E940`→`011F40`, tăng dần ~4608 mỗi ~10 phút) **không nằm trong danh sách dp đã biết** (dp cao nhất được định nghĩa là 131=0x83). Dấu `?` thay vì `/` cũng không phải cú pháp chuẩn Tasmota — nhiều khả năng đây là phản hồi nội bộ của cluster Tuya (vd: đồng bộ thời gian/heartbeat MCU) chứ không phải dp đo lường, nên chưa nên diễn giải là điện áp/công suất.
 
 Bạn có muốn mình viết luôn 1 file plugin `.zb` để Tasmota tự hiện tên các dp này (Voltage_a, Power_a, Current_a, Switch, DeviceTemp...) thay vì hiển thị `EF00/xxxx` không?
+
+
+Trên console tasmota 
+Tìm được rồi — thì ra Tasmota có cơ chế ghi thuộc tính Tuya **built-in** đơn giản hơn nhiều, không cần tự soạn payload raw qua `Send`/`Cmd` (cách đó không phải cú pháp Tasmota hỗ trợ, nên liên tục báo lỗi).
+
+Theo tài liệu Zigbee chính thức của Tasmota: với attribute Tuya dạng `EF00/AABB` (AA = type, BB = dpid), bạn có thể **ghi trực tiếp** bằng lệnh `Write`, miễn là type đã được xác định — và log của bạn đã cho thấy chính xác `EF00/0110` (type = 01 tức bool, dpid = 0x10 = 16 = Switch).
+
+Vậy lệnh đúng và đơn giản nhất là:
+
+**Bật CB:**
+```
+ZbSend {"Device":"0xD46F","Write":{"EF00/0110":1}}
+```
+
+**Tắt CB:**
+```
+ZbSend {"Device":"0xD46F","Write":{"EF00/0110":0}}
+```
+
+Đây chính là cách Tasmota official document mô tả: với attribute từ cluster Tuya 0xEF00, attribute có dạng AABB trong đó AA là type và BB là dpid; để ghi được attribute thì type phải được chỉ định cụ thể.
+
+Bạn thử lệnh này và cho tôi xem log `ZbReceived`/`RESULT` tiếp theo nhé — nếu đúng, bạn sẽ nghe CB đóng/cắt thật và `EF00/0110` sẽ đổi giá trị tương ứng.

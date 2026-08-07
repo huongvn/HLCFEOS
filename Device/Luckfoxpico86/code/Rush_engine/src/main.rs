@@ -1,7 +1,10 @@
 #![allow(dead_code)]
 
+mod command_tracker;
 mod device_manager;
+mod event_bus;
 mod hmi_bridge;
+mod http_api;
 mod mqtt_client;
 mod ota;
 mod queue_manager;
@@ -10,7 +13,9 @@ mod scheduler;
 mod state_manager;
 mod xsolar_bridge;
 
+use command_tracker::CommandTracker;
 use device_manager::{DeviceManager, SharedDeviceManager};
+use event_bus::EventBus;
 use hmi_bridge::HmiBridge;
 use log::{error, info, warn};
 use mqtt_client::{MqttClient, MqttMessage};
@@ -134,6 +139,8 @@ struct AppConfig {
     rules_file: String,
     #[serde(default)]
     ota: OtaAppConfig,
+    #[serde(default)]
+    http: HttpConfig,
 }
 
 fn default_offline_timeout() -> u64 {
@@ -144,6 +151,23 @@ fn default_devices_file() -> String {
 }
 fn default_rules_file() -> String {
     "config/rules.yaml".to_string()
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct HttpConfig {
+    #[serde(default)]
+    enabled: bool,
+    #[serde(default = "default_http_host")]
+    host: String,
+    #[serde(default = "default_http_port")]
+    port: u16,
+}
+
+fn default_http_host() -> String {
+    "127.0.0.1".to_string()
+}
+fn default_http_port() -> u16 {
+    8080
 }
 
 struct OfflineTimeoutMap {
@@ -304,8 +328,12 @@ async fn main() -> anyhow::Result<()> {
 
     let queue_mgr = Arc::new(QueueManager::new(mqtt_local.clone()));
 
+    // In-process event bus: all bms/# state changes go here. The LVGL panel
+    // consumes them over HTTP (SSE + /api/state) instead of local MQTT.
+    let event_bus = EventBus::new(1024);
+
     let hmi_bridge = Arc::new(HmiBridge::new(
-        mqtt_local.clone(),
+        event_bus.clone(),
         state_manager.clone(),
         device_manager.clone(),
         queue_mgr.clone(),
@@ -318,7 +346,9 @@ async fn main() -> anyhow::Result<()> {
         device_manager.clone(),
     ));
 
-    let rule_engine = Arc::new(Mutex::new(RuleEngine::new(&config.rules_file)));
+    // Tracks in-flight control commands so an optimistic UI update is only
+    // acknowledged against a matching real report and cleaned up on timeout.
+    let command_tracker = Arc::new(CommandTracker::new());
 
     let running = Arc::new(AtomicBool::new(true));
     let r = running.clone();
@@ -329,16 +359,81 @@ async fn main() -> anyhow::Result<()> {
         r.store(false, std::sync::atomic::Ordering::Relaxed);
     });
 
+    let rule_engine = Arc::new(Mutex::new(RuleEngine::new(&config.rules_file)));
+
+    // Channel carrying fired rule actions to a worker that publishes them.
+    let (rule_action_tx, rule_action_rx) = tokio::sync::mpsc::unbounded_channel();
+    rule_engine.lock().await.set_action_sender(rule_action_tx);
+    let action_mqtt = mqtt_local.clone();
+    tokio::spawn(async move {
+        let mut rx = rule_action_rx;
+        while let Some(action) = rx.recv().await {
+            if let (Some(topic), Some(payload)) = (&action.topic, &action.payload) {
+                let payload_str = match payload {
+                    serde_json::Value::String(s) => s.clone(),
+                    other => serde_json::to_string(other).unwrap_or_default(),
+                };
+                action_mqtt
+                    .publish(topic, payload_str, QoS::AtLeastOnce, action.retain.unwrap_or(false))
+                    .await;
+            }
+        }
+    });
+
+    // Periodic time-trigger evaluation for scheduler rules
+    {
+        let rule_engine = rule_engine.clone();
+        let running = running.clone();
+        tokio::spawn(async move {
+            let mut ticker = tokio::time::interval(Duration::from_secs(5));
+            ticker.tick().await;
+            while running.load(std::sync::atomic::Ordering::Relaxed) {
+                ticker.tick().await;
+                rule_engine.lock().await.process_time_tick();
+            }
+        });
+    }
+
     // Start subsystems
     hmi_bridge.start().await;
     xsolar_bridge.start().await;
     queue_mgr.start();
+
+    // Seed in-memory caches from SQLite once (review §4 / gap #3): prevents a
+    // false event storm after restart and keeps devices that haven't reported
+    // yet visible in the periodic xsolar snapshot.
+    hmi_bridge.seed_from_db(&state_manager).await;
+    xsolar_bridge.seed_from_db().await;
+
+    // Periodic sweep of unconfirmed commands (review §5.3): entries older than
+    // the timeout never produced a matching report -> clean up + log warning.
+    {
+        let command_tracker = command_tracker.clone();
+        let running = running.clone();
+        tokio::spawn(async move {
+            let mut ticker = tokio::time::interval(Duration::from_secs(3));
+            ticker.tick().await;
+            while running.load(std::sync::atomic::Ordering::Relaxed) {
+                ticker.tick().await;
+                let expired = command_tracker.sweep(Duration::from_secs(15)).await;
+                for pc in expired {
+                    warn!(
+                        "[command] {} to {} timed out without confirmation (attr {}, expected {})",
+                        pc.command_id, pc.device_addr, pc.attr_label, pc.expected_value
+                    );
+                }
+            }
+        });
+    }
 
     // Subscribe to # on local broker
     mqtt_local.subscribe("#", QoS::AtMostOnce).await;
 
     // Device last seen tracking
     let device_last_seen: Arc<Mutex<HashMap<String, f64>>> =
+        Arc::new(Mutex::new(HashMap::new()));
+    // Device online-state tracking: drives offline->online (+->online=ON) emission
+    let device_online: Arc<Mutex<HashMap<String, bool>>> =
         Arc::new(Mutex::new(HashMap::new()));
     let offline_timeout = config.offline_timeout;
     let offline_map = Arc::new(OfflineTimeoutMap {
@@ -421,9 +516,10 @@ async fn main() -> anyhow::Result<()> {
     }
 
     {
-        let mqtt_local = mqtt_local.clone();
+        let event_bus = event_bus.clone();
         let device_manager = device_manager.clone();
         let device_last_seen = device_last_seen.clone();
+        let device_online = device_online.clone();
         let offline_map = offline_map.clone();
         let running = running.clone();
         tokio::spawn(async move {
@@ -445,57 +541,11 @@ async fn main() -> anyhow::Result<()> {
                     }
                     let timeout = offline_map.get(&device.nr_type) as f64;
                     if now - last > timeout {
-                        let status = "OFF";
-                        match device.nr_type.as_str() {
-                            "ac_controller" => {
-                                if let Some(idx) = device.metadata.ac_index {
-                                    mqtt_local
-                                        .publish(
-                                            &format!("bms/ac/{}/online", idx),
-                                            status,
-                                            QoS::AtLeastOnce,
-                                            false,
-                                        )
-                                        .await;
-                                }
-                            }
-                            "mcb" => {
-                                if let Some(idx) = device.metadata.sign_index {
-                                    mqtt_local
-                                        .publish(
-                                            &format!("bms/sign/{}/online", idx),
-                                            status,
-                                            QoS::AtLeastOnce,
-                                            false,
-                                        )
-                                        .await;
-                                }
-                            }
-                            "power_meter" => {
-                                if let Some(idx) = device.metadata.power_index {
-                                    mqtt_local
-                                        .publish(
-                                            &format!("bms/power/{}/online", idx),
-                                            status,
-                                            QoS::AtLeastOnce,
-                                            false,
-                                        )
-                                        .await;
-                                }
-                            }
-                            "light_sensor" => {
-                                if let Some(idx) = device.metadata.light_sensor_index {
-                                    mqtt_local
-                                        .publish(
-                                            &format!("bms/light/{}/online", idx),
-                                            status,
-                                            QoS::AtLeastOnce,
-                                            false,
-                                        )
-                                        .await;
-                                }
-                            }
-                            _ => {}
+                        let mut online = device_online.lock().await;
+                        if online.get(device_addr).copied().unwrap_or(true) {
+                            online.insert(device_addr.clone(), false);
+                            drop(online);
+                            emit_device_online(&device, "OFF", &event_bus).await;
                         }
                         warn!(
                             "Device {} ({}) OFFLINE - last seen {:.0}s ago",
@@ -542,6 +592,34 @@ async fn main() -> anyhow::Result<()> {
 
     info!("BMS Engine started successfully");
 
+    // HTTP API for the LVGL Smart Panel (bms/# events over HTTP/SSE)
+    if config.http.enabled {
+        let event_bus = event_bus.clone();
+        let hmi_bridge = hmi_bridge.clone();
+        let device_manager = device_manager.clone();
+        let state_manager = state_manager.clone();
+        let command_tracker = command_tracker.clone();
+        let device_online = device_online.clone();
+        let http_host = config.http.host.clone();
+        let http_port = config.http.port;
+        tokio::spawn(async move {
+            if let Err(e) = http_api::run(
+                event_bus,
+                hmi_bridge,
+                device_manager,
+                state_manager,
+                command_tracker,
+                device_online,
+                &http_host,
+                http_port,
+            )
+            .await
+            {
+                error!("HTTP API server error: {}", e);
+            }
+        });
+    }
+
     // Main message handling loop
     {
         let hmi_bridge = hmi_bridge.clone();
@@ -549,8 +627,10 @@ async fn main() -> anyhow::Result<()> {
         let state_manager = state_manager.clone();
         let device_manager = device_manager.clone();
         let rule_engine = rule_engine.clone();
-        let mqtt_local = mqtt_local.clone();
+        let event_bus = event_bus.clone();
         let device_last_seen = device_last_seen.clone();
+        let device_online = device_online.clone();
+        let command_tracker = command_tracker.clone();
 
         tokio::spawn(async move {
             while running.load(std::sync::atomic::Ordering::Relaxed) {
@@ -562,8 +642,10 @@ async fn main() -> anyhow::Result<()> {
                         &state_manager,
                         &device_manager,
                         &rule_engine,
-                        &mqtt_local,
+                        &event_bus,
                         &device_last_seen,
+                        &device_online,
+                        &command_tracker,
                     )
                     .await;
                 }
@@ -583,8 +665,10 @@ async fn process_mqtt_message(
     state_manager: &Arc<Mutex<StateManager>>,
     device_manager: &SharedDeviceManager,
     rule_engine: &Arc<Mutex<RuleEngine>>,
-    mqtt_local: &Arc<MqttClient>,
+    event_bus: &EventBus,
     device_last_seen: &Arc<Mutex<HashMap<String, f64>>>,
+    device_online: &Arc<Mutex<HashMap<String, bool>>>,
+    command_tracker: &Arc<CommandTracker>,
 ) {
     let topic = &msg.topic;
     let payload = &msg.payload;
@@ -598,13 +682,33 @@ async fn process_mqtt_message(
     // Handle Tasmota LWT (gateway online/offline)
     if topic.contains("/LWT") {
         if let Some(is_online) = payload.as_str() {
-            handle_gateway_lwt(topic, is_online.to_uppercase() == "ONLINE", mqtt_local, device_manager).await;
+            handle_gateway_lwt(
+                topic,
+                is_online.to_uppercase() == "ONLINE",
+                event_bus,
+                device_manager,
+                device_online,
+            )
+            .await;
         }
     }
 
     // Process Tasmota telemetry (tele/+/SENSOR -> ZbReceived)
     if topic.starts_with("tele/") && topic.contains("/SENSOR") {
-        process_zigbee_message(topic, payload, device_manager, state_manager, hmi_bridge, xsolar_bridge, device_last_seen, rule_engine).await;
+        process_zigbee_message(
+            topic,
+            payload,
+            device_manager,
+            state_manager,
+            hmi_bridge,
+            xsolar_bridge,
+            event_bus,
+            device_last_seen,
+            device_online,
+            rule_engine,
+            command_tracker,
+        )
+        .await;
     }
 
     // Evaluate rules for dict payloads
@@ -620,8 +724,11 @@ async fn process_zigbee_message(
     state_manager: &Arc<Mutex<StateManager>>,
     hmi_bridge: &Arc<HmiBridge>,
     xsolar_bridge: &Arc<XsolarBridge>,
+    event_bus: &EventBus,
     device_last_seen: &Arc<Mutex<HashMap<String, f64>>>,
+    device_online: &Arc<Mutex<HashMap<String, bool>>>,
     rule_engine: &Arc<Mutex<RuleEngine>>,
+    command_tracker: &Arc<CommandTracker>,
 ) {
     let zb_received = payload.get("ZbReceived");
 
@@ -645,9 +752,23 @@ async fn process_zigbee_message(
                 .as_secs_f64();
             device_last_seen.lock().await.insert(device_addr.clone(), now);
 
+            // Emit online=ON on the offline->online transition so the HMI dot
+            // goes green the moment a device reports telemetry again.
+            {
+                let mut online = device_online.lock().await;
+                if !online.get(&device_addr).copied().unwrap_or(false) {
+                    online.insert(device_addr.clone(), true);
+                    drop(online);
+                    emit_device_online(&device, "ON", event_bus).await;
+                }
+            }
+
             let device_data = Value::Object(device_data_raw);
 
+            // Normalise every attribute once. The resulting "new_state" is the
+            // single source of truth for all downstream branches (review §3).
             let mut batch_metrics: Vec<(String, String, Value, String, String, String)> = Vec::new();
+            let mut new_state: HashMap<String, Value> = HashMap::new();
 
             for (attr_id, attr_config) in &device.attributes {
                 let raw_value = device_data
@@ -661,37 +782,68 @@ async fn process_zigbee_message(
                                 if let Some(decoded_config) =
                                     get_decoded_attr_config(attr_config, decoded_id)
                                 {
+                                    let label = decoded_config
+                                        .label
+                                        .clone()
+                                        .unwrap_or_else(|| decoded_id.clone());
                                     batch_metrics.push((
                                         device_addr.clone(),
-                                        decoded_config.label.clone().unwrap_or_else(|| decoded_id.clone()),
+                                        label.clone(),
                                         decoded_value.clone(),
                                         "number".to_string(),
                                         device.nr_type.clone(),
                                         attr_id.clone(),
                                     ));
+                                    new_state.insert(label, decoded_value.clone());
                                 }
                             }
                         } else {
+                            let label = attr_config.label.clone();
                             batch_metrics.push((
                                 device_addr.clone(),
-                                attr_config.label.clone(),
-                                value,
+                                label.clone(),
+                                value.clone(),
                                 attr_config.attr_type.clone(),
                                 device.nr_type.clone(),
                                 attr_id.clone(),
                             ));
+                            new_state.insert(label, value);
                         }
                     }
                 }
             }
 
-            let sm = state_manager.lock().await;
-            sm.batch_update_metrics(&batch_metrics);
-            sm.log_event(&device_addr, "state_update", &device_data, Some(&device.nr_type), Some(&device.group));
-            let current_state = sm.get_latest_state(&device_addr);
-            drop(sm);
+            // ---- Fan-out (review §3): independent branches, same value. ----
 
-            hmi_bridge.publish_feedback(&device_addr, &current_state).await;
+            // 1) SQLite write-only (history/audit). Spawned so a slow disk does
+            //    not delay the UI feedback branch.
+            {
+                let sm = state_manager.clone();
+                let db_addr = device_addr.clone();
+                let db_metrics = batch_metrics;
+                let db_payload = device_data.clone();
+                let db_nr = device.nr_type.clone();
+                let db_group = device.group.clone();
+                tokio::spawn(async move {
+                    let sm = sm.lock().await;
+                    sm.batch_update_metrics(&db_metrics);
+                    sm.log_event(
+                        &db_addr,
+                        "state_update",
+                        &db_payload,
+                        Some(&db_nr),
+                        Some(&db_group),
+                    );
+                });
+            }
+
+            // 2) Reconcile command ack against this real report before the HMI
+            //    event is emitted, so the SSE ack reflects the actual state.
+            command_tracker.reconcile(&device_addr, &new_state).await;
+
+            // 3) Update the xsolar in-memory cache (no network) then emit.
+            xsolar_bridge.update_cache(&device_addr, &new_state);
+            hmi_bridge.publish_feedback(&device_addr, &new_state).await;
             xsolar_bridge.push_device_state(&device_addr).await;
         }
     }
@@ -705,70 +857,25 @@ async fn process_zigbee_message(
 async fn handle_gateway_lwt(
     topic: &str,
     is_online: bool,
-    mqtt_local: &Arc<MqttClient>,
+    event_bus: &EventBus,
     device_manager: &SharedDeviceManager,
+    device_online: &Arc<Mutex<HashMap<String, bool>>>,
 ) {
     let parts: Vec<&str> = topic.split('/').collect();
     if parts.len() < 2 {
         return;
     }
     let gateway = parts[1];
-    let status = if is_online { "ON" } else { "OFF" };
 
     let dm = device_manager.read().await;
-    for (_, device) in dm.get_all_devices() {
-        if device.gateway == gateway {
-            match device.nr_type.as_str() {
-                "ac_controller" => {
-                    if let Some(idx) = device.metadata.ac_index {
-                        mqtt_local
-                            .publish(
-                                &format!("bms/ac/{}/online", idx),
-                                status,
-                                QoS::AtLeastOnce,
-                                false,
-                            )
-                            .await;
-                    }
-                }
-                "mcb" => {
-                    if let Some(idx) = device.metadata.sign_index {
-                        mqtt_local
-                            .publish(
-                                &format!("bms/sign/{}/online", idx),
-                                status,
-                                QoS::AtLeastOnce,
-                                false,
-                            )
-                            .await;
-                    }
-                }
-                "power_meter" => {
-                    if let Some(idx) = device.metadata.power_index {
-                        mqtt_local
-                            .publish(
-                                &format!("bms/power/{}/online", idx),
-                                status,
-                                QoS::AtLeastOnce,
-                                false,
-                            )
-                            .await;
-                    }
-                }
-                "light_sensor" => {
-                    if let Some(idx) = device.metadata.light_sensor_index {
-                        mqtt_local
-                            .publish(
-                                &format!("bms/light/{}/online", idx),
-                                status,
-                                QoS::AtLeastOnce,
-                                false,
-                            )
-                            .await;
-                    }
-                }
-                _ => {}
-            }
+    let mut online = device_online.lock().await;
+    for (device_addr, device) in dm.get_all_devices() {
+        // A gateway going OFFLINE takes all its devices offline immediately.
+        // On ONLINE, do NOT force devices online: a device is shown online only
+        // once it reports telemetry again (see process_zigbee_message).
+        if device.gateway == gateway && !is_online {
+            online.insert(device_addr.clone(), false);
+            emit_device_online(&device, "OFF", event_bus).await;
         }
     }
 
@@ -777,6 +884,40 @@ async fn handle_gateway_lwt(
         gateway,
         if is_online { "ONLINE" } else { "OFFLINE" }
     );
+}
+
+async fn emit_device_online(device: &device_manager::Device, status: &str, event_bus: &EventBus) {
+    match device.nr_type.as_str() {
+        "ac_controller" => {
+            if let Some(idx) = device.metadata.ac_index {
+                event_bus
+                    .emit(&format!("bms/ac/{}/online", idx), serde_json::json!(status))
+                    .await;
+            }
+        }
+        "mcb" => {
+            if let Some(idx) = device.metadata.sign_index {
+                event_bus
+                    .emit(&format!("bms/sign/{}/online", idx), serde_json::json!(status))
+                    .await;
+            }
+        }
+        "power_meter" => {
+            if let Some(idx) = device.metadata.power_index {
+                event_bus
+                    .emit(&format!("bms/power/{}/online", idx), serde_json::json!(status))
+                    .await;
+            }
+        }
+        "light_sensor" => {
+            if let Some(idx) = device.metadata.light_sensor_index {
+                event_bus
+                    .emit(&format!("bms/light/{}/online", idx), serde_json::json!(status))
+                    .await;
+            }
+        }
+        _ => {}
+    }
 }
 
 fn get_decoded_attr_config(

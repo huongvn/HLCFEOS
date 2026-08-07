@@ -79,7 +79,9 @@ Tasmota dùng lệnh riêng cho cài đặt Ethernet:
 Vào http://luckfox_ip/cs hoặc vào menu Console, gõ từng lệnh:
 
 ```
-EthIPAddress 192.168.1.135 192.168.1.1 255.255.255.0 8.8.8.8
+Backlog EthIPAddress1 192.168.1.135; EthGateway 192.168.1.1; EthSubnetmask 255.255.255.0; EthDNSServer 8.8.8.8
+```
+```
 Restart 1
 ```
 

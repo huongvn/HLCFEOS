@@ -1,5 +1,6 @@
 use log::info;
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -15,6 +16,10 @@ pub struct AttributeConfig {
     pub unit: Option<String>,
     #[serde(default)]
     pub display: bool,
+    #[serde(default)]
+    pub overview: bool,
+    #[serde(default)]
+    pub control: bool,
     #[serde(default)]
     pub xsolar: bool,
     pub xsolar_key: Option<String>,
@@ -153,6 +158,8 @@ impl DeviceManager {
                                 formula: attr.get("formula").and_then(|v| v.as_str()).map(|s| s.to_string()),
                                 unit: attr.get("unit").and_then(|v| v.as_str()).map(|s| s.to_string()),
                                 display: attr.get("display").and_then(|v| v.as_bool()).unwrap_or(false),
+                                overview: attr.get("overview").and_then(|v| v.as_bool()).unwrap_or(false),
+                                control: attr.get("control").and_then(|v| v.as_bool()).unwrap_or(false),
                                 xsolar: attr.get("xsolar").and_then(|v| v.as_bool()).unwrap_or(false),
                                 xsolar_key: attr.get("xsolar_key").and_then(|v| v.as_str()).map(|s| s.to_string()),
                                 decode,
@@ -238,6 +245,120 @@ impl DeviceManager {
             .values()
             .filter(|d| d.gateway == gateway)
             .collect()
+    }
+
+    /// Human-readable card type for the front-end (matches LVGL dev_type_t).
+    pub fn card_type(&self, nr_type: &str) -> &'static str {
+        match nr_type {
+            "ac_controller" => "AC",
+            "mcb" => "Sign",
+            "power_meter" => "Power",
+            "light_sensor" => "Light",
+            "switch" => "Switch",
+            _ => "Other",
+        }
+    }
+
+    /// Stable device_id string for a given device (slug + index). Returns
+    /// None when the device has no index metadata (not displayable/controllable).
+    pub fn device_id_of(&self, device: &Device) -> Option<String> {
+        let (prefix, index) = self.slug_and_index(device)?;
+        Some(format!("{}_{}", prefix, index))
+    }
+
+    fn slug_and_index(&self, device: &Device) -> Option<(&'static str, i64)> {
+        let slug = match device.nr_type.as_str() {
+            "ac_controller" => "ac",
+            "mcb" => "sign",
+            "power_meter" => "power",
+            "light_sensor" => "light",
+            "switch" => "switch",
+            _ => return None,
+        };
+        let index = match device.nr_type.as_str() {
+            "ac_controller" => device.metadata.ac_index?,
+            "mcb" => device.metadata.sign_index?,
+            "power_meter" => device.metadata.power_index?,
+            "light_sensor" => device.metadata.light_sensor_index?,
+            _ => device.metadata.sign_index?,
+        };
+        Some((slug, index))
+    }
+
+    /// Look up a device by its slug device_id (e.g. "ac_0", "sign_1").
+    pub fn get_device_by_id(&self, device_id: &str) -> Option<&Device> {
+        let (slug, idx) = device_id.split_once('_')?;
+        let idx = idx.parse::<i64>().ok()?;
+        for device in self.devices.values() {
+            if self.slug_and_index(device) == Some((slug, idx)) {
+                return Some(device);
+            }
+        }
+        None
+    }
+
+    /// Look up a device by nr_type + index (used when translating MQTT topics
+    /// like bms/ac/0/... back to a device).
+    pub fn get_device_by_type_index(&self, nr_type: &str, idx: i64) -> Option<&Device> {
+        for device in self.devices.values() {
+            if device.nr_type != nr_type {
+                continue;
+            }
+            let matched = match nr_type {
+                "ac_controller" => device.metadata.ac_index == Some(idx),
+                "mcb" => device.metadata.sign_index == Some(idx),
+                "power_meter" => device.metadata.power_index == Some(idx),
+                "light_sensor" => device.metadata.light_sensor_index == Some(idx),
+                "switch" => device.metadata.sign_index == Some(idx),
+                _ => false,
+            };
+            if matched {
+                return Some(device);
+            }
+        }
+        None
+    }
+
+    /// Resolve a display attribute's *label* into its YAML attr_id for this device.
+    pub fn attr_id_by_label<'a>(&self, device: &'a Device, label: &str) -> Option<&'a String> {
+        for (attr_id, cfg) in &device.attributes {
+            if cfg.label == label {
+                return Some(attr_id);
+            }
+        }
+        None
+    }
+
+    /// Build the `/api/v1/devices/catalog` response (no realtime values).
+    pub fn catalog_json(&self) -> Value {
+        let mut devices = Vec::new();
+        for device in self.devices.values() {
+            let Some(device_id) = self.device_id_of(device) else {
+                continue;
+            };
+            let mut display_attrs = Vec::new();
+            for (attr_id, cfg) in &device.attributes {
+                if !cfg.display {
+                    continue;
+                }
+                display_attrs.push(json!({
+                    "attr_id": attr_id,
+                    "label": cfg.label,
+                    "type": cfg.attr_type,
+                    "unit": cfg.unit.clone().unwrap_or_default(),
+                            "overview": cfg.overview,
+                            "control": cfg.control,
+                }));
+            }
+            devices.push(json!({
+                "id": device_id,
+                "name": device.name,
+                "type": self.card_type(&device.nr_type),
+                "group": device.group,
+                "display_attrs": display_attrs,
+            }));
+        }
+        json!({ "site": self.site_name, "devices": devices })
     }
 }
 

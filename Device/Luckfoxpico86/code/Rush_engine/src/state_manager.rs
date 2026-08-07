@@ -25,6 +25,14 @@ impl StateManager {
     fn init_db(&self) -> Result<(), anyhow::Error> {
         let conn = self.conn.lock().unwrap();
 
+        // WAL mode: tolerates concurrent writers and write bursts from the
+        // Zigbee mesh (many devices reporting at once) without lock contention.
+        conn.pragma_update(None, "journal_mode", "WAL")?;
+        // NORMAL synchronous + WAL is the right durability/latency trade-off for
+        // a history/audit store that is never read back on the hot path.
+        conn.pragma_update(None, "synchronous", "NORMAL")?;
+        let _ = conn.execute("PRAGMA busy_timeout=5000", []);
+
         conn.execute_batch(
             "
             CREATE TABLE IF NOT EXISTS device_log (
@@ -156,7 +164,10 @@ impl StateManager {
         let conn = self.conn.lock().unwrap();
         let mut state = HashMap::new();
 
-        let query = "SELECT attr_name, attr_value, attr_str, attr_type, MAX(ts) FROM device_metric WHERE device_id = ?1 GROUP BY attr_name";
+        let query = "SELECT attr_name, attr_value, attr_str, attr_type, ts FROM ( \
+                     SELECT *, ROW_NUMBER() OVER (PARTITION BY attr_name ORDER BY ts DESC) rn \
+                     FROM device_metric WHERE device_id = ?1 \
+                     ) WHERE rn = 1";
 
         match conn.prepare(query) {
             Ok(mut stmt) => {

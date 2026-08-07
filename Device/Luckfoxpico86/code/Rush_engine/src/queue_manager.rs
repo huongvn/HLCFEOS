@@ -1,14 +1,20 @@
-use log::{debug, info};
+use log::{debug, info, warn};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::mpsc;
 
 use crate::mqtt_client::MqttClient;
 use rumqttc::QoS;
 
 type OutPayload = (String, Value); // (gateway, payload)
+
+/// Maximum publish attempts when the local broker is temporarily down
+/// (review §5 D5). Commands must not be silently dropped by a transient
+/// disconnect of the NanoMQ broker.
+const MAX_RETRIES: u32 = 3;
 
 pub struct QueueManager {
     out_tx: mpsc::UnboundedSender<OutPayload>,
@@ -18,7 +24,10 @@ pub struct QueueManager {
 impl QueueManager {
     pub fn new(mqtt_client: Arc<MqttClient>) -> Self {
         let (out_tx, mut out_rx) = mpsc::unbounded_channel::<OutPayload>();
-        let running = Arc::new(AtomicBool::new(false));
+        // Start running immediately. The worker is spawned in new() but checks the
+        // flag on entry; if it starts false the task exits before start() runs,
+        // silently dropping every outgoing command (no OUT SENT ever logged).
+        let running = Arc::new(AtomicBool::new(true));
         let running_worker = running.clone();
 
         tokio::spawn(async move {
@@ -27,10 +36,7 @@ impl QueueManager {
                     Some((gateway, payload)) => {
                         let topic = format!("cmnd/{}/ZbSend", gateway);
                         let json_str = serde_json::to_string(&payload).unwrap_or_default();
-                        mqtt_client
-                            .publish(&topic, json_str, QoS::AtLeastOnce, false)
-                            .await;
-                        info!("OUT SENT: {} = {:?}", topic, payload);
+                        publish_with_retry(&mqtt_client, &topic, &json_str).await;
                     }
                     None => break,
                 }
@@ -57,21 +63,53 @@ impl QueueManager {
         gateway: &str,
         zigbee_addr: &str,
         write_dict: &HashMap<String, Value>,
-        endpoint: Option<u8>,
     ) {
-        let mut payload = serde_json::json!({
+        // Payload for Tasmota ZbSend. Endpoint MUST be explicit:
+        //   ZbSend {"Device":"0x..","Endpoint":1,"Write":{"EF00/xxxx":N}}
+        // Without it, Tasmota resolves the endpoint from its cached device
+        // table. For an ONLINE device that cache exists, but for an OFFLINE
+        // device Tasmota returns {"ZbSend":"Missing endpoint"} and transmits
+        // NOTHING (the gateway's zigbee LED never blinks). Providing Endpoint:1
+        // lets the coordinator always submit the frame to the radio, even when
+        // the target device is offline (it is retried/queued until reachable).
+        // Tuya EF00 controllers (AC, sign/MCB, switch) all use endpoint 1 — and
+        // this is also what the power-meter read path already uses.
+        let payload = serde_json::json!({
             "Device": zigbee_addr,
+            "Endpoint": 1,
             "Write": write_dict,
         });
-
-        if let Some(ep) = endpoint {
-            payload["Endpoint"] = serde_json::json!(ep);
-        }
 
         let _ = self.out_tx.send((gateway.to_string(), payload));
         debug!(
             "OUT QUEUED: {} -> {} {:?}",
             gateway, zigbee_addr, write_dict
         );
+    }
+}
+
+/// Publish with retry + exponential backoff while the broker is disconnected.
+/// rumqttc buffers a publish as Ok once connected, so the meaningful failure
+/// mode to guard against (review §5 D5) is a transient broker outage.
+async fn publish_with_retry(client: &Arc<MqttClient>, topic: &str, payload: &str) {
+    for attempt in 0..=MAX_RETRIES {
+        if !client.is_connected() {
+            if attempt == MAX_RETRIES {
+                warn!(
+                    "Dropping command to {} after {} attempts (broker down)",
+                    topic, attempt + 1
+                );
+                return;
+            }
+            let backoff_ms = 200u64.saturating_mul(2u64.pow(attempt));
+            tokio::time::sleep(Duration::from_millis(backoff_ms)).await;
+            continue;
+        }
+
+        client
+            .publish(topic, payload.to_string(), QoS::AtLeastOnce, false)
+            .await;
+        info!("OUT SENT: {} = {}", topic, payload);
+        return;
     }
 }

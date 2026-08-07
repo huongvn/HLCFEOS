@@ -3,6 +3,7 @@ use log::{debug, error, info};
 use serde::Deserialize;
 use serde_json::Value;
 use std::fs;
+use tokio::sync::mpsc;
 
 
 #[derive(Debug, Clone, Deserialize)]
@@ -63,6 +64,8 @@ pub struct RuleEngine {
     rules: Vec<Rule>,
     #[allow(dead_code)]
     rules_file: String,
+    action_tx: Option<mpsc::UnboundedSender<RuleAction>>,
+    last_fired_date: std::collections::HashMap<String, String>,
 }
 
 impl RuleEngine {
@@ -70,9 +73,29 @@ impl RuleEngine {
         let mut engine = Self {
             rules: Vec::new(),
             rules_file: rules_file.to_string(),
+            action_tx: None,
+            last_fired_date: std::collections::HashMap::new(),
         };
         engine.load_rules();
         engine
+    }
+
+    /// Attach the channel that receives fired actions. Set once at startup.
+    pub fn set_action_sender(&mut self, tx: mpsc::UnboundedSender<RuleAction>) {
+        self.action_tx = Some(tx);
+    }
+
+    fn dispatch_actions(&self, rule: &Rule) {
+        for action in &rule.actions {
+            if let Some(tx) = &self.action_tx {
+                let _ = tx.send(action.clone());
+            }
+            info!(
+                "Rule executed: {} -> action type: {}",
+                rule.alias.as_deref().unwrap_or("unknown"),
+                action.action_type
+            );
+        }
     }
 
     pub fn load_rules(&mut self) {
@@ -110,15 +133,7 @@ impl RuleEngine {
                 continue;
             }
 
-            // Execute actions - in Rust async context, we'd need to schedule these
-            // For now, we'll log that they should be executed
-            for action in &rule.actions {
-                info!(
-                    "Rule executed: {} -> action type: {}",
-                    rule.alias.as_deref().unwrap_or("unknown"),
-                    action.action_type
-                );
-            }
+            self.dispatch_actions(rule);
         }
     }
 
@@ -131,7 +146,51 @@ impl RuleEngine {
                     false
                 }
             }
+            "time" => false, // time triggers are evaluated by process_time_tick
             _ => false,
+        }
+    }
+
+    /// Evaluate all time-triggered rules. Called on a fixed tick (e.g. 5s).
+    /// A rule fires at most once per calendar day at/after its `at` time.
+    pub fn process_time_tick(&mut self) {
+        let now = chrono::Local::now();
+        let now_time = now.time();
+        let today = now.format("%Y-%m-%d").to_string();
+
+        for rule in &self.rules {
+            if !rule.enabled {
+                continue;
+            }
+
+            let triggered = rule.triggers.iter().any(|trigger| {
+                if trigger.trigger_type != "time" {
+                    return false;
+                }
+                let Some(at) = &trigger.at else {
+                    return false;
+                };
+                match chrono::NaiveTime::parse_from_str(at, "%H:%M:%S") {
+                    Ok(at_time) => now_time >= at_time,
+                    Err(_) => false,
+                }
+            });
+            if !triggered {
+                continue;
+            }
+
+            let key = rule.alias.clone().unwrap_or_else(|| "rule".to_string());
+            if self.last_fired_date.get(&key) == Some(&today) {
+                continue;
+            }
+
+            let conditions_met = rule.conditions.iter().all(|condition| self.evaluate_condition(condition));
+            if !conditions_met {
+                continue;
+            }
+
+            self.last_fired_date.insert(key, today.clone());
+            self.dispatch_actions(rule);
         }
     }
 
