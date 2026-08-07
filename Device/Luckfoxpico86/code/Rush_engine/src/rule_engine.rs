@@ -12,6 +12,8 @@ pub struct RuleTrigger {
     pub trigger_type: String,
     pub topic: Option<String>,
     pub at: Option<String>,
+    pub device: Option<String>,
+    pub attr: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -36,6 +38,9 @@ pub struct RuleAction {
     pub qos: Option<u8>,
     pub retain: Option<bool>,
     pub message: Option<String>,
+    pub device: Option<String>,
+    pub attr: Option<String>,
+    pub value: Option<Value>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -152,12 +157,25 @@ impl RuleEngine {
                 continue;
             }
 
-            let triggered = rule.triggers.iter().any(|trigger| self.evaluate_trigger(trigger, topic, payload));
+            let mut default_path: Option<String> = None;
+            let triggered = rule.triggers.iter().any(|trigger| {
+                if self.evaluate_trigger(trigger, topic, payload) {
+                    if default_path.is_none() {
+                        default_path = self.device_value_path(trigger);
+                    }
+                    true
+                } else {
+                    false
+                }
+            });
             if !triggered {
                 continue;
             }
 
-            let conditions_met = rule.conditions.iter().all(|condition| self.evaluate_condition(condition, Some((topic, payload))));
+            let conditions_met = rule
+                .conditions
+                .iter()
+                .all(|condition| self.evaluate_condition(condition, Some((topic, payload)), default_path.as_deref()));
             if !conditions_met {
                 continue;
             }
@@ -166,7 +184,10 @@ impl RuleEngine {
         }
     }
 
-    pub fn evaluate_trigger(&self, trigger: &RuleTrigger, topic: &str, _payload: &Value) -> bool {
+    /// Evaluate a trigger against a message. Returns `true` when it fires.
+    /// For `device` triggers the matched device attribute path is used as the
+    /// default `value_path` for any following conditions that omit one.
+    pub fn evaluate_trigger(&self, trigger: &RuleTrigger, topic: &str, payload: &Value) -> bool {
         match trigger.trigger_type.as_str() {
             "mqtt" => {
                 if let Some(pattern) = &trigger.topic {
@@ -175,8 +196,25 @@ impl RuleEngine {
                     false
                 }
             }
-            "time" => false, // time triggers are evaluated by process_time_tick
+            "device" => {
+                // Match by device+attr presence in the payload at
+                // ZbReceived.<device>.<attr>. Conditions compare the numeric
+                // state extracted at the same path.
+                match self.device_value_path(trigger) {
+                    Some(path) => self.extract_value(payload, &path).is_some(),
+                    None => false,
+                }
+            }
             _ => false,
+        }
+    }
+
+    /// Build the dotted payload path for a device/attr trigger:
+    /// "ZbReceived.<device>.<attr>".
+    fn device_value_path(&self, trigger: &RuleTrigger) -> Option<String> {
+        match (&trigger.device, &trigger.attr) {
+            (Some(d), Some(a)) => Some(format!("ZbReceived.{}.{}", d, a)),
+            _ => None,
         }
     }
 
@@ -213,7 +251,7 @@ impl RuleEngine {
                 continue;
             }
 
-            let conditions_met = rule.conditions.iter().all(|condition| self.evaluate_condition(condition, None));
+            let conditions_met = rule.conditions.iter().all(|condition| self.evaluate_condition(condition, None, None));
             if !conditions_met {
                 continue;
             }
@@ -223,10 +261,15 @@ impl RuleEngine {
         }
     }
 
-    pub fn evaluate_condition(&self, condition: &RuleCondition, context: Option<(&str, &Value)>) -> bool {
+    pub fn evaluate_condition(
+        &self,
+        condition: &RuleCondition,
+        context: Option<(&str, &Value)>,
+        default_path: Option<&str>,
+    ) -> bool {
         match condition.condition_type.as_str() {
-            "state" => self.check_state_condition(condition, context),
-            "numeric_state" => self.check_numeric_state_condition(condition, context),
+            "state" => self.check_state_condition(condition, context, default_path),
+            "numeric_state" => self.check_numeric_state_condition(condition, context, default_path),
             "time" => self.check_time_condition(condition),
             _ => false,
         }
@@ -253,14 +296,20 @@ impl RuleEngine {
         Some(current)
     }
 
-    fn check_state_condition(&self, condition: &RuleCondition, context: Option<(&str, &Value)>) -> bool {
+    fn check_state_condition(
+        &self,
+        condition: &RuleCondition,
+        context: Option<(&str, &Value)>,
+        default_path: Option<&str>,
+    ) -> bool {
         let Some((_, payload)) = context else {
             return false;
         };
-        let value = match (&condition.value_path, payload) {
-            (Some(path), payload) => self.extract_value(payload, path),
-            (None, Value::Object(_)) => None,
-            (None, other) => Some(other),
+        let value = match (&condition.value_path, default_path, payload) {
+            (Some(path), _, payload) => self.extract_value(payload, path),
+            (None, Some(path), payload) => self.extract_value(payload, path),
+            (None, None, Value::Object(_)) => None,
+            (None, None, other) => Some(other),
         };
         match (value, &condition.equals) {
             (Some(Value::String(s)), Some(expected)) => s == expected,
@@ -270,14 +319,20 @@ impl RuleEngine {
         }
     }
 
-    fn check_numeric_state_condition(&self, condition: &RuleCondition, context: Option<(&str, &Value)>) -> bool {
+    fn check_numeric_state_condition(
+        &self,
+        condition: &RuleCondition,
+        context: Option<(&str, &Value)>,
+        default_path: Option<&str>,
+    ) -> bool {
         let Some((_, payload)) = context else {
             return false;
         };
-        let value = match (&condition.value_path, payload) {
-            (Some(path), payload) => self.extract_value(payload, path),
-            (None, Value::Object(_)) => return false,
-            (None, other) => Some(other),
+        let value = match (&condition.value_path, default_path, payload) {
+            (Some(path), _, payload) => self.extract_value(payload, path),
+            (None, Some(path), payload) => self.extract_value(payload, path),
+            (None, None, Value::Object(_)) => return false,
+            (None, None, other) => Some(other),
         };
         let Some(raw) = value else {
             return false;

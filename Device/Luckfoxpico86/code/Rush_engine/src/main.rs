@@ -367,9 +367,26 @@ async fn main() -> anyhow::Result<()> {
     let (rule_action_tx, rule_action_rx) = tokio::sync::mpsc::unbounded_channel();
     rule_engine.lock().await.set_action_sender(rule_action_tx);
     let action_mqtt = mqtt_local.clone();
+    let action_dm = device_manager.clone();
+    let action_qm = queue_mgr.clone();
     tokio::spawn(async move {
         let mut rx = rule_action_rx;
         while let Some(action) = rx.recv().await {
+            // Declarative device write: resolve (device, attr/attr label, value)
+            // and send via the same queue path the HMI uses.
+            if action.action_type == "device" {
+                let written = {
+                    let dm = action_dm.read().await;
+                    resolve_device_action(&dm, &action, &action_qm)
+                };
+                if !written {
+                    warn!(
+                        "Rule action 'device' could not resolve: device={:?} attr={:?}",
+                        action.device, action.attr
+                    );
+                }
+                continue;
+            }
             if let (Some(topic), Some(payload)) = (&action.topic, &action.payload) {
                 let payload_str = match payload {
                     serde_json::Value::String(s) => s.clone(),
@@ -975,4 +992,58 @@ fn check_ota_updates(ota_config: &OtaAppConfig, auto_update: bool) {
         Ok((false, _)) => info!("No OTA update available"),
         Err(e) => error!("OTA update check failed: {}", e),
     }
+}
+
+/// Resolve a declarative `device` rule action (device + attr + value) into a
+/// Zigbee write via the queue manager. Returns true if dispatched.
+fn resolve_device_action(
+    dm: &DeviceManager,
+    action: &rule_engine::RuleAction,
+    queue_mgr: &QueueManager,
+) -> bool {
+    let Some(dev_value) = &action.device else { return false };
+    let Some(attr) = &action.attr else { return false };
+    let Some(val) = &action.value else { return false };
+
+    // Find device by zigbee address or by name.
+    let device = dm
+        .devices
+        .get(dev_value)
+        .or_else(|| {
+            dm.devices
+                .values()
+                .find(|d| d.name.eq_ignore_ascii_case(dev_value) || d.nr_type.eq_ignore_ascii_case(dev_value))
+        });
+
+    let Some(device) = device else { return false };
+
+    // attr is given as YAML id (e.g. "0110") or label (e.g. "Control").
+    let attr_id = if device.attributes.contains_key(attr.as_str()) {
+        attr.clone()
+    } else {
+        match hmi_bridge::find_attr_id_by_label(&device.attributes, attr) {
+            Some(id) => id,
+            None => return false,
+        }
+    };
+
+    let value = match val {
+        Value::Bool(b) => if *b { 1 } else { 0 },
+        Value::Number(n) => n.as_i64().unwrap_or(0) as i64,
+        Value::String(s) => match s.as_str() {
+            "ON" | "on" | "true" | "1" => 1,
+            "OFF" | "off" | "false" | "0" => 0,
+            other => other.parse::<i64>().unwrap_or(0),
+        },
+        _ => return false,
+    };
+
+    let mut write_dict = HashMap::new();
+    write_dict.insert(format!("EF00/{}", attr_id), serde_json::json!(value));
+    queue_mgr.send_zbsend(&device.gateway, &device.zigbee_addr, &write_dict);
+    info!(
+        "Rule device action: {} {}={} -> OUT QUEUED",
+        device.zigbee_addr, attr_id, value
+    );
+    true
 }
