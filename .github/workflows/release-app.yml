@@ -56,4 +56,4 @@ jobs:
           gh release view "bms-v${VER}" >/dev/null 2>&1 || { echo "::error::release bms-v${VER} không tồn tại"; exit 1; }
           gh release upload "bms-v${VER}" \
             ota/app_v${VER} ota/app_v${VER}.sha256 --clobber
-          gh release view "bms-v${VER}" --json tag_name,assets --jq '.tag_name, .assets[].name'
+          gh release view "bms-v${VER}" --json tagName,assets --jq '.tagName, .assets[].name'
