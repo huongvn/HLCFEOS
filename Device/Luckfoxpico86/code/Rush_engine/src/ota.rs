@@ -160,6 +160,8 @@ impl OtaUpdater {
             Ok((available, version)) => {
                 if available {
                     return Ok((true, version));
+                } else {
+                    return Ok((false, version));
                 }
             }
             Err(e) => {
