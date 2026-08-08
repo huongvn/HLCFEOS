@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0",
-  "url": "http://192.168.1.171/ota/app_v1.2.0",
-  "sha256": "f7060d44742e6452daf9006020333abf0a08648b5297cceb08222f848bd9b8a5"
+  "version": "1.2.1",
+  "url": "http://192.168.1.171/ota/app_v1.2.1",
+  "sha256": "7ca73dee96de5fdc57d545388e3e619172cf2d2e3231a7295d84a3807afc4725"
 }

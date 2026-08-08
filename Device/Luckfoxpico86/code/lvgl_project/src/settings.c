@@ -23,7 +23,6 @@ static lv_obj_t *label_ota_status;
 static lv_obj_t *bar_ota_progress;
 static lv_obj_t *btn_ota_action;
 static lv_obj_t *label_ota_btn;
-static lv_obj_t *ta_ota_url;
 static lv_obj_t *ta_wifi_ssid;
 static lv_obj_t *ta_wifi_password;
 static lv_obj_t *label_wifi_status;
@@ -67,7 +66,6 @@ static void save_btn_event_cb(lv_event_t *e) {
     cfg->screen_brightness = lv_slider_get_value(slider_brightness);
     cfg->screen_timeout = atoi(lv_textarea_get_text(ta_timeout));
     cfg->font_choice = lv_dropdown_get_selected(dropdown_font);
-    strncpy(cfg->ota_url, lv_textarea_get_text(ta_ota_url), sizeof(cfg->ota_url)-1);
     strncpy(cfg->wifi_ssid, lv_textarea_get_text(ta_wifi_ssid), sizeof(cfg->wifi_ssid)-1);
     strncpy(cfg->wifi_password, lv_textarea_get_text(ta_wifi_password), sizeof(cfg->wifi_password)-1);
 
@@ -369,9 +367,6 @@ lv_obj_t* settings_create(lv_obj_t *parent) {
 
     style_tab(t4);
     
-    create_section_label(t4, ui_get_text("OTA Update Server URL"));
-    ta_ota_url = create_styled_ta(t4, cfg->ota_url, 90);
-
     label_ota_ver = lv_label_create(t4);
     char ver_buf[64]; snprintf(ver_buf, sizeof(ver_buf), ui_get_text("Current Version: %s"), APP_VERSION);
     lv_label_set_text(label_ota_ver, ver_buf);

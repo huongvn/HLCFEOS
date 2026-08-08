@@ -108,11 +108,11 @@ static int http_get_to_file(const char *url, const char *token, const char *dest
     char cmd[1024];
     if (token && token[0]) {
         snprintf(cmd, sizeof(cmd),
-                 "curl -sS --connect-timeout 8 --max-time 15 -H \"Authorization: token %s\" -o %s %s",
+                 "curl -sSL --connect-timeout 8 --max-time 15 -H \"Authorization: token %s\" -o %s %s",
                  token, dest, url);
     } else {
         snprintf(cmd, sizeof(cmd),
-                 "curl -sS --connect-timeout 8 --max-time 15 -o %s %s", dest, url);
+                 "curl -sSL --connect-timeout 8 --max-time 15 -o %s %s", dest, url);
     }
     int rc = system(cmd);
     return (rc == 0) ? 0 : -1;
@@ -242,7 +242,7 @@ void ota_start_download(void) {
     /* Download to staging path; install step swaps it atomically. */
     char cmd[2048];
     snprintf(cmd, sizeof(cmd),
-             "(curl -sS -f -o %s %s && curl -sS -f -o %s %s && touch %s) &",
+             "(curl -sSL -f -o %s %s && curl -sSL -f -o %s %s && touch %s) &",
              APP_NEW_PATH, g_download_url,
              SHA_TMP, g_sha_url, DONE_FLAG);
 
