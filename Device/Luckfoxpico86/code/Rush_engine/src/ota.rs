@@ -233,8 +233,13 @@ impl OtaUpdater {
 
         let release: GitHubRelease = response.json().await?;
 
-        // Parse version from tag_name (strip 'v' prefix)
-        let new_version = release.tag_name.trim_start_matches('v').to_string();
+        // Parse version from tag_name (strip leading "v", "app-v", "bms-v")
+        let tag = release.tag_name.trim();
+        let new_version = tag
+            .trim_start_matches(|c: char| c.is_alphabetic())
+            .trim_start_matches('-')
+            .trim_start_matches('v')
+            .to_string();
 
         if new_version == self.current_version {
             info!("System is up to date (GitHub)");
@@ -407,8 +412,11 @@ let total_size = response.content_length().unwrap_or(0) as usize;
             info!("Backup created at {:?}", backup_binary);
         }
 
-        // Atomically replace the binary (copy to temp then rename)
-        let tmp_install = extract_dir.join("bms-engine.staged");
+        // Atomically replace the binary (write temp in same dir, then rename
+        // stays within the same filesystem -> atomic & cross-device safe).
+        let mut tmp_path = install_binary.clone().into_os_string();
+        tmp_path.push(".new");
+        let tmp_install = PathBuf::from(tmp_path);
         std_fs::copy(&new_binary, &tmp_install)?;
         {
             use std::os::unix::fs::PermissionsExt;
@@ -421,8 +429,8 @@ let total_size = response.content_length().unwrap_or(0) as usize;
 
         // Restart service
         info!("Restarting service...");
-        let output = Command::new("systemctl")
-            .args(["restart", "bms-engine"])
+        let output = Command::new("sudo")
+            .args(["-n", "systemctl", "restart", "bms-engine"])
             .output()?;
 
         if !output.status.success() {
@@ -447,6 +455,11 @@ let total_size = response.content_length().unwrap_or(0) as usize;
             self.current_version, self.new_version
         );
 
+        // Persist the new version so next checks see the current version.
+        let ver_file = self.install_dir.join("VERSION");
+        let _ = std_fs::write(&ver_file, format!("{}\n", self.new_version));
+        info!("Updated VERSION file at {:?}", ver_file);
+
         self.current_version = self.new_version.clone();
         self.cleanup().await?;
 
@@ -462,8 +475,8 @@ let total_size = response.content_length().unwrap_or(0) as usize;
             std_fs::rename(&backup_binary, &install_binary)?;
             info!("Restored backup binary to {:?}", install_binary);
 
-            let output = Command::new("systemctl")
-                .args(["restart", "bms-engine"])
+            let output = Command::new("sudo")
+                .args(["-n", "systemctl", "restart", "bms-engine"])
                 .output()?;
 
             if output.status.success() {
