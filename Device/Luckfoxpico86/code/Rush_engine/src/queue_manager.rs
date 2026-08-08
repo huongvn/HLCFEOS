@@ -9,7 +9,7 @@ use tokio::sync::mpsc;
 use crate::mqtt_client::MqttClient;
 use rumqttc::QoS;
 
-type OutPayload = (String, Value); // (gateway, payload)
+type OutPayload = (String, String); // (topic, payload_str)
 
 /// Maximum publish attempts when the local broker is temporarily down
 /// (review §5 D5). Commands must not be silently dropped by a transient
@@ -33,10 +33,8 @@ impl QueueManager {
         tokio::spawn(async move {
             while running_worker.load(std::sync::atomic::Ordering::Relaxed) {
                 match out_rx.recv().await {
-                    Some((gateway, payload)) => {
-                        let topic = format!("cmnd/{}/ZbSend", gateway);
-                        let json_str = serde_json::to_string(&payload).unwrap_or_default();
-                        publish_with_retry(&mqtt_client, &topic, &json_str).await;
+                    Some((topic, payload)) => {
+                        publish_with_retry(&mqtt_client, &topic, &payload).await;
                     }
                     None => break,
                 }
@@ -80,11 +78,20 @@ impl QueueManager {
             "Write": write_dict,
         });
 
-        let _ = self.out_tx.send((gateway.to_string(), payload));
+        self.send_publish(
+            &format!("cmnd/{}/ZbSend", gateway),
+            serde_json::to_string(&payload).unwrap_or_default(),
+        );
         debug!(
             "OUT QUEUED: {} -> {} {:?}",
             gateway, zigbee_addr, write_dict
         );
+    }
+
+    /// Queue an arbitrary MQTT publish (used for MQTT-direct devices). Same
+    /// worker + retry policy as ZbSend.
+    pub fn send_publish(&self, topic: &str, payload: String) {
+        let _ = self.out_tx.send((topic.to_string(), payload));
     }
 }
 

@@ -92,7 +92,7 @@ async fn list_devices(State(state): State<Arc<HttpApiState>>) -> Json<Value> {
         let Some(device_id) = dm.device_id_of(device) else {
             continue;
         };
-        let state_map = state.state_manager.lock().await.get_latest_state(&device.zigbee_addr);
+        let state_map = state.state_manager.lock().await.get_latest_state(&device.key());
 
         let mut attrs = serde_json::Map::new();
         for (_, cfg) in &device.attributes {
@@ -129,7 +129,7 @@ async fn get_device_state(
         None => return (StatusCode::NOT_FOUND, Json(json!({"error": "device not found"}))).into_response(),
     };
 
-    let state_map = state.state_manager.lock().await.get_latest_state(&device.zigbee_addr);
+    let state_map = state.state_manager.lock().await.get_latest_state(&device.key());
 
     let mut attrs = serde_json::Map::new();
     for (_, cfg) in &device.attributes {
@@ -220,10 +220,11 @@ async fn device_action(
     match result {
         Ok(rep) => {
             info!("Action {} on {} (cmd {})", req.action, device_id, req.command_id);
+            let device_key = device.key();
             state
                 .register_pending(
                     &req.command_id,
-                    &device.zigbee_addr,
+                    &device_key,
                     &device_id,
                     &rep.attr_label,
                     rep.expected_value,
@@ -350,7 +351,7 @@ async fn events_stream(
         let online = state.device_online.lock().await;
         for device in dm.get_all_devices().values() {
             let Some(device_id) = dm.device_id_of(device) else { continue; };
-            let on = online.get(&device.zigbee_addr).copied().unwrap_or(false);
+            let on = online.get(&device.key()).copied().unwrap_or(false);
             events.push(SseEvent::default().data(
                 json!({
                     "event": "ATTR_UPDATED",

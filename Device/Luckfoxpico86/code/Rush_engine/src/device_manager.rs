@@ -45,19 +45,71 @@ pub struct DecodeRule {
 pub struct DeviceMetadata {
     pub ac_index: Option<i64>,
     pub sign_index: Option<i64>,
+    pub switch_index: Option<i64>,
     pub power_index: Option<i64>,
     pub light_sensor_index: Option<i64>,
+}
+
+/// MQTT command template: payload khi engine gửi lệnh xuống device mqtt.
+/// `prefix` + `value_key` + token(giá trị) + `suffix`.
+/// Với attr bool: token = `on_value` khi ON, `off_value` khi OFF (nếu khai báo),
+/// ngược lại là "1" / "0". Vd Tasmota: prefix `{"cmnd":"`, value_key `POWER`,
+/// suffix `"}`, on_value `ON`, off_value `OFF` → `{"cmnd":"POWERON"}`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MqttCommandTemplate {
+    #[serde(default)]
+    pub prefix: String,
+    #[serde(default)]
+    pub value_key: String,
+    #[serde(default)]
+    pub suffix: String,
+    #[serde(default)]
+    pub on_value: Option<String>,
+    #[serde(default)]
+    pub off_value: Option<String>,
+}
+
+/// Cấu hình kết nối MQTT trực tiếp cho thiết bị (protocol == "mqtt").
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MqttCfg {
+    pub state_topic: String,
+    pub command_topic: String,
+    #[serde(default)]
+    pub lwt_topic: Option<String>,
+    #[serde(default)]
+    pub command_template: Option<MqttCommandTemplate>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Device {
     pub zigbee_addr: String,
+    pub protocol: String,
     pub nr_type: String,
     pub name: String,
     pub group: String,
     pub gateway: String,
+    pub mqtt_cfg: Option<MqttCfg>,
     pub attributes: HashMap<String, AttributeConfig>,
     pub metadata: DeviceMetadata,
+}
+
+impl Device {
+    /// Key thống nhất để tra cứu trong DeviceManager: zigbee device dùng
+    /// `zigbee_addr`, mqtt device dùng `mqtt:{state_topic}`.
+    pub fn key(&self) -> String {
+        if self.protocol == "mqtt" {
+            self.mqtt_cfg
+                .as_ref()
+                .map(|c| format!("mqtt:{}", c.state_topic))
+                .unwrap_or_default()
+        } else {
+            self.zigbee_addr.clone()
+        }
+    }
+
+    pub fn is_mqtt(&self) -> bool {
+        self.protocol == "mqtt"
+    }
 }
 
 pub struct DeviceManager {
@@ -106,14 +158,69 @@ impl DeviceManager {
                     continue;
                 }
 
+                let protocol = dev_val
+                    .get("protocol")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("zigbee")
+                    .to_string();
+
                 let zigbee_addr = dev_val
                     .get("zigbee_addr")
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string();
-                if zigbee_addr.is_empty() {
+                if zigbee_addr.is_empty() && protocol != "mqtt" {
                     continue;
                 }
+
+                let mqtt_cfg = if protocol == "mqtt" {
+                    dev_val.get("mqtt").map(|m| MqttCfg {
+                        state_topic: m
+                            .get("state_topic")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string(),
+                        command_topic: m
+                            .get("command_topic")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string(),
+                        lwt_topic: m
+                            .get("lwt_topic")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string()),
+                        command_template: m
+                            .get("command_template")
+                            .and_then(|v| v.as_mapping())
+                            .map(|t| MqttCommandTemplate {
+                                prefix: t
+                                    .get("prefix")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("")
+                                    .to_string(),
+                                value_key: t
+                                    .get("value_key")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("")
+                                    .to_string(),
+                                suffix: t
+                                    .get("suffix")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("")
+                                    .to_string(),
+                                on_value: t
+                                    .get("on_value")
+                                    .and_then(|v| v.as_str())
+                                    .map(|s| s.to_string()),
+                                off_value: t
+                                    .get("off_value")
+                                    .and_then(|v| v.as_str())
+                                    .map(|s| s.to_string()),
+                            }),
+                    })
+                } else {
+                    None
+                };
 
                 let mut attributes = HashMap::new();
                 if let Some(attrs) = dev_val.get("attributes").and_then(|v| v.as_sequence()) {
@@ -168,23 +275,24 @@ impl DeviceManager {
                     }
                 }
 
-                devices.insert(
-                    zigbee_addr.clone(),
-                    Device {
-                        zigbee_addr: zigbee_addr.clone(),
-                        nr_type: dev_val.get("nr_type").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                        name: dev_val.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                        group: dev_val.get("group").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                        gateway: dev_val.get("gateway").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                        attributes,
-                        metadata: DeviceMetadata {
-                            ac_index: dev_val.get("ac_index").and_then(|v| v.as_i64()),
-                            sign_index: dev_val.get("sign_index").and_then(|v| v.as_i64()),
-                            power_index: dev_val.get("power_index").and_then(|v| v.as_i64()),
-                            light_sensor_index: dev_val.get("light_sensor_index").and_then(|v| v.as_i64()),
-                        },
+                let device = Device {
+                    zigbee_addr: zigbee_addr.clone(),
+                    protocol,
+                    nr_type: dev_val.get("nr_type").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                    name: dev_val.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                    group: dev_val.get("group").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                    gateway: dev_val.get("gateway").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                    mqtt_cfg,
+                    attributes,
+                    metadata: DeviceMetadata {
+                        ac_index: dev_val.get("ac_index").and_then(|v| v.as_i64()),
+                        sign_index: dev_val.get("sign_index").and_then(|v| v.as_i64()),
+                        switch_index: dev_val.get("switch_index").and_then(|v| v.as_i64()),
+                        power_index: dev_val.get("power_index").and_then(|v| v.as_i64()),
+                        light_sensor_index: dev_val.get("light_sensor_index").and_then(|v| v.as_i64()),
                     },
-                );
+                };
+                devices.insert(device.key(), device);
             }
         }
 
@@ -227,6 +335,29 @@ impl DeviceManager {
 
     pub fn get_device(&self, zigbee_addr: &str) -> Option<&Device> {
         self.devices.get(zigbee_addr)
+    }
+
+    /// Find an MQTT device by its state topic (exact match).
+    pub fn find_by_state_topic(&self, topic: &str) -> Option<&Device> {
+        self.devices.values().find(|d| {
+            d.is_mqtt()
+                && d.mqtt_cfg
+                    .as_ref()
+                    .map(|c| c.state_topic == topic)
+                    .unwrap_or(false)
+        })
+    }
+
+    /// Find an MQTT device by its LWT topic (exact match).
+    pub fn find_by_lwt_topic(&self, topic: &str) -> Option<&Device> {
+        self.devices.values().find(|d| {
+            d.is_mqtt()
+                && d.mqtt_cfg
+                    .as_ref()
+                    .and_then(|c| c.lwt_topic.as_deref())
+                    .map(|t| t == topic)
+                    .unwrap_or(false)
+        })
     }
 
     pub fn get_all_devices(&self) -> &HashMap<String, Device> {
@@ -280,6 +411,7 @@ impl DeviceManager {
             "mcb" => device.metadata.sign_index?,
             "power_meter" => device.metadata.power_index?,
             "light_sensor" => device.metadata.light_sensor_index?,
+            "switch" => device.metadata.switch_index.or(device.metadata.sign_index)?,
             _ => device.metadata.sign_index?,
         };
         Some((slug, index))
@@ -309,7 +441,10 @@ impl DeviceManager {
                 "mcb" => device.metadata.sign_index == Some(idx),
                 "power_meter" => device.metadata.power_index == Some(idx),
                 "light_sensor" => device.metadata.light_sensor_index == Some(idx),
-                "switch" => device.metadata.sign_index == Some(idx),
+                "switch" => {
+                    device.metadata.switch_index == Some(idx)
+                        || device.metadata.sign_index == Some(idx)
+                }
                 _ => false,
             };
             if matched {
@@ -363,3 +498,39 @@ impl DeviceManager {
 }
 
 pub type SharedDeviceManager = Arc<RwLock<DeviceManager>>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_dm() -> DeviceManager {
+        DeviceManager::new("/tmp/devices_mqtt_test.yaml").expect("load test devices")
+    }
+
+#[test]
+    fn mqtt_device_loaded_with_key() {
+        let dm = test_dm();
+        let dev = dm.devices.get("mqtt:dev/shade/state").expect("mqtt device key");
+        assert_eq!(dev.protocol, "mqtt");
+        assert_eq!(dev.nr_type, "switch");
+        assert_eq!(dev.metadata.switch_index, Some(0));
+        assert!(dev.is_mqtt());
+        assert_eq!(dev.key(), "mqtt:dev/shade/state");
+    }
+
+    #[test]
+    fn mqtt_find_by_topics() {
+        let dm = test_dm();
+        assert!(dm.find_by_state_topic("dev/shade/state").is_some());
+        assert!(dm.find_by_state_topic("dev/unknown").is_none());
+        assert!(dm.find_by_lwt_topic("dev/shade/lwt").is_some());
+        assert!(dm.find_by_lwt_topic("tele/x/LWT").is_none());
+    }
+
+    #[test]
+    fn switch_device_id_is_switch_0() {
+        let dm = test_dm();
+        let dev = dm.find_by_state_topic("dev/shade/state").unwrap();
+        assert_eq!(dm.device_id_of(dev), Some("switch_0".to_string()));
+    }
+}

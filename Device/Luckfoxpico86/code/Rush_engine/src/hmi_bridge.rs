@@ -59,7 +59,7 @@ impl HmiBridge {
                 self.handle_ac_command(idx, attr, payload).await;
             }
         }
-        // Handle Sign commands: bms/sign/{idx}/{attr_id}/set
+        // Handle Sign commands: bms/sign/{idx}/{attr}/set
         else if parts.len() == 5
             && parts[0] == "bms"
             && parts[1] == "sign"
@@ -67,6 +67,16 @@ impl HmiBridge {
         {
             if let (Ok(idx), attr) = (parts[2].parse::<i64>(), parts[3]) {
                 self.handle_sign_command(idx, attr, payload).await;
+            }
+        }
+        // Handle Switch commands: bms/switch/{idx}/{attr}/set
+        else if parts.len() == 5
+            && parts[0] == "bms"
+            && parts[1] == "switch"
+            && parts[4] == "set"
+        {
+            if let (Ok(idx), attr) = (parts[2].parse::<i64>(), parts[3]) {
+                self.handle_switch_command(idx, attr, payload).await;
             }
         }
         // Handle Scene commands: bms/scene/master
@@ -164,14 +174,7 @@ impl HmiBridge {
         value: i64,
         comment: String,
     ) {
-        let mut write_dict = HashMap::new();
-        write_dict.insert(format!("EF00/{}", attr_id), serde_json::json!(value));
-        self.queue_mgr
-            .send_zbsend(&device.gateway, &device.zigbee_addr, &write_dict);
-        info!(
-            "Action {}: {} {}={}",
-            comment, device.zigbee_addr, attr_id, value
-        );
+        self.send_command(device, attr_id, value, comment).await;
 
         // Optimistic feedback so the front-end sees the change immediately.
         let feedback_payload = if cfg.attr_type == "bool" {
@@ -187,10 +190,43 @@ impl HmiBridge {
         }
     }
 
+    /// Dispatch a control value to a device using the protocol it declares:
+    /// zigbee → ZbSend on the gateway, mqtt → publish command_topic.
+    async fn send_command(
+        &self,
+        device: &Device,
+        attr_id: &str,
+        value: i64,
+        comment: String,
+    ) {
+        if device.protocol == "mqtt" {
+            let Some(cfg) = &device.mqtt_cfg else {
+                warn!("MQTT device {} has no mqtt config", device.name);
+                return;
+            };
+            let payload = build_mqtt_command(device, attr_id, value);
+            self.queue_mgr.send_publish(&cfg.command_topic, payload);
+            info!(
+                "Action {}: {} [mqtt] {}={} -> OUT QUEUED",
+                comment, device.name, attr_id, value
+            );
+            return;
+        }
+
+        let mut write_dict = HashMap::new();
+        write_dict.insert(format!("EF00/{}", attr_id), serde_json::json!(value));
+        self.queue_mgr
+            .send_zbsend(&device.gateway, &device.zigbee_addr, &write_dict);
+        info!(
+            "Action {}: {} {}={}",
+            comment, device.zigbee_addr, attr_id, value
+        );
+    }
+
     /// Current boolean value (by label) from the latest cached state.
     async fn current_bool(&self, device: &Device, label: &str) -> Option<bool> {
         let states = self.last_states.lock().await;
-        let dev = states.get(&device.zigbee_addr)?;
+        let dev = states.get(&device.key())?;
         let v = dev.get(label)?;
         match v {
             Value::Bool(b) => Some(*b),
@@ -205,6 +241,13 @@ impl HmiBridge {
         match device.nr_type.as_str() {
             "ac_controller" => device.metadata.ac_index.map(|i| ("ac", i)),
             "mcb" => device.metadata.sign_index.map(|i| ("sign", i)),
+            "switch" => {
+                device
+                    .metadata
+                    .switch_index
+                    .or(device.metadata.sign_index)
+                    .map(|i| ("switch", i))
+            }
             "power_meter" => device.metadata.power_index.map(|i| ("power", i)),
             "light_sensor" => device.metadata.light_sensor_index.map(|i| ("light", i)),
             _ => None,
@@ -325,6 +368,53 @@ impl HmiBridge {
             .emit(&feedback_topic, serde_json::json!(feedback_payload))
             .await;
         info!("Sign feedback: {} {}={}", idx, attr, feedback_payload);
+    }
+
+    async fn handle_switch_command(&self, idx: i64, attr: &str, payload: &Value) {
+        let device = self.get_device_by_index("switch", idx).await;
+        let device = match device {
+            Some(d) => d,
+            None => {
+                warn!("Switch device not found for index {}", idx);
+                return;
+            }
+        };
+
+        let attr_config = match device.attributes.get(attr) {
+            Some(c) => c.clone(),
+            None => {
+                warn!("Unknown Switch attribute id: {}", attr);
+                return;
+            }
+        };
+
+        let is_bool = attr_config.attr_type == "bool";
+        let value: i64 = if is_bool {
+            match payload {
+                Value::String(s) if s.to_uppercase() == "ON" => 1,
+                _ => 0,
+            }
+        } else {
+            match payload {
+                Value::Number(n) => n.as_i64().unwrap_or(0),
+                Value::String(s) => s.parse::<i64>().unwrap_or(0),
+                _ => 0,
+            }
+        };
+
+        self.send_command(&device, attr, value, "HMI switch".to_string())
+            .await;
+
+        let feedback_payload = if is_bool {
+            if value == 1 { "ON".to_string() } else { "OFF".to_string() }
+        } else {
+            value.to_string()
+        };
+        let feedback_topic = format!("bms/switch/{}/{}", idx, attr);
+        self.bus
+            .emit(&feedback_topic, serde_json::json!(feedback_payload))
+            .await;
+        info!("Switch feedback: {} {}={}", idx, attr, feedback_payload);
     }
 
     async fn handle_scene_command(&self, payload: &Value) {
@@ -471,6 +561,11 @@ impl HmiBridge {
                     self.publish_sign_feedback(idx, &changed, device).await;
                 }
             }
+            "switch" => {
+                if let Some(idx) = device.metadata.switch_index.or(device.metadata.sign_index) {
+                    self.publish_switch_feedback(idx, &changed, device).await;
+                }
+            }
             "power_meter" => {
                 if let Some(idx) = device.metadata.power_index {
                     self.publish_power_feedback(idx, &changed, device).await;
@@ -563,6 +658,45 @@ impl HmiBridge {
         }
     }
 
+    async fn publish_switch_feedback(
+        &self,
+        idx: i64,
+        state: &HashMap<String, Value>,
+        device: &Device,
+    ) {
+        for (attr_id, attr_config) in &device.attributes {
+            let label = &attr_config.label;
+            if !state.contains_key(label) {
+                continue;
+            }
+            if !attr_config.display {
+                continue;
+            }
+
+            let value = &state[label];
+            let payload = if attr_config.attr_type == "bool" {
+                let val_bool = match value {
+                    Value::Number(n) => n.as_i64().unwrap_or(0) != 0,
+                    Value::String(s) => s.to_uppercase() == "ON" || s == "1" || s == "TRUE",
+                    Value::Bool(b) => *b,
+                    _ => false,
+                };
+                if val_bool { "ON".to_string() } else { "OFF".to_string() }
+            } else {
+                match value {
+                    Value::String(s) => s.clone(),
+                    other => other.to_string(),
+                }
+            };
+
+            let topic = format!("bms/switch/{}/{}", idx, attr_id);
+            self.bus
+                .emit(&topic, serde_json::json!(payload))
+                .await;
+            debug!("HMI Switch[{}] -> {} = {}", idx, topic, payload);
+        }
+    }
+
     async fn publish_power_feedback(
         &self,
         idx: i64,
@@ -633,6 +767,10 @@ impl HmiBridge {
             let found = match device_type {
                 "ac_controller" => device.metadata.ac_index == Some(idx),
                 "mcb" => device.metadata.sign_index == Some(idx),
+                "switch" => {
+                    device.metadata.switch_index == Some(idx)
+                        || device.metadata.sign_index == Some(idx)
+                }
                 "power_meter" => device.metadata.power_index == Some(idx),
                 "light_sensor" => device.metadata.light_sensor_index == Some(idx),
                 _ => false,
@@ -671,4 +809,30 @@ fn find_bool_control(attributes: &HashMap<String, crate::device_manager::Attribu
         }
     }
     None
+}
+
+/// Compose the MQTT command payload for an MQTT-direct device.
+/// `prefix` + `value_key` + token + `suffix`. Bool attr uses `on_value`/`off_value`
+/// if declared, else the literal "1"/"0". Non-bool uses the numeric value string.
+pub fn build_mqtt_command(device: &Device, _attr_id: &str, value: i64) -> String {
+    let Some(cfg) = &device.mqtt_cfg else {
+        return value.to_string();
+    };
+    let Some(tpl) = &cfg.command_template else {
+        // Default: {"<value>": <value>} — simple JSON the device can parse.
+        return format!("{{\"{}\":{}}}", value, value);
+    };
+
+    let is_bool = device.attributes.get(_attr_id).map(|c| c.attr_type == "bool").unwrap_or(false);
+    let token = if is_bool {
+        if value != 0 {
+            tpl.on_value.clone().unwrap_or_else(|| "1".to_string())
+        } else {
+            tpl.off_value.clone().unwrap_or_else(|| "0".to_string())
+        }
+    } else {
+        value.to_string()
+    };
+
+    format!("{}{}{}{}", tpl.prefix, tpl.value_key, token, tpl.suffix)
 }
