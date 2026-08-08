@@ -206,6 +206,7 @@ lv_obj_t *g_bms_switch = NULL;
 
 lv_obj_t *g_card_ptrs[12] = {NULL};  // indexed by device array index
 lv_obj_t *g_sw_ptrs[12]   = {NULL};  // toggle switch pointers
+lv_obj_t *g_scroll_cont[6] = {NULL}; // scrollable container per screen
 bool       g_bms_mqtt_updating = false;
 
 static screen_id_t g_current_screen = SCREEN_OVERVIEW;
@@ -1046,6 +1047,7 @@ static void overview_build(lv_obj_t *scr) {
     lv_obj_set_style_pad_ver(cont, 0, 0);
     lv_obj_set_scroll_dir(cont, LV_DIR_VER);
     set_flex2(cont, LV_FLEX_FLOW_COLUMN, -1);
+    g_scroll_cont[SCREEN_OVERVIEW] = cont;
 
     sec_label(cont, ui_get_text("AIR CONDITIONING"));
     lv_obj_t *gac = lv_obj_create(cont);
@@ -1228,6 +1230,7 @@ static void ac_screen_build(lv_obj_t *scr) {
     lv_obj_set_style_pad_hor(cont, 14, 0);
     lv_obj_set_scroll_dir(cont, LV_DIR_VER);
     set_flex2(cont, LV_FLEX_FLOW_COLUMN, 4);
+    g_scroll_cont[SCREEN_AC] = cont;
 
     ac_summary(cont);
 
@@ -1366,6 +1369,7 @@ static void sign_screen_build(lv_obj_t *scr) {
     lv_obj_set_style_pad_hor(cont, 14, 0);
     lv_obj_set_scroll_dir(cont, LV_DIR_VER);
     set_flex2(cont, LV_FLEX_FLOW_COLUMN, 8);
+    g_scroll_cont[SCREEN_SIGN] = cont;
 
     sign_summary(cont);
 
@@ -1598,6 +1602,7 @@ static void power_meter_screen_build(lv_obj_t *scr) {
     lv_obj_set_style_pad_hor(cont, 14, 0);
     lv_obj_set_scroll_dir(cont, LV_DIR_VER);
     set_flex2(cont, LV_FLEX_FLOW_COLUMN, 8);
+    g_scroll_cont[SCREEN_POWER] = cont;
 
     power_summary(cont);
 
@@ -1633,6 +1638,7 @@ static void light_sensor_screen_build(lv_obj_t *scr) {
     lv_obj_set_style_pad_hor(cont, 14, 0);
     lv_obj_set_scroll_dir(cont, LV_DIR_VER);
     set_flex2(cont, LV_FLEX_FLOW_COLUMN, 8);
+    g_scroll_cont[SCREEN_LIGHT] = cont;
 
     light_summary(cont);
 
@@ -1732,6 +1738,7 @@ static void switch_screen_build(lv_obj_t *scr) {
     lv_obj_set_style_pad_hor(cont, 14, 0);
     lv_obj_set_scroll_dir(cont, LV_DIR_VER);
     set_flex2(cont, LV_FLEX_FLOW_COLUMN, 8);
+    g_scroll_cont[SCREEN_SWITCH] = cont;
 
     switch_summary(cont);
 
@@ -1758,6 +1765,7 @@ static void throttled_rebuild_screens(void) {
 
 // Phase 2: Lazy rendering - only rebuild active screen
 void bms_rebuild_active_screen(void) {
+    int32_t saved_scroll = g_scroll_cont[g_current_screen] ? lv_obj_get_scroll_y(g_scroll_cont[g_current_screen]) : 0;
     switch (g_current_screen) {
         case SCREEN_OVERVIEW:
             if (g_bms_overview) lv_obj_delete(g_bms_overview);
@@ -1791,6 +1799,10 @@ void bms_rebuild_active_screen(void) {
             break;
     }
     bms_load_screen(g_current_screen);
+    if (saved_scroll > 0 && g_scroll_cont[g_current_screen]) {
+        lv_obj_update_layout(g_scroll_cont[g_current_screen]);
+        lv_obj_scroll_to_y(g_scroll_cont[g_current_screen], saved_scroll, LV_ANIM_OFF);
+    }
 }
 
 // Phase 3: Incremental update - update card style without full rebuild
@@ -1838,6 +1850,7 @@ static void update_display_attr_label(int device_idx, int attr_idx) {
 }
 
 void bms_rebuild_all_screens(void) {
+    int32_t saved_scroll = g_scroll_cont[g_current_screen] ? lv_obj_get_scroll_y(g_scroll_cont[g_current_screen]) : 0;
     if (g_bms_overview) { lv_obj_delete(g_bms_overview); }
     if (g_bms_ac)       { lv_obj_delete(g_bms_ac); }
     if (g_bms_sign)     { lv_obj_delete(g_bms_sign); }
@@ -1848,6 +1861,7 @@ void bms_rebuild_all_screens(void) {
     // Clear label pointers
     memset(g_attr_labels, 0, sizeof(g_attr_labels));
     memset(g_value_labels, 0, sizeof(g_value_labels));
+    memset(g_scroll_cont, 0, sizeof(g_scroll_cont));
 
     g_bms_overview = lv_obj_create(NULL);
     g_bms_ac       = lv_obj_create(NULL);
@@ -1864,6 +1878,10 @@ void bms_rebuild_all_screens(void) {
     switch_screen_build(g_bms_switch);
 
     bms_load_screen(g_current_screen);
+    if (saved_scroll > 0 && g_scroll_cont[g_current_screen]) {
+        lv_obj_update_layout(g_scroll_cont[g_current_screen]);
+        lv_obj_scroll_to_y(g_scroll_cont[g_current_screen], saved_scroll, LV_ANIM_OFF);
+    }
 }
 
 /*==================

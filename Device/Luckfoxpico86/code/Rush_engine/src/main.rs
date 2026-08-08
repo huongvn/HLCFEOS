@@ -17,7 +17,7 @@ use command_tracker::CommandTracker;
 use device_manager::{DeviceManager, SharedDeviceManager};
 use event_bus::EventBus;
 use hmi_bridge::HmiBridge;
-use log::{error, info, warn};
+use log::{debug, error, info, warn};
 use mqtt_client::{MqttClient, MqttMessage};
 use ota::OtaUpdater;
 use queue_manager::QueueManager;
@@ -708,6 +708,58 @@ async fn process_mqtt_message(
         return;
     }
 
+    // MQTT-direct device state (payload JSON trực tiếp, không qua gateway).
+    // Ưu tiên trước LWT gateway: device mqtt có state_topic/lwt_topic cụ thể.
+    let mqtt_device = {
+        let dm = device_manager.read().await;
+        dm.find_by_state_topic(topic).cloned()
+    };
+    if let Some(device) = mqtt_device {
+        process_mqtt_device_message(
+            topic,
+            payload,
+            device,
+            state_manager,
+            hmi_bridge,
+            xsolar_bridge,
+            event_bus,
+            device_last_seen,
+            device_online,
+            command_tracker,
+        )
+        .await;
+        return;
+    }
+
+    // MQTT-direct device LWT (online/offline)
+    {
+        let dm = device_manager.read().await;
+        match dm.find_by_lwt_topic(topic).cloned() {
+            Some(device) => {
+                let is_online = match payload.as_str() {
+                    Some(s) => {
+                        let up = s.to_uppercase();
+                        up == "ONLINE" || up == "ON" || up == "TRUE" || up == "1"
+                    }
+                    None => false,
+                };
+                let device_key = device.key();
+                let mut online = device_online.lock().await;
+                online.insert(device_key.clone(), is_online);
+                drop(online);
+                emit_device_online(&device, if is_online { "ON" } else { "OFF" }, event_bus)
+                    .await;
+                info!(
+                    "MQTT device {} LWT: {}",
+                    device.name,
+                    if is_online { "ONLINE" } else { "OFFLINE" }
+                );
+                return;
+            }
+            None => {}
+        }
+    }
+
     // Handle Tasmota LWT (gateway online/offline)
     if topic.contains("/LWT") {
         if let Some(is_online) = payload.as_str() {
@@ -902,6 +954,10 @@ async fn handle_gateway_lwt(
         // A gateway going OFFLINE takes all its devices offline immediately.
         // On ONLINE, do NOT force devices online: a device is shown online only
         // once it reports telemetry again (see process_zigbee_message).
+        // MQTT-direct devices have no gateway — skip them here.
+        if device.protocol == "mqtt" {
+            continue;
+        }
         if device.gateway == gateway && !is_online {
             online.insert(device_addr.clone(), false);
             emit_device_online(&device, "OFF", event_bus).await;
@@ -913,6 +969,112 @@ async fn handle_gateway_lwt(
         gateway,
         if is_online { "ONLINE" } else { "OFFLINE" }
     );
+}
+
+/// Process state from an MQTT-direct device. Payload is the raw JSON the device
+/// publishes (e.g. `{"power":1}`); attribute lookup is by YAML attr_id directly
+/// (no ZbReceived wrapper, no EF00/ prefix). Same fan-out as zigbee path.
+#[allow(clippy::too_many_arguments)]
+async fn process_mqtt_device_message(
+    topic: &str,
+    payload: &Value,
+    device: crate::device_manager::Device,
+    state_manager: &Arc<Mutex<StateManager>>,
+    hmi_bridge: &Arc<HmiBridge>,
+    xsolar_bridge: &Arc<XsolarBridge>,
+    event_bus: &EventBus,
+    device_last_seen: &Arc<Mutex<HashMap<String, f64>>>,
+    device_online: &Arc<Mutex<HashMap<String, bool>>>,
+    command_tracker: &Arc<CommandTracker>,
+) {
+    let device_key = device.key();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs_f64();
+    device_last_seen.lock().await.insert(device_key.clone(), now);
+
+    {
+        let mut online = device_online.lock().await;
+        if !online.get(&device_key).copied().unwrap_or(false) {
+            online.insert(device_key.clone(), true);
+            drop(online);
+            emit_device_online(&device, "ON", event_bus).await;
+        }
+    }
+
+    let device_data = payload.clone();
+    let mut batch_metrics: Vec<(String, String, Value, String, String, String)> = Vec::new();
+    let mut new_state: HashMap<String, Value> = HashMap::new();
+
+    for (attr_id, attr_config) in &device.attributes {
+        let raw_value = device_data.get(attr_id);
+        let Some(raw) = raw_value else { continue };
+        if let Some(value) = normalize_attribute_value(attr_id, raw, attr_config) {
+            if let Value::Object(decoded) = &value {
+                for (decoded_id, decoded_value) in decoded {
+                    if let Some(decoded_config) =
+                        get_decoded_attr_config(attr_config, decoded_id)
+                    {
+                        let label = decoded_config
+                            .label
+                            .clone()
+                            .unwrap_or_else(|| decoded_id.clone());
+                        batch_metrics.push((
+                            device_key.clone(),
+                            label.clone(),
+                            decoded_value.clone(),
+                            "number".to_string(),
+                            device.nr_type.clone(),
+                            attr_id.clone(),
+                        ));
+                        new_state.insert(label, decoded_value.clone());
+                    }
+                }
+            } else {
+                let label = attr_config.label.clone();
+                batch_metrics.push((
+                    device_key.clone(),
+                    label.clone(),
+                    value.clone(),
+                    attr_config.attr_type.clone(),
+                    device.nr_type.clone(),
+                    attr_id.clone(),
+                ));
+                new_state.insert(label, value);
+            }
+        }
+    }
+
+    if new_state.is_empty() {
+        debug!("MQTT device {} msg on {} had no mappable attrs", device.name, topic);
+        return;
+    }
+
+    {
+        let sm = state_manager.clone();
+        let db_key = device_key.clone();
+        let db_metrics = batch_metrics;
+        let db_payload = device_data;
+        let db_nr = device.nr_type.clone();
+        let db_group = device.group.clone();
+        tokio::spawn(async move {
+            let sm = sm.lock().await;
+            sm.batch_update_metrics(&db_metrics);
+            sm.log_event(
+                &db_key,
+                "state_update",
+                &db_payload,
+                Some(&db_nr),
+                Some(&db_group),
+            );
+        });
+    }
+
+    command_tracker.reconcile(&device_key, &new_state).await;
+    xsolar_bridge.update_cache(&device_key, &new_state);
+    hmi_bridge.publish_feedback(&device_key, &new_state).await;
+    xsolar_bridge.push_device_state(&device_key).await;
 }
 
 async fn emit_device_online(device: &device_manager::Device, status: &str, event_bus: &EventBus) {
@@ -942,6 +1104,13 @@ async fn emit_device_online(device: &device_manager::Device, status: &str, event
             if let Some(idx) = device.metadata.light_sensor_index {
                 event_bus
                     .emit(&format!("bms/light/{}/online", idx), serde_json::json!(status))
+                    .await;
+            }
+        }
+        "switch" => {
+            if let Some(idx) = device.metadata.switch_index.or(device.metadata.sign_index) {
+                event_bus
+                    .emit(&format!("bms/switch/{}/online", idx), serde_json::json!(status))
                     .await;
             }
         }
@@ -1047,6 +1216,17 @@ fn resolve_device_action(
         },
         _ => return false,
     };
+
+    if device.protocol == "mqtt" {
+        let Some(cfg) = &device.mqtt_cfg else { return false };
+        let payload = hmi_bridge::build_mqtt_command(&device, &attr_id, value);
+        queue_mgr.send_publish(&cfg.command_topic, payload);
+        info!(
+            "Rule device action (mqtt): {} {}={} -> OUT QUEUED",
+            device.name, attr_id, value
+        );
+        return true;
+    }
 
     let mut write_dict = HashMap::new();
     write_dict.insert(format!("EF00/{}", attr_id), serde_json::json!(value));

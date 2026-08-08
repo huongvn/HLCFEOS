@@ -241,8 +241,8 @@ impl XsolarBridge {
         };
 
         for device in &devices {
-            let device_addr = &device.zigbee_addr;
-            let state = self.cache.get(device_addr).map(|r| r.clone()).unwrap_or_default();
+            let device_addr = device.key();
+            let state = self.cache.get(&device_addr).map(|r| r.clone()).unwrap_or_default();
             if state.is_empty() {
                 debug!("No state for {}, skipping", device_addr);
                 continue;
