@@ -41,10 +41,19 @@ jobs:
           cd Device/Luckfoxpico86/code/lvgl_project
           file ota/app_v${{ steps.ver.outputs.version }} | grep -E "ARM|EABI|static" \
             && grep -q "statically linked" <(file ota/app_v${{ steps.ver.outputs.version }})
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            Device/Luckfoxpico86/code/lvgl_project/ota/app_v${{ steps.ver.outputs.version }}
-            Device/Luckfoxpico86/code/lvgl_project/ota/app_v${{ steps.ver.outputs.version }}.sha256
-          generate_release_notes: true
+      - name: Upload app assets to engine release (bms-v*)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VER="${{ steps.ver.outputs.version }}"
+          cd Device/Luckfoxpico86/code/lvgl_project
+          echo "Waiting for bms-v${VER} release..."
+          for i in $(seq 1 30); do
+            if gh release view "bms-v${VER}" >/dev/null 2>&1; then break; fi
+            echo "release bms-v${VER} chưa có, retry $i/30..."
+            sleep 10
+          done
+          gh release view "bms-v${VER}" >/dev/null 2>&1 || { echo "::error::release bms-v${VER} không tồn tại"; exit 1; }
+          gh release upload "bms-v${VER}" \
+            ota/app_v${VER} ota/app_v${VER}.sha256 --clobber
+          gh release view "bms-v${VER}" --json tag_name,assets --jq '.tag_name, .assets[].name'
