@@ -280,8 +280,8 @@ static int verify_downloaded_file(void) {
     char actual[80];
     if (!fgets(actual, sizeof(actual), cf)) { pclose(cf); return -1; }
     pclose(cf);
-    char calc[64];
-    if (sscanf(actual, "%63s", calc) != 1) return -1;
+    char calc[65];
+    if (sscanf(actual, "%64s", calc) != 1) return -1;
 
     if (strcmp(expected, calc) == 0) {
         fprintf(stderr, "[OTA] SHA256 OK (%s)\n", calc);
