@@ -1,0 +1,48 @@
+# ============================================================
+# app_config.txt.example — cấu hình Smart Panel (LVGL App)
+# Copy sang app_config.txt trên board (root, chạy cùng binary).
+# Định dạng: key=value, mỗi dòng một key.
+# ============================================================
+
+# --- Cơ bản ---
+room_id=Room_adfff
+pincode=1234
+brightness=200
+timeout=60
+font_choice=0
+
+# --- OTA (GitHub Releases) ---
+# Nguồn release: owner/repo trên GitHub chứa asset app_v<VER>
+github_repo=huongvn/HLCFEOS
+# Token optional (PAT classic, scope: repo) để tránh rate limit GitHub
+ota_github_token=
+# Bật/tắt OTA (1 = bật, 0 = tắt)
+ota_enabled=1
+# Số giây giữa các lần kiểm tra OTA tự động (0 = tắt auto-check,
+# chỉ kiểm tra khi bấm nút "Check for Update" trên màn hình)
+ota_check_interval=86400
+
+# --- Wi-Fi (nếu cần) ---
+wifi_ssid=
+wifi_password=
+
+# --- Smart Room: trạng thái AC ---
+room_temp=22
+room_mode=0
+room_fan=30
+room_eco=0
+room_power=1
+room_dnd=0
+room_mmr=0
+
+# --- Smart Light ---
+light_b0=100
+light_b1=100
+light_b2=100
+light_b3=100
+light_s0=0
+light_s1=0
+light_s2=0
+light_s3=0
+curtain_0=0
+curtain_1=0

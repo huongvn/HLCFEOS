@@ -1,0 +1,56 @@
+# Automation Rules for BMS Engine
+#
+# Trigger types:
+#   - mqtt: fires when a subscribed topic matches (tele/+/SENSOR, etc.)
+#   - time: fires at/after `at` once per day (evaluated by the 5s scheduler tick)
+# Actions:
+#   - mqtt_publish: publishes topic+payload on the local broker (QoS/retain optional)
+
+rules:
+  - alias: "mo cua - bat AC Zone A luc 7:30"
+    enabled: true
+    triggers:
+      - type: time
+        at: "07:30:00"
+    conditions: []
+    actions:
+      - type: mqtt_publish
+        topic: "cmnd/tasmota_6DCAA8/ZbSend"
+        payload: '{"Device":"0xC5A9","Write":{"EF00/0101":1}}'
+        qos: 1
+
+  - alias: "dong cua - tat AC Zone A luc 22:00"
+    enabled: true
+    triggers:
+      - type: time
+        at: "22:00:00"
+    conditions: []
+    actions:
+      - type: mqtt_publish
+        topic: "cmnd/tasmota_6DCAA8/ZbSend"
+        payload: '{"Device":"0xC5A9","Write":{"EF00/0101":0}}'
+        qos: 1
+
+  - alias: "mo cua - bat bang hieu luc 17:00"
+    enabled: true
+    triggers:
+      - type: time
+        at: "17:00:00"
+    conditions: []
+    actions:
+      - type: mqtt_publish
+        topic: "cmnd/tasmota_6DCAA8/ZbSend"
+        payload: '{"Device":"0x8CCC","Write":{"EF00/0110":1}}'
+        qos: 1
+
+  - alias: "dong cua - tat bang hieu luc 23:30"
+    enabled: true
+    triggers:
+      - type: time
+        at: "23:30:00"
+    conditions: []
+    actions:
+      - type: mqtt_publish
+        topic: "cmnd/tasmota_6DCAA8/ZbSend"
+        payload: '{"Device":"0x8CCC","Write":{"EF00/0110":0}}'
+        qos: 1

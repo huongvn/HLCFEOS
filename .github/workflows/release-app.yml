@@ -1,0 +1,47 @@
+name: Build & Release LVGL App
+on:
+  push:
+    tags: ['app-v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (e.g., 1.2.0)'
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            RAW="${{ github.ref_name }}"
+          else
+            RAW="app-v${{ github.event.inputs.version }}"
+          fi
+          VER="${RAW#app-v}"
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $VER"
+      - name: Install cross-toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-linux-gnueabihf make file
+      - name: Build
+        run: |
+          cd Device/Luckfoxpico86/code/lvgl_project
+          make APP_VERSION=${{ steps.ver.outputs.version }}
+          file ota/app_v${{ steps.ver.outputs.version }}
+      - name: Verify static ARM binary
+        run: |
+          cd Device/Luckfoxpico86/code/lvgl_project
+          file ota/app_v${{ steps.ver.outputs.version }} | grep -E "ARM|EABI|static" \
+            && grep -q "statically linked" <(file ota/app_v${{ steps.ver.outputs.version }})
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Device/Luckfoxpico86/code/lvgl_project/ota/app_v${{ steps.ver.outputs.version }}
+            Device/Luckfoxpico86/code/lvgl_project/ota/app_v${{ steps.ver.outputs.version }}.sha256
+          generate_release_notes: true

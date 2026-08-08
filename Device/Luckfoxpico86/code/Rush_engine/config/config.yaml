@@ -1,0 +1,54 @@
+# BMS Engine Configuration
+
+# Local MQTT broker (for device communication)
+# NOTE: NanoMQ on this board runs with allow_anonymous=true, auth disabled.
+# Credentials (if any) come from env vars BMS_MQTT_USER / BMS_MQTT_PASS.
+mqtt:
+  broker: "localhost"
+  port: 1883
+  client_id: "bms-engine"
+  user: ""
+  pass: ""
+
+# Remote MQTT broker (for xsolar communication)
+# Credentials come from env vars BMS_XSOLAR_USER / BMS_XSOLAR_PASS (kept out of git).
+xsolar:
+  broker: "mqtt.xsolar.energy"
+  port: 1883
+  user: ""
+  pass: ""
+  topic_prefix: "smarteos/bluCafe"
+  push_interval: 600
+  site: "bluCafe"
+
+# SQLite database
+database:
+  path: "data/bms.db"
+
+# Device offline detection
+offline_timeout: 120
+
+# Device definitions file (symlink -> /home/pico/devices.yaml)
+devices_file: "devices.yaml"
+
+# Automation rules file
+rules_file: "config/rules.yaml"
+
+# HTTP API for the LVGL Smart Panel (HMI)
+# The panel no longer uses local MQTT for bms/#; it talks to this API instead.
+http:
+  enabled: true
+  host: "127.0.0.1"
+  port: 8080
+
+# OTA Update Configuration
+ota:
+  enabled: true
+  ota_url: "http://192.168.1.171/ota/bms/check.json"
+  install_dir: "/home/pico/bms-engine"
+  temp_dir: "/tmp/bms_ota"
+  backup_dir: "/home/pico/bms_backup"
+  check_interval: 3600
+  auto_update: false
+  github_repo: "huongvn/HLCFEOS"
+  github_token: ""

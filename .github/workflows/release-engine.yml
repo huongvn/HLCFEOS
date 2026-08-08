@@ -1,0 +1,55 @@
+name: Build & Release BMS Engine
+on:
+  push:
+    tags: ['bms-v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (e.g., 1.2.0)'
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            RAW="${{ github.ref_name }}"
+          else
+            RAW="bms-v${{ github.event.inputs.version }}"
+          fi
+          VER="${RAW#bms-v}"
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $VER"
+      - name: Install Rust + ARM target
+        run: |
+          rustup target add armv7-unknown-linux-musleabihf
+          cargo install cargo-zigbuild
+      - name: Install zig
+        run: |
+          wget -q https://ziglang.org/download/0.13.0/zig-linux-x86_64-0.13.0.tar.xz
+          tar xf zig-linux-x86_64-0.13.0.tar.xz
+          echo "$PWD/zig-linux-x86_64-0.13.0" >> $GITHUB_PATH
+      - name: Build release
+        run: |
+          cd Device/Luckfoxpico86/code/Rush_engine
+          cargo zigbuild --release --target armv7-unknown-linux-musleabihf
+          file target/armv7-unknown-linux-musleabihf/release/bms-engine
+      - name: Package OTA (binary only)
+        run: |
+          cd Device/Luckfoxpico86/code/Rush_engine
+          VER="${{ steps.ver.outputs.version }}"
+          mkdir -p ota
+          cp target/armv7-unknown-linux-musleabihf/release/bms-engine ota/
+          tar -czf ota/bms_v${VER}.tar.gz -C ota bms-engine
+          sha256sum ota/bms_v${VER}.tar.gz | cut -d' ' -f1 > ota/bms_v${VER}.tar.gz.sha256
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Device/Luckfoxpico86/code/Rush_engine/ota/bms_v${{ steps.ver.outputs.version }}.tar.gz
+            Device/Luckfoxpico86/code/Rush_engine/ota/bms_v${{ steps.ver.outputs.version }}.tar.gz.sha256
+          generate_release_notes: true

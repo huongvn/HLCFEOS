@@ -1,0 +1,681 @@
+# devices.yaml — Source of truth for LVGL Smart Panel & Node-RED BMS
+# Each device declares ALL attributes.
+# LVGL reads: device_id, type, name, group, *_index, display
+# Node-RED reads: zigbee_addr, nr_type, enabled, gateway, attributes[]
+# DB stores: all attributes (display + xsolar + internal)
+# xsolar: only sends attributes with xsolar: true, key = xsolar_key
+
+site: "bluCafe"
+max_devices: 12
+
+devices:
+
+  # ═══════════════════════════════════════════════
+  # AC Zone A (Tuya EF00 IR Blaster)
+  # ═══════════════════════════════════════════════
+  - device_id: 1
+    zigbee_addr: "0x336A"
+    nr_type: ac_controller
+    name: "AC Zone A"
+    group: "Zone A"
+    gateway: "tasmota_6DD514"
+    ac_index: 0
+    enabled: true
+    attributes:
+      - id: "0101"
+        label: "Power"
+        type: bool
+        display: true
+        control: true
+        xsolar: true
+        xsolar_key: "power"
+      - id: "0202"
+        label: "Temperature"
+        type: number
+        unit: "C"
+        display: true
+        control: true
+        xsolar: true
+        xsolar_key: "temperature"
+      - id: "0203"
+        label: "Room Temp"
+        type: number
+        unit: "C"
+        display: true
+        xsolar: true
+        xsolar_key: "room_temp"
+      - id: "0405"
+        label: "Fan Speed"
+        type: number
+        display: true
+        control: true
+        xsolar: true
+        xsolar_key: "fan"
+
+  # ═══════════════════════════════════════════════
+  # MCB Sign Board (Tuya EF00 + composite dp6 decode)
+  # ═══════════════════════════════════════════════
+  - device_id: 2
+    zigbee_addr: "0xD46F"
+    nr_type: mcb
+    name: "Sign Board"
+    group: "Outdoor"
+    gateway: "tasmota_6DD514"
+    sign_index: 0
+    enabled: true
+    attributes:
+      - id: "0110"
+        label: "Control"
+        type: bool
+        display: true
+        control: true
+        xsolar: true
+        xsolar_key: "control"
+      - id: "0201"
+        label: "Energy"
+        type: number
+        scale: 0.01
+        unit: "kWh"
+        display: true
+        xsolar: true
+        xsolar_key: "energy"
+      - id: "0273"
+        label: "High Volt Cutoff"
+        type: number
+        unit: "V"
+        display: false
+        xsolar: false
+      - id: "0274"
+        label: "Low Volt Cutoff"
+        type: number
+        unit: "V"
+        display: false
+        xsolar: false
+      - id: "0277"
+        label: "Max Power"
+        type: number
+        unit: "W"
+        display: false
+        xsolar: false
+      - id: "0283"
+        label: "Temperature"
+        type: number
+        scale: 0.1
+        unit: "C"
+        display: false
+        xsolar: true
+        xsolar_key: "temperature"
+      - id: "0006"
+        label: "Raw composite"
+        type: hex
+        display: false
+        xsolar: false
+        decode:
+          - id: "current_voltage"
+            label: "Voltage"
+            type: number
+            scale: 0.1
+            unit: "V"
+            display: false
+            xsolar: true
+            xsolar_key: "voltage"
+            slice: [0, 4]
+          - id: "current_ampe"
+            label: "Current"
+            type: number
+            scale: 0.01
+            unit: "A"
+            display: false
+            xsolar: true
+            xsolar_key: "current"
+            slice: [4, 10]
+          - id: "current_power"
+            label: "Power"
+            type: number
+            unit: "W"
+            display: true
+            xsolar: true
+            xsolar_key: "power"
+            slice: [10, 16]
+
+  # ═══════════════════════════════════════════════
+  # AC Zone B (Tuya EF00 IR Blaster)
+  # ═══════════════════════════════════════════════
+  - device_id: 3
+    zigbee_addr: "0xC5A9"
+    nr_type: ac_controller
+    name: "AC Zone B"
+    group: "Zone B"
+    gateway: "tasmota_6DD514"
+    ac_index: 1
+    enabled: true
+    attributes:
+      - id: "0101"
+        label: "Power"
+        type: bool
+        display: true
+        control: true
+        xsolar: true
+        xsolar_key: "power"
+      - id: "0202"
+        label: "Temperature"
+        type: number
+        unit: "C"
+        display: true
+        control: true
+        xsolar: true
+        xsolar_key: "temperature"
+      - id: "0203"
+        label: "Room Temp"
+        type: number
+        unit: "C"
+        display: true
+        xsolar: true
+        xsolar_key: "room_temp"
+      - id: "0405"
+        label: "Fan Speed"
+        type: number
+        display: true
+        control: true
+        xsolar: true
+        xsolar_key: "fan"
+
+  # ═══════════════════════════════════════════════
+  # Power Meter 51DF — Zemismart SPM02 (ZCL 0x0B04)
+  # ═══════════════════════════════════════════════
+  - device_id: 4
+    zigbee_addr: "0x51DF"
+    nr_type: power_meter
+    name: "Power Meter 51DF"
+    group: "Electrical Panel"
+    gateway: "tasmota_6DD514"
+    power_index: 0
+    enabled: true
+    attributes:
+      # Phase A
+      - id: "RMSVoltage"
+        label: "Voltage A"
+        type: number
+        scale: 0.01
+        unit: "V"
+        display: true
+        overview: true
+        xsolar: true
+        xsolar_key: "rms_voltage"
+      - id: "RMSCurrent"
+        label: "Current A"
+        type: number
+        scale: 0.01
+        unit: "A"
+        display: true
+        overview: false
+        xsolar: true
+        xsolar_key: "rms_current"
+      - id: "ActivePower"
+        label: "Active Power A"
+        type: number
+        unit: "W"
+        display: true
+        overview: false
+        xsolar: true
+        xsolar_key: "active_power"
+      - id: "ReactivePower"
+        label: "Reactive Power A"
+        type: number
+        unit: "VAR"
+        display: false
+        xsolar: false
+      - id: "ApparentPower"
+        label: "Apparent Power A"
+        type: number
+        unit: "VA"
+        display: false
+        xsolar: false
+      - id: "PowerFactor"
+        label: "PF A"
+        type: number
+        scale: 0.01
+        display: true
+        overview: false
+        xsolar: true
+        xsolar_key: "power_factor"
+      # Phase B
+      - id: "RMSVoltagePhB"
+        label: "Voltage B"
+        type: number
+        scale: 0.01
+        unit: "V"
+        display: true
+        overview: false
+        xsolar: false
+      - id: "RMSCurrentPhB"
+        label: "Current B"
+        type: number
+        scale: 0.01
+        unit: "A"
+        display: true
+        overview: false
+        xsolar: false
+      - id: "ActivePowerPhB"
+        label: "Active Power B"
+        type: number
+        unit: "W"
+        display: true
+        overview: false
+        xsolar: false
+      - id: "ReactivePowerPhB"
+        label: "Reactive Power B"
+        type: number
+        unit: "VAR"
+        display: false
+        xsolar: false
+      - id: "ApparentPowerPhB"
+        label: "Apparent Power B"
+        type: number
+        unit: "VA"
+        display: false
+        xsolar: false
+      - id: "PowerFactorPhB"
+        label: "PF B"
+        type: number
+        scale: 0.01
+        display: true
+        overview: false
+        xsolar: false
+      # Phase C
+      - id: "RMSVoltagePhC"
+        label: "Voltage C"
+        type: number
+        scale: 0.01
+        unit: "V"
+        display: true
+        overview: false
+        xsolar: false
+      - id: "RMSCurrentPhC"
+        label: "Current C"
+        type: number
+        scale: 0.01
+        unit: "A"
+        display: true
+        overview: false
+        xsolar: false
+      - id: "ActivePowerPhC"
+        label: "Active Power C"
+        type: number
+        unit: "W"
+        display: true
+        overview: false
+        xsolar: false
+      - id: "ReactivePowerPhC"
+        label: "Reactive Power C"
+        type: number
+        unit: "VAR"
+        display: false
+        xsolar: false
+      - id: "ApparentPowerPhC"
+        label: "Apparent Power C"
+        type: number
+        unit: "VA"
+        display: false
+        xsolar: false
+      - id: "PowerFactorPhC"
+        label: "PF C"
+        type: number
+        scale: 0.01
+        display: true
+        overview: false
+        xsolar: false
+      # 3-Phase Totals
+      - id: "TotalActivePower"
+        label: "Total Power"
+        type: number
+        unit: "W"
+        display: true
+        xsolar: true
+        xsolar_key: "total_active_power"
+      - id: "TotalReactivePower"
+        label: "Total Reactive"
+        type: number
+        unit: "VAR"
+        display: false
+        xsolar: false
+      - id: "TotalApparentPower"
+        label: "Total Apparent"
+        type: number
+        unit: "VA"
+        display: false
+        xsolar: false
+      # Frequency
+      - id: "ACFrequency"
+        label: "Frequency"
+        type: number
+        scale: 0.01
+        unit: "Hz"
+        display: true
+        overview: false
+        xsolar: true
+        xsolar_key: "ac_frequency"
+      # Cluster 0x0702 - Metering
+      - id: "CurrentSummationDelivered"
+        label: "Total Energy"
+        type: number
+        unit: "kWh"
+        scale: 0.01
+        display: true
+        overview: true
+        xsolar: true
+        xsolar_key: "total_energy"
+      - id: "CurrentSummationReceived"
+        label: "Energy Received"
+        type: number
+        unit: "kWh"
+        scale: 0.01
+        display: false
+        xsolar: false
+        xsolar_key: "total_energy_received"
+      - id: "InstantaneousDemand"
+        label: "Power"
+        type: number
+        unit: "W"
+        display: true
+        overview: true
+        xsolar: true
+        xsolar_key: "instantaneous_demand"
+      - id: "BillingPeriod"
+        label: "Billing Period"
+        type: number
+        display: false
+        xsolar: false
+      - id: "BillingPeriodDuration"
+        label: "Period Duration"
+        type: number
+        display: false
+        xsolar: false
+      - id: "BillingPeriodStartTime"
+        label: "Period Start"
+        type: number
+        display: false
+        xsolar: false
+      # Cluster 0x0B05 - Diagnostics
+      - id: "LastMessageLQI"
+        label: "LQI"
+        type: number
+        display: false
+        xsolar: false
+      - id: "LastMessageRSSI"
+        label: "RSSI"
+        type: number
+        unit: "dBm"
+        display: false
+        xsolar: false
+
+  # ═══════════════════════════════════════════════
+  # Power Meter 8DF5 — Zemismart SPM02 (ZCL 0x0B04)
+  # ═══════════════════════════════════════════════
+  - device_id: 5
+    zigbee_addr: "0x8DF5"
+    nr_type: power_meter
+    name: "Power Meter 8DF5"
+    group: "Electrical Panel"
+    gateway: "tasmota_6DD514"
+    power_index: 1
+    enabled: true
+    attributes:
+      # Phase A
+      - id: "RMSVoltage"
+        label: "Voltage A"
+        type: number
+        scale: 0.01
+        unit: "V"
+        display: true
+        overview: true
+        xsolar: true
+        xsolar_key: "rms_voltage"
+      - id: "RMSCurrent"
+        label: "Current A"
+        type: number
+        scale: 0.01
+        unit: "A"
+        display: true
+        overview: false
+        xsolar: true
+        xsolar_key: "rms_current"
+      - id: "ActivePower"
+        label: "Active Power A"
+        type: number
+        unit: "W"
+        display: true
+        overview: false
+        xsolar: true
+        xsolar_key: "active_power"
+      - id: "ReactivePower"
+        label: "Reactive Power A"
+        type: number
+        unit: "VAR"
+        display: false
+        xsolar: false
+      - id: "ApparentPower"
+        label: "Apparent Power A"
+        type: number
+        unit: "VA"
+        display: false
+        xsolar: false
+      - id: "PowerFactor"
+        label: "PF A"
+        type: number
+        scale: 0.01
+        display: true
+        overview: false
+        xsolar: true
+        xsolar_key: "power_factor"
+      # Phase B
+      - id: "RMSVoltagePhB"
+        label: "Voltage B"
+        type: number
+        scale: 0.01
+        unit: "V"
+        display: true
+        overview: false
+        xsolar: false
+      - id: "RMSCurrentPhB"
+        label: "Current B"
+        type: number
+        scale: 0.01
+        unit: "A"
+        display: true
+        overview: false
+        xsolar: false
+      - id: "ActivePowerPhB"
+        label: "Active Power B"
+        type: number
+        unit: "W"
+        display: true
+        overview: false
+        xsolar: false
+      - id: "ReactivePowerPhB"
+        label: "Reactive Power B"
+        type: number
+        unit: "VAR"
+        display: false
+        xsolar: false
+      - id: "ApparentPowerPhB"
+        label: "Apparent Power B"
+        type: number
+        unit: "VA"
+        display: false
+        xsolar: false
+      - id: "PowerFactorPhB"
+        label: "PF B"
+        type: number
+        scale: 0.01
+        display: true
+        overview: false
+        xsolar: false
+      # Phase C
+      - id: "RMSVoltagePhC"
+        label: "Voltage C"
+        type: number
+        scale: 0.01
+        unit: "V"
+        display: true
+        overview: false
+        xsolar: false
+      - id: "RMSCurrentPhC"
+        label: "Current C"
+        type: number
+        scale: 0.01
+        unit: "A"
+        display: true
+        overview: false
+        xsolar: false
+      - id: "ActivePowerPhC"
+        label: "Active Power C"
+        type: number
+        unit: "W"
+        display: true
+        overview: false
+        xsolar: false
+      - id: "ReactivePowerPhC"
+        label: "Reactive Power C"
+        type: number
+        unit: "VAR"
+        display: false
+        xsolar: false
+      - id: "ApparentPowerPhC"
+        label: "Apparent Power C"
+        type: number
+        unit: "VA"
+        display: false
+        xsolar: false
+      - id: "PowerFactorPhC"
+        label: "PF C"
+        type: number
+        scale: 0.01
+        display: true
+        overview: false
+        xsolar: false
+      # 3-Phase Totals
+      - id: "TotalActivePower"
+        label: "Total Power"
+        type: number
+        unit: "W"
+        display: true
+        xsolar: true
+        xsolar_key: "total_active_power"
+      - id: "TotalReactivePower"
+        label: "Total Reactive"
+        type: number
+        unit: "VAR"
+        display: false
+        xsolar: false
+      - id: "TotalApparentPower"
+        label: "Total Apparent"
+        type: number
+        unit: "VA"
+        display: false
+        xsolar: false
+      # Frequency
+      - id: "ACFrequency"
+        label: "Frequency"
+        type: number
+        scale: 0.01
+        unit: "Hz"
+        display: true
+        overview: false
+        xsolar: true
+        xsolar_key: "ac_frequency"
+      # Cluster 0x0702 - Metering
+      - id: "CurrentSummationDelivered"
+        label: "Total Energy"
+        type: number
+        unit: "kWh"
+        scale: 0.01
+        display: true
+        overview: true
+        xsolar: true
+        xsolar_key: "total_energy"
+      - id: "CurrentSummationReceived"
+        label: "Energy Received"
+        type: number
+        unit: "kWh"
+        scale: 0.01
+        display: false
+        xsolar: false
+        xsolar_key: "total_energy_received"
+      - id: "InstantaneousDemand"
+        label: "Power"
+        type: number
+        unit: "W"
+        display: true
+        overview: true
+        xsolar: true
+        xsolar_key: "instantaneous_demand"
+      - id: "BillingPeriod"
+        label: "Billing Period"
+        type: number
+        display: false
+        xsolar: false
+      - id: "BillingPeriodDuration"
+        label: "Period Duration"
+        type: number
+        display: false
+        xsolar: false
+      - id: "BillingPeriodStartTime"
+        label: "Period Start"
+        type: number
+        display: false
+        xsolar: false
+      # Cluster 0x0B05 - Diagnostics
+      - id: "LastMessageLQI"
+        label: "LQI"
+        type: number
+        display: false
+        xsolar: false
+      - id: "LastMessageRSSI"
+        label: "RSSI"
+        type: number
+        unit: "dBm"
+        display: false
+        xsolar: false
+
+  # ═══════════════════════════════════════════════
+  # Light Sensor (ZCL 0x0400)
+  # ═══════════════════════════════════════════════
+  - device_id: 6
+    zigbee_addr: "0x8BA4"
+    nr_type: light_sensor
+    name: "Light Sensor"
+    group: "Outdoor"
+    gateway: "tasmota_6DD514"
+    light_sensor_index: 0
+    enabled: true
+    attributes:
+      - id: "Illuminance"
+        label: "Illuminance"
+        type: number
+        formula: "zcl_illuminance"
+        unit: "lux"
+        display: true
+        overview: true
+        xsolar: true
+        xsolar_key: "illuminance"
+
+  # ═══════════════════════════════════════════════
+  # Switch (Zigbee switch for on/off test)
+  # ═══════════════════════════════════════════════
+  - device_id: 7
+    zigbee_addr: "0x2F11"
+    nr_type: switch
+    name: "Switch Office"
+    group: "Office"
+    gateway: "tasmota_6DD514"
+    sign_index: 1
+    enabled: true
+    attributes:
+      - id: "0000"
+        label: "Power"
+        type: bool
+        display: true
+        control: true
+        xsolar: true
+        xsolar_key: "power"

@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls *)",
+      "Bash(make)",
+      "Bash(sudo *)",
+      "Bash(git config *)",
+      "Bash(git submodule *)",
+      "Bash(rm *)",
+      "Bash(git checkout *)",
+      "Bash(git rm *)",
+      "Bash(git clone *)",
+      "Bash(sleep *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git reset *)",
+      "Bash(scp *)",
+      "Bash(git stash)",
+      "Bash(git restore *)"
+    ]
+  },
+  "$version": 3
+}

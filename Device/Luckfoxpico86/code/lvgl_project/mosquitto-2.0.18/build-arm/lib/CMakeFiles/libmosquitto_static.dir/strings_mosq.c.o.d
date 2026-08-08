@@ -1,0 +1,37 @@
+lib/CMakeFiles/libmosquitto_static.dir/strings_mosq.c.o: \
+ /home/ubuntu/lvgl_project/mosquitto-2.0.18/lib/strings_mosq.c \
+ /usr/arm-linux-gnueabihf/include/stdc-predef.h \
+ /home/ubuntu/lvgl_project/mosquitto-2.0.18/config.h \
+ /usr/arm-linux-gnueabihf/include/errno.h \
+ /usr/arm-linux-gnueabihf/include/features.h \
+ /usr/arm-linux-gnueabihf/include/features-time64.h \
+ /usr/arm-linux-gnueabihf/include/bits/wordsize.h \
+ /usr/arm-linux-gnueabihf/include/bits/timesize.h \
+ /usr/arm-linux-gnueabihf/include/sys/cdefs.h \
+ /usr/arm-linux-gnueabihf/include/bits/long-double.h \
+ /usr/arm-linux-gnueabihf/include/gnu/stubs.h \
+ /usr/arm-linux-gnueabihf/include/gnu/stubs-hard.h \
+ /usr/arm-linux-gnueabihf/include/bits/errno.h \
+ /usr/arm-linux-gnueabihf/include/linux/errno.h \
+ /usr/arm-linux-gnueabihf/include/asm/errno.h \
+ /usr/arm-linux-gnueabihf/include/asm-generic/errno.h \
+ /usr/arm-linux-gnueabihf/include/asm-generic/errno-base.h \
+ /usr/arm-linux-gnueabihf/include/bits/types/error_t.h \
+ /usr/arm-linux-gnueabihf/include/string.h \
+ /usr/arm-linux-gnueabihf/include/bits/libc-header-start.h \
+ /usr/lib/gcc-cross/arm-linux-gnueabihf/13/include/stddef.h \
+ /usr/arm-linux-gnueabihf/include/bits/types/locale_t.h \
+ /usr/arm-linux-gnueabihf/include/bits/types/__locale_t.h \
+ /usr/arm-linux-gnueabihf/include/strings.h \
+ /home/ubuntu/lvgl_project/mosquitto-2.0.18/include/mosquitto.h \
+ /usr/lib/gcc-cross/arm-linux-gnueabihf/13/include/stdbool.h \
+ /usr/lib/gcc-cross/arm-linux-gnueabihf/13/include/stdint.h \
+ /usr/arm-linux-gnueabihf/include/stdint.h \
+ /usr/arm-linux-gnueabihf/include/bits/types.h \
+ /usr/arm-linux-gnueabihf/include/bits/typesizes.h \
+ /usr/arm-linux-gnueabihf/include/bits/time64.h \
+ /usr/arm-linux-gnueabihf/include/bits/wchar.h \
+ /usr/arm-linux-gnueabihf/include/bits/stdint-intn.h \
+ /usr/arm-linux-gnueabihf/include/bits/stdint-uintn.h \
+ /usr/arm-linux-gnueabihf/include/bits/stdint-least.h \
+ /home/ubuntu/lvgl_project/mosquitto-2.0.18/include/mqtt_protocol.h

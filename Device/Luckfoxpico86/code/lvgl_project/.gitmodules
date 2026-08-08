@@ -1,0 +1,6 @@
+[submodule "mqtt-c"]
+	path = mqtt-c
+	url = https://github.com/LiamBindle/MQTT-C.git
+[submodule "lvgl"]
+	url = https://github.com/lvgl/lvgl.git
+	path = lvgl

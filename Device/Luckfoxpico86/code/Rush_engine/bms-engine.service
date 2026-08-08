@@ -1,0 +1,25 @@
+[Unit]
+Description=BMS Engine - Rust Building Management System
+After=network.target nanomq.service
+Wants=nanomq.service
+
+[Service]
+Type=simple
+User=pico
+Group=pico
+WorkingDirectory=/home/pico/bms-engine
+ExecStart=/home/pico/bms-engine/bms-engine config/config.yaml
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bms-engine
+
+Environment=RUST_LOG=info
+EnvironmentFile=-/home/pico/bms-engine/.env
+
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
