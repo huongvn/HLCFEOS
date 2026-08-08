@@ -11,7 +11,6 @@ use std::time::Duration;
 use tar::Archive;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
-use tokio::time::sleep;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum OtaState {
@@ -427,7 +426,26 @@ let total_size = response.content_length().unwrap_or(0) as usize;
         std_fs::rename(&tmp_install, &install_binary)?;
         info!("Installed new binary at {:?}", install_binary);
 
-        // Restart service
+        // Persist the new version BEFORE restart: `systemctl restart` kills this
+        // process, so anything after the restart call below will never run.
+        // Writing VERSION first ensures the newly started instance reads the
+        // updated version and does not loop trying to re-install.
+        let ver_file = self.install_dir.join("VERSION");
+        std_fs::write(&ver_file, format!("{}\n", self.new_version))?;
+        info!("Updated VERSION file to {} at {:?}", self.new_version, ver_file);
+
+        self.current_version = self.new_version.clone();
+        self.state = OtaState::Success;
+        self.message = format!("Update successful! Now on version {}", self.new_version);
+        info!(
+            "Update successful: {} -> {}",
+            self.current_version, self.new_version
+        );
+
+        self.cleanup().await?;
+
+        // Restart service last: this terminates the current process, so nothing
+        // after this point executes in this instance.
         info!("Restarting service...");
         let output = Command::new("sudo")
             .args(["-n", "systemctl", "restart", "bms-engine"])
@@ -439,29 +457,6 @@ let total_size = response.content_length().unwrap_or(0) as usize;
                 String::from_utf8_lossy(&output.stderr)
             ));
         }
-
-        info!("Waiting for service to start...");
-        sleep(Duration::from_secs(5)).await;
-
-        if !health_check().await? {
-            self.rollback().await?;
-            return Err(anyhow::anyhow!("Health check failed after restart"));
-        }
-
-        self.state = OtaState::Success;
-        self.message = format!("Update successful! Now on version {}", self.new_version);
-        info!(
-            "Update successful: {} -> {}",
-            self.current_version, self.new_version
-        );
-
-        // Persist the new version so next checks see the current version.
-        let ver_file = self.install_dir.join("VERSION");
-        let _ = std_fs::write(&ver_file, format!("{}\n", self.new_version));
-        info!("Updated VERSION file at {:?}", ver_file);
-
-        self.current_version = self.new_version.clone();
-        self.cleanup().await?;
 
         Ok(true)
     }
