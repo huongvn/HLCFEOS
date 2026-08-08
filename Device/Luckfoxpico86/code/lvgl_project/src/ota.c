@@ -239,6 +239,11 @@ void ota_start_download(void) {
     g_ota_status.progress = 0;
     strncpy(g_ota_status.message, "Downloading... 0%", sizeof(g_ota_status.message));
 
+    /* Clear stale state before starting */
+    unlink(DONE_FLAG);
+    unlink(SHA_TMP);
+    unlink(APP_NEW_PATH);
+
     /* Download to staging path; install step swaps it atomically. */
     char cmd[2048];
     snprintf(cmd, sizeof(cmd),
@@ -258,7 +263,10 @@ void ota_start_download(void) {
 
 static int verify_downloaded_file(void) {
     FILE *sf = fopen(SHA_TMP, "r");
-    if (!sf) return -1;
+    if (!sf) {
+        fprintf(stderr, "[OTA] VERIFY: cannot open %s\n", SHA_TMP);
+        return -1;
+    }
     char line[256];
     if (!fgets(line, sizeof(line), sf)) { fclose(sf); return -1; }
     fclose(sf);
@@ -276,10 +284,32 @@ static int verify_downloaded_file(void) {
     if (sscanf(actual, "%63s", calc) != 1) return -1;
 
     if (strcmp(expected, calc) == 0) {
-        printf("[OTA] SHA256 OK (%s)\n", calc);
+        fprintf(stderr, "[OTA] SHA256 OK (%s)\n", calc);
         return 0;
     }
-    printf("[OTA] SHA256 MISMATCH\nexpected: %s\nactual:   %s\n", expected, calc);
+    fprintf(stderr,
+            "[OTA] SHA256 MISMATCH\n"
+            "  expected: %s\n"
+            "  actual:   %s\n",
+            expected, calc);
+
+    /* One retry: re-fetch the sidecar sha file (transient failure) */
+    char retry[1024];
+    snprintf(retry, sizeof(retry), "curl -sSL -f -o %s %s", SHA_TMP, g_sha_url);
+    if (system(retry) == 0) {
+        sf = fopen(SHA_TMP, "r");
+        if (sf) {
+            if (fgets(line, sizeof(line), sf)) {
+                char expected2[65];
+                if (sscanf(line, "%64s", expected2) == 1 && strcmp(expected2, calc) == 0) {
+                    fclose(sf);
+                    fprintf(stderr, "[OTA] SHA256 OK after retry (%s)\n", calc);
+                    return 0;
+                }
+            }
+            fclose(sf);
+        }
+    }
     return -1;
 }
 

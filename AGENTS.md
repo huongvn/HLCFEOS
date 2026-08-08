@@ -44,13 +44,9 @@ slides/
 └── 10-nodered-dashboard.md # Dashboard Node-RED: Quản lý qua web
 ```
 
-## Cấu trúc Git (multi-repo)
-Repo gốc `HLCFEOS` chứa 2 submodule:
+## Cấu trúc Git 
+Repo gốc `HLCFEOS` không chứa submodule, check Tags để hiểu về cấu trúc 
 
-| Submodule path | Repo riêng |
-|----------------|------------|
-| `Device/Luckfoxpico86/code/lvgl_project/` | `huongvn/HLCFEOS-lvgl_project` |
-| `Device/Luckfoxpico86/code/Node-red/` | `huongvn/HLCFEOS-Node-red` |
 
 ### Quy tắc Commit & Push (BẮT BUỘC)
 Submodule hoạt động độc lập với repo gốc. **Luôn push submodule trước, repo gốc sau.**
