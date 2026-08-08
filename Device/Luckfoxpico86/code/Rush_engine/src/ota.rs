@@ -39,6 +39,13 @@ impl OtaState {
     }
 }
 
+/// Commands a cloud (xsolar) MQTT command can request from the OTA pipeline.
+#[derive(Debug, Clone)]
+pub enum OtaCommand {
+    /// Force check + auto-install engine (and notify the app via HTTP/SSE).
+    Update,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct GitHubRelease {
     pub tag_name: String,

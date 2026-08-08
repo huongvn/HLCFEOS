@@ -19,7 +19,7 @@ use event_bus::EventBus;
 use hmi_bridge::HmiBridge;
 use log::{debug, error, info, warn};
 use mqtt_client::{MqttClient, MqttMessage};
-use ota::OtaUpdater;
+use ota::{OtaCommand, OtaUpdater};
 use queue_manager::QueueManager;
 use rule_engine::RuleEngine;
 use serde::Deserialize;
@@ -92,7 +92,7 @@ struct DatabaseConfig {
     path: String,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Clone, Default)]
 struct OtaAppConfig {
     #[serde(default)]
     enabled: bool,
@@ -339,6 +339,15 @@ async fn main() -> anyhow::Result<()> {
     // consumes them over HTTP (SSE + /api/state) instead of local MQTT.
     let event_bus = EventBus::new(1024);
 
+    // Latest LVGL app version reported via HTTP (POST /api/system/app_version).
+    // Shared by the xsolar "check" reply and the cloud OTA coordinator.
+    let app_version = Arc::new(Mutex::new(String::new()));
+
+    // Channel used to route cloud OTA commands (xsolar bridge) to a single
+    // coordinator worker that runs the full engine update pipeline.
+    let (ota_cmd_tx, mut ota_cmd_rx) =
+        tokio::sync::mpsc::unbounded_channel::<OtaCommand>();
+
     let hmi_bridge = Arc::new(HmiBridge::new(
         event_bus.clone(),
         state_manager.clone(),
@@ -353,6 +362,8 @@ async fn main() -> anyhow::Result<()> {
         device_manager.clone(),
         config.xsolar.topic_prefix.clone(),
         config.xsolar.site.clone(),
+        app_version.clone(),
+        ota_cmd_tx,
     ));
 
     // Tracks in-flight control commands so an optimistic UI update is only
@@ -587,7 +598,7 @@ async fn main() -> anyhow::Result<()> {
 
     // OTA update check
     if config.ota.enabled {
-        let ota_config = config.ota;
+        let ota_config = config.ota.clone();
         let running = running.clone();
         tokio::spawn(async move {
             let mut ticker =
@@ -599,6 +610,33 @@ async fn main() -> anyhow::Result<()> {
                         &ota_config,
                         ota_config.auto_update,
                     ).await;
+                }
+            }
+        });
+    }
+
+    // Cloud OTA command coordinator: receives OtaCommand from the xsolar
+    // bridge and runs the full update pipeline (notify app via SSE, then
+    // self-update). Runs in its own task so the MQTT handler never blocks.
+    if config.ota.enabled {
+        let event_bus = event_bus.clone();
+        let mqtt_xsolar = mqtt_xsolar.clone();
+        let app_version = app_version.clone();
+        let topic_prefix = config.xsolar.topic_prefix.clone();
+        let ota_config = config.ota.clone();
+        tokio::spawn(async move {
+            while let Some(cmd) = ota_cmd_rx.recv().await {
+                match cmd {
+                    OtaCommand::Update => {
+                        run_cloud_ota(
+                            &ota_config,
+                            &event_bus,
+                            &mqtt_xsolar,
+                            &app_version,
+                            &topic_prefix,
+                        )
+                        .await;
+                    }
                 }
             }
         });
@@ -617,6 +655,19 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
         });
+    }
+
+    // If a previous cloud-requested engine update restarted this instance,
+    // publish the "updated" acknowledgement to the cloud now that we're back
+    // up (with engine version + last known app version).
+    if config.ota.enabled {
+        publish_pending_cloud_ota_report(
+            &config.ota,
+            &mqtt_xsolar,
+            &app_version,
+            &config.xsolar.topic_prefix,
+        )
+        .await;
     }
 
     info!("BMS Engine started successfully");
@@ -639,6 +690,7 @@ async fn main() -> anyhow::Result<()> {
                 state_manager,
                 command_tracker,
                 device_online,
+                app_version,
                 &http_host,
                 http_port,
             )
@@ -1171,6 +1223,117 @@ async fn check_ota_updates(ota_config: &OtaAppConfig, auto_update: bool) {
         Ok((false, _)) => info!("No OTA update available"),
         Err(e) => error!("OTA update check failed: {}", e),
     }
+}
+
+/// Marker file written before an engine self-install so the restarted
+/// instance knows a cloud command requested the update. Stored next to the
+/// engine's VERSION file so it survives the process restart.
+fn cloud_ota_marker_path(ota_config: &OtaAppConfig) -> PathBuf {
+    PathBuf::from(&ota_config.install_dir).join(".cloud_ota_pending")
+}
+
+/// Handle a cloud `{"action":"update"}` command. Publishes a "started" report
+/// to the cloud, notifies the LVGL app over HTTP/SSE (it self-updates via its
+/// own GitHub OTA), then runs the engine self-update pipeline.
+async fn run_cloud_ota(
+    ota_config: &OtaAppConfig,
+    event_bus: &EventBus,
+    mqtt_xsolar: &Arc<MqttClient>,
+    app_version: &Arc<Mutex<String>>,
+    topic_prefix: &str,
+) {
+    let ota_topic = format!("{}/ota", topic_prefix);
+    let ts = || format!("{}+07:00", chrono::Local::now().format("%Y-%m-%dT%H:%M:%S"));
+
+    // 1. Report "started" to the cloud.
+    mqtt_xsolar
+        .publish_json(
+            &ota_topic,
+            &serde_json::json!({"state": "started", "ts": ts()}),
+            QoS::AtMostOnce,
+            false,
+        )
+        .await;
+    info!("Cloud OTA update started, publishing SSE to app");
+
+    // 2. Notify the LVGL panel over HTTP/SSE so it can self-update.
+    event_bus
+        .emit("system/ota", serde_json::json!({"action": "update"}))
+        .await;
+
+    // 3. Write the marker so the (possibly restarted) instance reports
+    //    "updated". Do this before install because install restarts us.
+    let marker = cloud_ota_marker_path(ota_config);
+    let _ = std::fs::write(&marker, "1");
+
+    // 4. Run the engine self-update (check + auto install). If it updates,
+    //    the process is restarted by install_update() and this call never
+    //    returns here — the new instance reports "updated" on boot instead.
+    check_ota_updates(ota_config, true).await;
+
+    // 5. No engine update happened (already latest / error). Report the
+    //    result and clear the marker so a later boot does not re-report.
+    let engine_ver = current_engine_version();
+    let app_ver = app_version.lock().await.clone();
+    let _ = std::fs::remove_file(&marker);
+    mqtt_xsolar
+        .publish_json(
+            &ota_topic,
+            &serde_json::json!({
+                "state": "updated",
+                "engine": engine_ver,
+                "app": app_ver,
+                "ts": ts(),
+            }),
+            QoS::AtMostOnce,
+            false,
+        )
+        .await;
+    info!("Cloud OTA: no engine restart needed, reported updated (engine={})", engine_ver);
+}
+
+/// Read the engine version from the VERSION file next to the binary.
+fn current_engine_version() -> String {
+    std::fs::read_to_string(PathBuf::from("VERSION"))
+        .unwrap_or_else(|_| "0.0.0".to_string())
+        .trim()
+        .to_string()
+}
+
+/// On startup: if a cloud OTA marker exists (the previous instance installed
+/// a new engine and restarted), publish the "updated" report to the cloud.
+async fn publish_pending_cloud_ota_report(
+    ota_config: &OtaAppConfig,
+    mqtt_xsolar: &Arc<MqttClient>,
+    app_version: &Arc<Mutex<String>>,
+    topic_prefix: &str,
+) {
+    let marker = cloud_ota_marker_path(ota_config);
+    if !marker.exists() {
+        return;
+    }
+
+    let ota_topic = format!("{}/ota", topic_prefix);
+    let engine_ver = current_engine_version();
+    let app_ver = app_version.lock().await.clone();
+    mqtt_xsolar
+        .publish_json(
+            &ota_topic,
+            &serde_json::json!({
+                "state": "updated",
+                "engine": engine_ver,
+                "app": app_ver,
+                "ts": format!("{}+07:00", chrono::Local::now().format("%Y-%m-%dT%H:%M:%S")),
+            }),
+            QoS::AtMostOnce,
+            false,
+        )
+        .await;
+    let _ = std::fs::remove_file(&marker);
+    info!(
+        "Cloud OTA: engine updated (engine={}, app={}), reported to cloud",
+        engine_ver, app_ver
+    );
 }
 
 /// Resolve a declarative `device` rule action (device + attr + value) into a

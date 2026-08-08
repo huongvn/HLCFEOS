@@ -32,6 +32,8 @@ pub struct HttpApiState {
     /// online snapshot to every new SSE client so the HMI dot is correct on
     /// boot/reconnect even without a fresh online edge event.
     pub device_online: Arc<Mutex<HashMap<String, bool>>>,
+    /// Latest LVGL app version reported by the panel (POST /api/system/app_version).
+    pub app_version: Arc<Mutex<String>>,
 }
 
 impl HttpApiState {
@@ -80,6 +82,26 @@ struct ActionRequest {
 
 async fn health() -> Json<Value> {
     Json(json!({"ok": true}))
+}
+
+#[derive(Debug, Deserialize)]
+struct AppVersionRequest {
+    #[serde(default)]
+    app_version: String,
+}
+
+/// The LVGL panel reports its running version here. Stored so cloud OTA
+/// "check"/"updated" replies can include the app version.
+async fn set_app_version(
+    State(state): State<Arc<HttpApiState>>,
+    Json(req): Json<AppVersionRequest>,
+) -> Json<Value> {
+    {
+        let mut av = state.app_version.lock().await;
+        *av = req.app_version.clone();
+    }
+    info!("App reported version: {}", req.app_version);
+    Json(json!({"ok": true, "app_version": req.app_version}))
 }
 
 /* ================= /api/v1/devices ================= */
@@ -288,6 +310,18 @@ async fn translate_event(
     topic: &str,
     payload: &Value,
 ) -> Option<Value> {
+    // OTA control channel: forward the raw payload as-is so the panel can
+    // trigger its self-update. Shape: {"event":"OTA_UPDATE", ...payload}.
+    if topic == "system/ota" {
+        let mut ev = json!({"event": "OTA_UPDATE"});
+        if let Value::Object(map) = payload {
+            for (k, v) in map {
+                ev[k.clone()] = v.clone();
+            }
+        }
+        return Some(ev);
+    }
+
     // bms/{type}/{idx}/{attr_id}  or  bms/{type}/{idx}/online
     let parts: Vec<&str> = topic.split('/').collect();
     if parts.len() != 4 || parts[0] != "bms" {
@@ -417,6 +451,17 @@ fn translate_event_blocking(
     topic: &str,
     payload: &Value,
 ) -> Option<Value> {
+    // OTA control channel passthrough (matches translate_event async version).
+    if topic == "system/ota" {
+        let mut ev = json!({"event": "OTA_UPDATE"});
+        if let Value::Object(map) = payload {
+            for (k, v) in map {
+                ev[k.clone()] = v.clone();
+            }
+        }
+        return Some(ev);
+    }
+
     let parts: Vec<&str> = topic.split('/').collect();
     if parts.len() != 4 || parts[0] != "bms" {
         return None;
@@ -476,6 +521,7 @@ pub async fn run(
     state_manager: Arc<Mutex<StateManager>>,
     commands: Arc<CommandTracker>,
     device_online: Arc<Mutex<HashMap<String, bool>>>,
+    app_version: Arc<Mutex<String>>,
     host: &str,
     port: u16,
 ) -> anyhow::Result<()> {
@@ -486,6 +532,7 @@ pub async fn run(
         state_manager,
         commands,
         device_online,
+        app_version,
     });
 
     let app = Router::new()
@@ -496,6 +543,7 @@ pub async fn run(
         .route("/api/v1/devices/{device_id}/actions", post(device_action))
         .route("/api/v1/scenes/{scene_id}/actions", post(scene_action))
         .route("/api/v1/events", get(events_stream))
+        .route("/api/system/app_version", post(set_app_version))
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind((host, port)).await?;
