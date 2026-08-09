@@ -203,7 +203,43 @@ Sau khi Release được tạo, mỗi board **tự tải về + cài đặt**:
 - **Engine:** kiểm tra mỗi `ota.check_interval` (giây) — mặc định 3600 (1 giờ).
 - **App HMI**: auto-check theo `ota_check_interval`, hoặc bấm nút **"Check for Update"** trên màn hình.
 
-### 6.2. Xem kết quả OTA trên board
+### 6.2. Kích hoạt OTA từ xa qua cloud (xsolar MQTT)
+
+Ngoài chu kỳ tự kiểm tra, hệ thống hỗ trợ **ép update từ xa** qua broker MQTT xsolar. Engine subscribe topic `{topic_prefix}/+/set` (mặc định `smarteos/bluCafe/+/set`) — `device_id = ota` là kênh điều khiển OTA:
+
+| Phía | Topic | Payload | Ý nghĩa |
+|------|-------|---------|---------|
+| Cloud → Engine | `smarteos/bluCafe/ota/set` | `{"action":"check"}` | Hỏi version hiện tại |
+| Cloud → Engine | `smarteos/bluCafe/ota/set` | `{"action":"update"}` | Ép update engine + app về bản mới nhất |
+| Engine → Cloud | `smarteos/bluCafe/ota` | `{"state":"check_result","engine":"1.2.6","app":"1.2.6","ts":"..."}` | Trả lời check |
+| Engine → Cloud | `smarteos/bluCafe/ota` | `{"state":"started","ts":"..."}` | Bắt đầu update |
+| Engine → Cloud | `smarteos/bluCafe/ota` | `{"state":"updated","engine":"1.2.6","app":"1.2.6","ts":"..."}` | Update xong, kèm version thực tế |
+| Engine → Cloud | `smarteos/bluCafe/ota` | `{"state":"error","message":"..."}` | Lỗi / action không hợp lệ |
+
+> `topic_prefix` lấy từ `xsolar.topic_prefix` trong `config/config.yaml` (mặc định `smarteos/bluCafe`). Lệnh `update` luôn đưa cả engine + app về bản "latest" trên GitHub; nếu đã mới nhất thì báo `updated` với version hiện tại, không khởi động lại.
+
+**Ví dụ phát lệnh (dùng `mosquitto_pub`):**
+
+```bash
+mosquitto_pub -h mqtt.xsolar.energy -u <user> -P <pass> \
+  -t "smarteos/bluCafe/ota/set" -m '{"action":"update"}' -q 1
+
+# Xem kết quả
+mosquitto_sub -h mqtt.xsolar.energy -u <user> -P <pass> \
+  -t "smarteos/bluCafe/ota" -q 0
+```
+
+**Cơ chế luồng update:**
+
+1. Engine nhận `{"action":"update"}` → publish trạng thái `started` lên cloud.
+2. Engine thông báo cho App LVGL qua **HTTP/SSE** (`/api/v1/events` — App không dùng MQTT trực tiếp).
+3. App tự chạy chuỗi OTA GitHub (check → download → verify → install → reboot).
+4. Engine tự update chính nó (check → download → verify → swap → restart service).
+5. Instance engine mới sau khi boot publish `updated` kèm version engine + app (app báo version qua `POST /api/system/app_version` mỗi khi boot / reconnect SSE).
+
+Khi App cập nhật thì board sẽ **reboot toàn bộ** (cả engine + app), `myapp` restart trong ~1 phút sau đó.
+
+### 6.3. Xem kết quả OTA trên board
 
 ```bash
 sudo journalctl -u bms-engine | grep -iE "ota|update|version"
@@ -211,7 +247,7 @@ sudo journalctl -u bms-engine | grep -iE "ota|update|version"
 
 Kết quả thành công sẽ hiển thị: `Update available: 1.1.0 -> 1.1.1`, `Installed new binary`, rồi engine khởi động lại với version mới.
 
-### 6.3. Lưu ý khi release
+### 6.4. Lưu ý khi release
 
 - Không dùng lại tag cũ: nếu release đã tồn tại cùng số, tăng minor/patch (VD `1.1.0` → `1.1.1`).
 - Cả hai workflow đã cấu hình sẵn `permissions: contents: write` để tải được asset lên Release.
@@ -237,7 +273,6 @@ Kết quả thành công sẽ hiển thị: `Update available: 1.1.0 -> 1.1.1`, 
 | `Rush_engine/build.sh` | Build engine arm/musl |
 | `Rush_engine/build_ota.sh <ver>` | Tạo gói `bms_v<ver>.tar.gz` + sidecar cục bộ |
 | `Rush_engine/deploy.sh` | Deploy engine lên board (cần root) |
-| `Rush_engine/deploy_ota.sh <ver>` | Gửi gói OTA lên server legacy (192.168.1.171) — không dùng khi chuyển sang GitHub |
 | `lvgl_project/build.sh` | Build LVGL App |
 
 ---

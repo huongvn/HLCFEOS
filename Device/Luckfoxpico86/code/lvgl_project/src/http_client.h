@@ -41,6 +41,10 @@ bool http_client_is_connected(void);
 
 void http_client_set_state_cb(http_state_cb_t cb);
 
+// Report the running app version to the engine (POST /api/system/app_version)
+// so cloud OTA "check"/"updated" replies include it. Best effort.
+void http_client_report_app_version(const char *version);
+
 // Fetch catalog + current states immediately (used to (re)build g_devices[]).
 // Returns true if the catalog was parsed successfully.
 bool http_fetch_catalog(void);

@@ -8,6 +8,7 @@ use tokio::sync::Mutex;
 
 use crate::device_manager::SharedDeviceManager;
 use crate::mqtt_client::MqttClient;
+use crate::ota::OtaCommand;
 use crate::state_manager::StateManager;
 
 pub struct XsolarBridge {
@@ -19,6 +20,11 @@ pub struct XsolarBridge {
     min_push_interval: f64,
     topic_prefix: String,
     site: String,
+    /// Latest app version reported by the LVGL panel via HTTP
+    /// (POST /api/system/app_version). Read to answer OTA "check".
+    app_version: Arc<Mutex<String>>,
+    /// Sender for cloud OTA commands, routed to the OTA coordinator in main.
+    ota_cmd_tx: tokio::sync::mpsc::UnboundedSender<OtaCommand>,
     /// In-memory cache of the last known state per device (zigbee addr ->
     /// label -> value). Written by the ingest fan-out, read by both the
     /// real-time push and the periodic 10-min snapshot push. Never reads DB.
@@ -33,6 +39,8 @@ impl XsolarBridge {
         device_manager: SharedDeviceManager,
         topic_prefix: String,
         site: String,
+        app_version: Arc<Mutex<String>>,
+        ota_cmd_tx: tokio::sync::mpsc::UnboundedSender<OtaCommand>,
     ) -> Self {
         Self {
             mqtt_local,
@@ -43,6 +51,8 @@ impl XsolarBridge {
             min_push_interval: 5.0,
             topic_prefix,
             site,
+            app_version,
+            ota_cmd_tx,
             cache: DashMap::new(),
         }
     }
@@ -58,7 +68,70 @@ impl XsolarBridge {
 
         if parts.len() == 4 && topic.starts_with(&self.topic_prefix) && parts[3] == "set" {
             let device_id = parts[2];
-            self.handle_remote_command(device_id, payload).await;
+            // Special virtual "device" for OTA control. Must be handled before
+            // the devices.yaml lookup below (it is not a real device).
+            if device_id == "ota" {
+                self.handle_ota_command(payload).await;
+            } else {
+                self.handle_remote_command(device_id, payload).await;
+            }
+        }
+    }
+
+    /// Handle cloud OTA commands on `{prefix}/ota/set`:
+    ///   {"action":"update"} -> trigger full OTA (engine + app via HTTP/SSE)
+    ///   {"action":"check"}  -> reply with current engine/app versions
+    async fn handle_ota_command(&self, payload: &Value) {
+        let cmd: Value = match payload {
+            Value::String(s) => match serde_json::from_str::<Value>(s) {
+                Ok(v) => v,
+                Err(_) => {
+                    warn!("Invalid JSON from xsolar OTA command: {}", s);
+                    return;
+                }
+            },
+            other => other.clone(),
+        };
+
+        let action = cmd.get("action").and_then(|a| a.as_str()).unwrap_or("");
+
+        match action {
+            "update" => {
+                info!("Cloud OTA command: update requested");
+                if self.ota_cmd_tx.send(OtaCommand::Update).is_err() {
+                    warn!("OTA command channel closed, ignoring update request");
+                }
+            }
+            "check" => {
+                info!("Cloud OTA command: check requested");
+                let engine_ver = std::fs::read_to_string("VERSION")
+                    .unwrap_or_else(|_| "0.0.0".to_string())
+                    .trim()
+                    .to_string();
+                let app_ver = self.app_version.lock().await.clone();
+                let payload = serde_json::json!({
+                    "state": "check_result",
+                    "engine": engine_ver,
+                    "app": app_ver,
+                    "ts": format!("{}+07:00", chrono::Local::now().format("%Y-%m-%dT%H:%M:%S")),
+                });
+                let topic = format!("{}/ota", self.topic_prefix);
+                self.mqtt_xsolar
+                    .publish_json(&topic, &payload, QoS::AtMostOnce, false)
+                    .await;
+                info!("OTA check reply published to {}", topic);
+            }
+            other => {
+                warn!("Unknown OTA action: {}", other);
+                let payload = serde_json::json!({
+                    "state": "error",
+                    "message": format!("unknown action: {}", other),
+                });
+                let topic = format!("{}/ota", self.topic_prefix);
+                self.mqtt_xsolar
+                    .publish_json(&topic, &payload, QoS::AtMostOnce, false)
+                    .await;
+            }
         }
     }
 

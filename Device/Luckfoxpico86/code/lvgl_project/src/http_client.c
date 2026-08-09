@@ -1,5 +1,6 @@
 #include "src/http_client.h"
 #include "src/bms.h"
+#include "src/ota.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -523,6 +524,10 @@ static void *http_sse_thread(void *arg)
         g_connected = true;
         printf("[HTTP] SSE connected to %s:%d/api/v1/events\n", HTTP_API_HOST, HTTP_API_PORT);
 
+        /* Report app version on every (re)connect — the engine may have been
+         * restarted (OTA) and needs the version for cloud "check"/"updated". */
+        http_client_report_app_version(APP_VERSION);
+
         int ok = 1;
         while (g_sse_running && ok) {
             int n = lr_read_line(&lr, line, sizeof(line));
@@ -538,6 +543,20 @@ static void *http_sse_thread(void *arg)
 
             const char *json = line + 5;
             while (*json == ' ') json++;
+
+            /* OTA control events carry no device_id; pass them straight to
+             * the OTA module. Shape: {"event":"OTA_UPDATE","action":"update"} */
+            char ev_name[32];
+            if (json_get(json, "event", ev_name, sizeof(ev_name)) == 0 &&
+                strcmp(ev_name, "OTA_UPDATE") == 0) {
+                char action[16] = "update";
+                json_get(json, "action", action, sizeof(action));
+                printf("[HTTP] SSE OTA_UPDATE action=%s\n", action);
+                if (strcmp(action, "update") == 0) {
+                    ota_auto_update_now();
+                }
+                continue;
+            }
 
             sse_event_t ev;
             memset(&ev, 0, sizeof(ev));
@@ -565,6 +584,10 @@ static void *http_sse_thread(void *arg)
 
 void http_client_init(void)
 {
+    // Report the running app version to the engine so cloud OTA "check" and
+    // "updated" replies include it. Best effort (no-op if engine is down).
+    http_client_report_app_version(APP_VERSION);
+
     // Fetch catalog -> build/refresh g_devices[]. If engine temporarily down,
     // fallback (hardcoded defaults) is left to bms_init().
     bool catalog_ok = http_fetch_catalog();
@@ -661,6 +684,25 @@ bool http_client_is_connected(void)
 void http_client_set_state_cb(http_state_cb_t cb)
 {
     g_state_cb = cb;
+}
+
+void http_client_report_app_version(const char *version)
+{
+    if (!version || version[0] == '\0') return;
+
+    char body[96];
+    snprintf(body, sizeof(body), "{\"app_version\":\"%s\"}", version);
+
+    int status = 0;
+    char *resp = http_request("POST", "/api/system/app_version", body, &status);
+    if (resp) {
+        if (status == 200) {
+            printf("[HTTP] reported app version %s\n", version);
+        } else {
+            printf("[HTTP] report app version failed (%d): %s\n", status, resp);
+        }
+        free(resp);
+    }
 }
 
 void http_client_cleanup(void)

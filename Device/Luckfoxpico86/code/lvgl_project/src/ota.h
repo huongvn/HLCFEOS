@@ -49,6 +49,13 @@ void ota_install_now(void);
 ota_status_t* ota_get_status(void);
 
 /**
+ * Full auto-update chain (no button presses): check -> download -> install.
+ * Triggered by the engine over HTTP/SSE (cloud OTA command). No-op if the
+ * manual flow is already running.
+ */
+void ota_auto_update_now(void);
+
+/**
  * Health check signal (Call this after successful boot)
  */
 void ota_signal_success(void);

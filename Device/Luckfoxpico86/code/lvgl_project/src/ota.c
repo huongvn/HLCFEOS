@@ -7,6 +7,7 @@
 #include <time.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <pthread.h>
 
 #define GH_API_TMP   "/tmp/gh_release.json"
 #define APP_NEW_PATH  "/home/pico/app_new"
@@ -24,6 +25,8 @@ static ota_status_t g_ota_status = {
 
 static char g_download_url[512] = "";
 static char g_sha_url[512] = "";
+
+static volatile bool g_auto_install = false;
 
 static void ota_update_progress(int progress);
 
@@ -324,6 +327,12 @@ static void ota_update_progress(int progress) {
         if (verify_downloaded_file() == 0) {
             g_ota_status.state = OTA_STATE_READY_TO_INSTALL;
             strncpy(g_ota_status.message, "Ready to install", sizeof(g_ota_status.message));
+            /* Cloud/auto-triggered chain: install immediately without waiting
+             * for a button press. Runs on the LVGL timer thread; install
+             * swaps the binary and reboots, same as the manual path. */
+            if (g_auto_install) {
+                ota_install_now();
+            }
         } else {
             unlink(SHA_TMP);
             g_ota_status.state = OTA_STATE_FAILED;
@@ -367,4 +376,22 @@ void ota_signal_success(void) {
     printf("[OTA] Health check success at boot. New binary is running.\n");
     /* Old backup no longer needed. */
     unlink(APP_BACKUP);
+}
+
+void ota_auto_update_now(void) {
+    /* Chain: check -> download -> install without manual button presses.
+     * Ignored while a manual flow is already running. */
+    if (g_ota_status.state != OTA_STATE_IDLE && g_ota_status.state != OTA_STATE_FAILED) {
+        printf("[OTA] auto-update skipped: busy in state %d\n", g_ota_status.state);
+        return;
+    }
+    g_auto_install = true;
+    printf("[OTA] Auto-update requested (cloud/SSE) - checking...\n");
+    ota_check_now();
+    if (g_ota_status.state == OTA_STATE_AVAILABLE) {
+        printf("[OTA] Auto-update: download %s\n", g_ota_status.new_version);
+        ota_start_download();
+    } else {
+        g_auto_install = false;
+    }
 }
