@@ -75,14 +75,33 @@
 
 | Parameter | Raw mẫu | Ý nghĩa | Ghi chú cho code agent |
 |---|---|---|---|
-| `Power` | 0 | Công suất tức thời (đơn lẻ, không kèm bộ đầy đủ RMS/PF) | Xuất hiện riêng lẻ trong log (VD: `00:23:17`), khả năng cao đến từ cluster **Metering (0x0702)** attribute `InstantaneousDemand`, khác nguồn với `ActivePower` (cluster 0x0B04). Nên xử lý như key riêng, KHÔNG gộp chung logic với `ActivePower`. |
+| `Power` | 0 | Công suất tức thời (đơn lẻ, không kèm bộ đầy đủ RMS/PF) | Xuất hiện riêng lẻ trong log (VD: `00:23:17`), đến từ cluster **Metering (0x0702)** attribute `InstantaneousDemand` (0x0400), khác nguồn với `ActivePower` (cluster 0x0B04). Nên xử lý như key riêng, KHÔNG gộp chung logic với `ActivePower`. Cùng cluster với điện năng kWh ở mục 7. |
 | `Device` | `"0x4BAD"` | Short address Zigbee của thiết bị | Định danh duy nhất trong mạng, có thể đổi nếu re-pair |
 | `Endpoint` | 1 | Zigbee endpoint | Cố định = 1 cho model này |
 | `LinkQuality` | 0–255 (log thấy 16–160+) | Chất lượng liên kết (LQI) | Không phải RSSI (dBm); giá trị càng cao càng tốt |
 
 ---
 
-## 7. Bảng tổng hợp nhanh — hệ số quy đổi (dùng để code parser 1 lần)
+## 7. Điện năng tiêu thụ (kWh) — Cluster Metering (0x0702)
+
+Ngoài cluster đo công suất tức thời `0x0B04` (Electrical Measurement), thiết bị còn hỗ trợ cluster **Metering (0x0702)** theo **Zigbee Cluster Library (ZCL) Specification** (CSA/Connectivity Standards Alliance) để báo **điện năng tích lũy (cumulative, không reset)**. Đây là nguồn dữ liệu cho "số điện đã dùng" của power meter.
+
+| Parameter (JSON key) | Attribute ID (cluster 0x0702) | Kiểu dữ liệu (ZCL) | Hệ số | Đơn vị | Ý nghĩa |
+|---|---|---|---|---|---|
+| `CurrentSummationDelivered` | 0x0000 | uint48 | ×0.01 (theo `SummationFormatting`) | kWh | Tổng điện năng đã tiêu thụ (delivered) từ trước đến nay — giá trị tích lũy, KHÔNG reset |
+| `CurrentSummationReceived` | 0x0001 | uint48 | ×0.01 | kWh | Tổng điện năng nhận vào (received) — dùng khi có bán điện ngược / pin |
+| `InstantaneousDemand` | 0x0400 | int24 | ÷1 | W | Công suất tức thời — chính là field `Power` ở mục 6 |
+
+> **Quy đổi kWh:** giá trị raw là **uint48**, đơn vị thực tế quyết định bởi attribute `UnitOfMeasure` (0x0300) và số chữ số thập phân `SummationFormatting` (0x0301). Với thiết bị này log cho thấy 2 chữ số thập phân → hệ số **×0.01**: raw `12345` = `123.45 kWh`. Đúng đặc tả ZCL (chương 10.4 Metering), tương đương các triển khai NXP/Espressif/SmartThings.
+
+**Lưu ý cho code agent:**
+- `CurrentSummationDelivered` thường gửi chung trong log với `Power`/`InstantaneousDemand` (cùng cluster 0x0702), nhưng cũng có thể xuất hiện trong bản tin `Electrical Measurement` — gộp theo rule mục 8 (split payload) như nhau.
+- Đây là bộ đếm tích lũy → lưu dạng counter/absolute, **không trừ chênh lệch** khi hiển thị "số điện đã dùng"; tính tiêu thụ trong kỳ (VD tháng) thì lấy `value(t2) − value(t1)`.
+- Trong `devices.yaml` của dự án, field này khai báo với `id: "CurrentSummationDelivered"`, `label: "Total Energy"`, `unit: "kWh"`, `scale: 0.01`, `xsolar_key: "total_energy"`.
+
+---
+
+## 8. Bảng tổng hợp nhanh — hệ số quy đổi (dùng để code parser 1 lần)
 
 ```
 SCALE_MAP = {
@@ -101,12 +120,15 @@ SCALE_MAP = {
   "ReactivePower": 1, "ReactivePowerPhB": 1, "ReactivePowerPhC": 1, "TotalReactivePower": 1,
   "ApparentPower": 1, "ApparentPowerPhB": 1, "ApparentPowerPhC": 1, "TotalApparentPower": 1,
   "Power": 1,
+  # Điện năng tích lũy (kWh) — cluster Metering 0x0702
+  "CurrentSummationDelivered": 0.01,
+  "CurrentSummationReceived": 0.01,
 }
 ```
 
 ---
 
-## 8. ⚠️ Bản tin bị chia làm 2 (split payload) — quan trọng cho code agent
+## 9. ⚠️ Bản tin bị chia làm 2 (split payload) — quan trọng cho code agent
 
 Trong log dài hơn, cả `0x4BAD` và `0x51DF` đôi lúc gửi bộ 22 thuộc tính **không nằm trọn trong 1 message**, mà bị tách thành 2 bản tin liên tiếp (cách nhau ~0.5–1s), do giới hạn kích thước payload của khung Zigbee ZCL Report Attributes.
 
@@ -130,7 +152,7 @@ Message 1 thiếu toàn bộ Pha C và nửa sau Pha B; Message 2 bổ sung ph�
 
 ---
 
-## 9. Ví dụ decode đầy đủ 1 bản tin (0x51DF, 00:10:36)
+## 10. Ví dụ decode đầy đủ 1 bản tin (0x51DF, 00:10:36)
 
 **Raw JSON:**
 ```json
